@@ -637,6 +637,59 @@ function template(s, title) {
   return out.trim() ? out : DEFAULT_TEMPLATE;
 }
 
+// ---- Prompts -----------------------------------------------------------------------------------
+
+// An item as a prompt to paste into a coding agent's session in the project: its file, fields,
+// what it waits on, unblocks and relates to, any problems, and its text. Paths are relative to the
+// project, so the prompt works in any session there.
+export function itemPrompt(s, slug) {
+  const item = s.bySlug.get(slug);
+  if (!item) throw new Error(`there's no item called ${slug}`);
+  const path = (file) => `${s.dir}/${file}`;
+  const list = (heading, slugs) => slugs.length ? [`${heading}:`, ...slugs.map((x) => {
+    const other = s.bySlug.get(x);
+    if (!other) return `- ${x} (no such item)`;
+    return `- ${other.title} (${path(other.file)}${other.fields.status ? `, status: ${other.fields.status}` : ""})`;
+  }), ""] : [];
+  const fields = [
+    ...Object.entries(item.fields).map(([name, value]) => `${name}: ${value}`),
+    item.weight && `weight: ${item.weight}`,
+  ].filter(Boolean);
+  const problems = s.problems.filter((p) => p.slug === item.slug).map((p) => `- ${p.message}`);
+  const fence = "`".repeat(Math.max(3, ...[...item.body.matchAll(/`+/g)].map((m) => m[0].length + 1)));
+  const where = indexRows(s).some((r) => r.slug === item.slug)
+    ? `in its front matter and its row in ${path(s.index)}` : "in its front matter";
+  const keep = [
+    s.active.length && `to ${s.active[0]} when you start`,
+    s.done.length && `to ${s.done[0]} when it's finished`,
+  ].filter(Boolean);
+
+  return [
+    `Work on this item from the backlog: ${item.title}`,
+    "",
+    `File: ${path(item.file)}`,
+    ...(fields.length ? [`Fields: ${fields.join(", ")}`] : []),
+    ...(item.tags.length ? [`Tags: ${item.tags.join(", ")}`] : []),
+    ...(item.branches.length ? [`Branches: ${item.branches.join(", ")}`] : []),
+    "",
+    ...(item.blockers.length
+      ? [`It waits on ${item.blockers.length === 1 ? "an unfinished item" : `${item.blockers.length} unfinished items`}. Tell me before you start on it anyway.`, ""]
+      : []),
+    ...list("Depends on", item.dependsOn),
+    ...list("Unblocks", item.dependents),
+    ...list("Related", item.related),
+    ...(problems.length ? ["Problems the board found in it:", ...problems, ""] : []),
+    `The item (its links are relative to ${s.dir}):`,
+    "",
+    `${fence}markdown`,
+    item.body,
+    fence,
+    ...(keep.length && "status" in item.fields
+      ? ["", `Keep it current as you work: set status ${keep.join(" and ")}, ${where}.`]
+      : []),
+  ].join("\n") + "\n";
+}
+
 // ---- Links and editors -------------------------------------------------------------------------
 
 // A path inside the backlog folder, resolved: "../music.md" from /p/docs/backlog is /p/docs/music.md.

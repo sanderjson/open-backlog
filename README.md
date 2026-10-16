@@ -127,8 +127,12 @@ an index that disagrees with the items. These appear in a panel at the top and o
   nothing else.
 - **Links**: links to other items open them on the board, links to other files open in your
   editor, and links to the web open in a new tab.
+- **Copy as prompt**: the button in an item's sheet copies the item for a coding agent's
+  session in the project: its file, fields, what it waits on, unblocks and relates to, any
+  problems, its text, and how to keep its status current. Paste it into the agent and add your
+  own instructions. `itemPrompt` in `core.js` builds it.
 - **Keys**: `/` search, `n` new item, `b` board, `l` list, `j`/`k` next and previous item, `e`
-  open in editor, `Esc` close, `?` all of them.
+  open in editor, `c` copy as prompt, `Esc` close, `?` all of them.
 - Light and dark follow the system. The theme button overrides it, per browser.
 
 ## Updating a project's copy
