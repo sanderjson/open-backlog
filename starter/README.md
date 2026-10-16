@@ -10,7 +10,7 @@ the backlog board shows them as a board or a list (see `backlog.yml` for its set
 | `title` | short name |
 | `status` | `idea`, `ready` (discussed, ready to plan), `in-progress`, `parked` (decided, waiting), `done` |
 | `priority` | `high`, `mid`, `low` |
-| `type` | `build`, `spike` (time-boxed research that ends in a decision), `discuss` (needs a decision first) |
+| `type` | `build`, `spike` (time-boxed research that ends in a decision), `discuss` (needs a decision first), `epic` (an item that lists others) |
 | `area` | free |
 | `weight` | positive whole number: the work order, smallest first |
 | `tags` | free list |
@@ -18,11 +18,16 @@ the backlog board shows them as a board or a list (see `backlog.yml` for its set
 | `created` | date |
 | `depends_on` | item file names (without `.md`) that should come first |
 | `related` | item file names worth reading alongside |
+| `items` | epics only: the item file names it groups, in the order to work through them |
 
-To add an item, use the board's New item, or copy `_template.md` and add a row below.
+To add an item, use the board's New item, or copy `_template.md` and add a row below. An item
+with an `items` list is an epic: the board shows how far it has got and copies it, with its items
+in work order, as one prompt for an agent.
 
 ## Items
 
 | Item | Type | Priority | Status |
 |---|---|---|---|
+| [Adopt the backlog](adopt-the-backlog.md) | epic | high | in-progress |
 | [Set up the backlog](set-up-the-backlog.md) | build | high | in-progress |
+| [Move the project's ideas into the backlog](move-ideas-in.md) | build | mid | idea |

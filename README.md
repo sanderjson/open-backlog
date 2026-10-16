@@ -18,7 +18,7 @@ folder. That takes a few lines in any language, so an agent can wire it into any
 | `web/board.js`, `web/board.css` | The page's behaviour and look. Everything is scoped under `.bb`. |
 | `web/core.js` | Reading, checking and planning edits to the backlog, with no page. |
 | `web/vendor/` | [marked](https://github.com/markedjs/marked) 18.0.13 and [js-yaml](https://github.com/nodeca/js-yaml) 5.4.2, with their MIT licences. |
-| `starter/` | A backlog for a project that has none: `backlog.yml`, a README index, a template and one item. |
+| `starter/` | A backlog for a project that has none: `backlog.yml`, a README index, a template, and an epic with two items. |
 | `PROMPT.md` | Instructions for an agent adding the board to a project. |
 | `test/` | Tests for `core.js`: `node --test test/` (Node 22 or later). |
 | `LICENSE` | MIT: use it, change it, ship it. |
@@ -85,12 +85,13 @@ related: []
 One palette drives every screen.
 ```
 
-- `title`, `weight`, `created`, `tags`, `branches`, `depends_on` and `related` are the board's
-  own fields. Every other key with a single value (`status`, `priority`, `type`, `area` or
-  your own) is a **choice field**: a filter, a board grouping and a select in the item.
+- `title`, `weight`, `created`, `tags`, `branches`, `depends_on`, `related` and `items` are the
+  board's own fields. Every other key with a single value (`status`, `priority`, `type`, `area`
+  or your own) is a **choice field**: a filter, a board grouping and a select in the item.
 - `weight` is the work order, smallest first. Ties go to priority, then title.
 - `depends_on` makes an item wait until those items are done. "Can start" shows the open
   items that wait on nothing.
+- `items` makes the item an epic: see [Epics](#epics).
 - Files starting with `_` or `.` aren't items. `_template.md` is the body for new items, with
   `{{title}}` replaced.
 
@@ -113,33 +114,110 @@ table per area, under their area.
 ### What the board reports
 
 A value `backlog.yml` doesn't allow, a strict field left empty, a weight that isn't a positive
-whole number, a link to no item, a dependency loop, a file without front matter or a title, and
-an index that disagrees with the items. These appear in a panel at the top and on each item.
+whole number, a link to no item, a dependency loop, a file without front matter or a title, an
+index that disagrees with the items, and an epic whose list or status doesn't add up (see
+[Epics](#epics)). These appear in a panel at the top and on each item, with suggestions (things
+worth a look, not mistakes) after the problems.
+
+## Epics
+
+An epic is an item that lists other items: work that belongs together and is worked through as
+one, often in one session with a coding agent. It needs no new kind of file:
+
+```markdown
+---
+title: Checkout v2
+status: in-progress
+type: epic            # optional: a value you add to your own type list
+weight: 1
+items: [cart-rules, payment-retry, receipt-email, checkout-copy]
+depends_on: []
+---
+
+# Checkout v2
+
+## Why
+One checkout for web and app.
+
+## Acceptance
+- A customer pays on the phone, a failed card retries, and the receipt arrives.
+```
+
+- **Any item with an `items` list is an epic.** Nothing in `backlog.yml` turns epics on, and
+  `type` stays yours.
+- `items` is ordered. Where dependencies don't decide the order, the list does.
+- An item may be in more than one epic. An epic can't contain an epic: the board reports that
+  as a problem rather than nesting them.
+- Items keep their own `depends_on`. The epic groups them; it doesn't replace dependencies.
+- People set an epic's status, and the board never changes it. It only points out a mismatch:
+  an epic marked done while items in it are open is a problem, and every item done while the
+  epic isn't gets a suggestion.
+- The board also reports a slug in `items` that's no item, an epic listing itself, and an item
+  listed twice.
+
+**Work order.** An epic's items come in work order: each after the items it depends on in the
+epic, and otherwise as early as its place in `items` allows. The first item and what it needs
+come first, then the second, and so on. A dependency loop is reported as usual and doesn't stop
+the order.
+
+**On the board**
+
+- An epic's card sits in its status column like any item, with a stack of cards behind it and a
+  bar with a segment for each item, coloured by its status, then how many are done.
+- An epic's sheet shows its progress, **Next up** (the first item that can start now), its items
+  in work order with their status and what each waits on, and the unfinished items outside the
+  epic that hold it up. It has **New item in this epic** and **Show on the board**.
+- An item's sheet has an **Epics** row: each epic it's in opens the epic, its × takes the item
+  out, and **Add to epic** adds it to the end of another epic's list. These rewrite only the
+  epic's `items`, keeping the list's style (`[a, b]` or a `- a` line per item).
+- The **Epic** filter (`Shift E`) shows only an epic's items, with the epic itself first. It's
+  in the address as `?epic=<slug>`. The list view has an Epic column.
+- Sorting and the index's tables treat an epic as an ordinary item: it's a row like any other.
+
+**Copy epic as prompt.** On an epic, **Copy epic as prompt** (or `c`) copies one brief for a
+coding agent working in the project. It holds:
+
+- the epic's file and its whole text, which is where its goal and end-to-end acceptance live;
+- its items in work order, each with its file, status, priority, weight, what it waits on
+  (marking what's outside the epic) and any problems;
+- what holds the epic up from outside;
+- how to work: read each item's file before starting it, follow the work order unless an item
+  says otherwise, keep each item's status current in its front matter and its index row, set
+  the epic in progress when starting, mark it done only when every item is done and its own
+  acceptance holds, and stop to ask about any open question an item lists.
+
+It points to the items' files rather than pasting them, so the brief stays short and the agent
+reads each file when it gets there. `epicPrompt` in `core.js` builds it, and `epicOrder`,
+`epicProgress`, `epicsOf`, `planAddToEpic` and `planRemoveFromEpic` are there too.
+
+Epics are ordinary item files, so they need nothing from the host.
 
 ## Using the board
 
 - **Board or list**: group the board by any choice field; sort the list by any column.
-- **Filters**: search (titles, text, tags), each field, a tag, "Can start" and "Hide closed".
-  The stats at the top are filters too. Everything you pick is in the address, so a view can
-  be bookmarked.
+- **Filters**: search (titles, text, tags), each field, an epic, a tag, "Can start" and "Hide
+  closed". The stats at the top are filters too. Everything you pick is in the address, so a
+  view can be bookmarked.
 - **Edit**: change an item's weight and fields in its sheet, drag a card to another column, or
   add a **New item**. Each edit rewrites that line of front matter and the item's index row,
   nothing else.
 - **Links**: links to other items open them on the board, links to other files open in your
   editor, and links to the web open in a new tab.
 - **Copy as prompt**: the button in an item's sheet copies the item for a coding agent's
-  session in the project: its file, fields, what it waits on, unblocks and relates to, any
-  problems, its text, and how to keep its status current. Paste it into the agent and add your
-  own instructions. `itemPrompt` in `core.js` builds it.
-- **Keys**: `/` search, `n` new item, `b` board, `l` list, `j`/`k` next and previous item, `e`
-  open in editor, `c` copy as prompt, `Esc` close, `?` all of them.
+  session in the project: its file, fields, what it waits on, unblocks and relates to, its
+  epics, any problems, its text, and how to keep its status current. Paste it into the agent
+  and add your own instructions. `itemPrompt` in `core.js` builds it. On an epic, the button
+  copies the whole epic instead (see [Epics](#epics)).
+- **Keys**: `/` search, `n` new item, `b` board, `l` list, `Shift E` epic filter, `j`/`k` next
+  and previous item, `e` open in editor, `c` copy as prompt, `Esc` close, `?` all of them.
 - Light and dark follow the system. The theme button overrides it, per browser.
 
 ## Updating a project's copy
 
 Projects keep a copy of `web/` at a tagged version (see PROMPT.md). To update, replace the
 folder with the newer tag's `web/` and change the recorded version. The two routes don't change
-within a major version.
+within a major version. v0.2.0 (epics) needs nothing new from hosts. The only thing it can break
+is a choice field called `items`, which is now the board's own.
 
 ## Licence
 

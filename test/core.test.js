@@ -1,6 +1,7 @@
 // node --test test/
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
 import * as core from "../web/core.js";
 
 // A small backlog: `palette` (high, idea, nothing before it), `logo` (high, idea, waits on
@@ -145,6 +146,237 @@ test("an item copies as a prompt for an agent", () => {
   const fenced = load({ ...files(), "logo.md": files()["logo.md"] + "\n```sh\nmake logo\n```\n" });
   assert.match(core.itemPrompt(fenced, "logo"), /\n````markdown\n[\s\S]*```sh\nmake logo\n```\n````\n/);
   assert.throws(() => core.itemPrompt(s, "missing"), /no item called missing/);
+});
+
+// The small backlog plus an epic, `checkout`, listing six items in its own order: `receipt-email`
+// first, though it waits on `payment-retry`, which waits on `cart-rules` (done). `refund-page` can
+// start, `checkout-copy` waits on `palette` outside the epic, and `apple-pay` is parked.
+const epicFiles = () => {
+  const f = files();
+  f["README.md"] += "\n### Checkout\n\n| Item | Priority | Status |\n|---|---|---|\n";
+  const add = (slug, title, front, body = "") => {
+    f[`${slug}.md`] = `---\ntitle: ${title}\npriority: mid\narea: ops\n${front}\n---\n\n# ${title}\n\n${body}`;
+    f["README.md"] += `| [${title}](${slug}.md) | mid | ${/status: (\S+)/.exec(front)[1]} |\n`;
+  };
+  add("checkout", "Checkout v2", "status: in-progress\nweight: 1\nitems: [receipt-email, cart-rules, payment-retry, refund-page, checkout-copy, apple-pay]",
+    "## Why\nOne checkout for web and app.\n\n## Acceptance\n- A customer pays, a failed payment retries, and a receipt arrives.\n");
+  add("cart-rules", "Cart rules", "status: done\nweight: 3");
+  add("payment-retry", "Payment retry", "status: in-progress\ndepends_on: [cart-rules]");
+  add("receipt-email", "Receipt email", "status: idea\ndepends_on: [payment-retry]", "## Open questions\n- Plain text or HTML?\n");
+  add("refund-page", "Refund page", "status: idea");
+  add("checkout-copy", "Checkout copy", "status: ready\ndepends_on: [palette]");
+  add("apple-pay", "Apple Pay", "status: parked");
+  return f;
+};
+
+// Replaces the checkout epic's list (and any other front matter line) in a copy of the files.
+const withFront = (f, slug, name, value) => ({ ...f, [`${slug}.md`]: core.setFront(f[`${slug}.md`], name, value) });
+
+test("an item that lists items is an epic", () => {
+  const s = load(epicFiles());
+  const checkout = s.bySlug.get("checkout");
+  assert.deepEqual(checkout.items, ["receipt-email", "cart-rules", "payment-retry", "refund-page", "checkout-copy", "apple-pay"]);
+  assert.equal(core.isEpic(checkout), true);
+  assert.equal(core.isEpic(s.bySlug.get("cart-rules")), false);
+  assert.equal(checkout.fields.items, undefined, "items isn't a choice field");
+  assert.deepEqual(s.problems.map((p) => p.slug), ["backups"]); // the fixture's own stale row
+
+  const f = epicFiles();
+  f["solo.md"] = "---\ntitle: Solo\nitems: refund-page\n---\n";
+  f["empty.md"] = "---\ntitle: Empty\nitems: []\n---\n";
+  const t = load(f);
+  assert.deepEqual(t.bySlug.get("solo").items, ["refund-page"]);
+  assert.equal(core.isEpic(t.bySlug.get("empty")), false);
+
+  const reserved = load({ ...epicFiles(), "backlog.yml": "fields:\n  status: []\n  items: []\n" });
+  assert.equal(reserved.problems[0].message, "backlog.yml: items can't be a choice field");
+});
+
+test("an item knows its epics, in title order", () => {
+  const f = epicFiles();
+  f["alpha.md"] = "---\ntitle: Alpha launch\nstatus: idea\npriority: low\narea: ops\nitems: [cart-rules]\n---\n";
+  const s = load(f);
+  assert.deepEqual(core.epicsOf(s, "cart-rules").map((e) => e.slug), ["alpha", "checkout"]);
+  assert.deepEqual(core.epicsOf(s, "refund-page").map((e) => e.slug), ["checkout"]);
+  assert.deepEqual(core.epicsOf(s, "palette"), []);
+  assert.deepEqual(core.epicsOf(s, "checkout"), []);
+});
+
+test("an epic's work order puts dependencies first, then follows its list", () => {
+  const s = load(epicFiles());
+  assert.deepEqual(core.epicOrder(s, "checkout").order.map((i) => i.slug),
+    ["cart-rules", "payment-retry", "receipt-email", "refund-page", "checkout-copy", "apple-pay"]);
+
+  // Where dependencies don't decide, the list does: the first item and what it needs come first,
+  // so `launch` (listed first) comes before `analytics`, right after what it waits on.
+  const f = epicFiles();
+  f["backlog.yml"] += "index: none\n";
+  const item = (slug, deps = "[]") => `---\ntitle: ${slug}\nstatus: idea\npriority: low\narea: ops\ndepends_on: ${deps}\n---\n`;
+  Object.assign(f, {
+    "site.md": "---\ntitle: Site\nstatus: idea\npriority: low\narea: ops\nitems: [launch, analytics, copy, design]\n---\n",
+    "launch.md": item("launch", "[design, copy]"), "analytics.md": item("analytics"), "copy.md": item("copy"), "design.md": item("design"),
+  });
+  assert.deepEqual(core.epicOrder(load(f), "site").order.map((i) => i.slug), ["copy", "design", "launch", "analytics"]);
+
+  // A loop can't be ordered: each item still comes once, and only the loop check reports it.
+  f["copy.md"] = item("copy", "[launch]");
+  const looped = load(f);
+  assert.deepEqual(core.epicOrder(looped, "site").order.map((i) => i.slug).sort(), ["analytics", "copy", "design", "launch"]);
+  assert.deepEqual(looped.problems.map((p) => p.message), ["its dependencies go round in a loop: copy → launch → copy"]);
+});
+
+test("an epic lists what holds it up from outside", () => {
+  const s = load(epicFiles());
+  const { outside, missing } = core.epicOrder(s, "checkout");
+  assert.deepEqual(outside.map(({ item, waiting }) => [item.slug, waiting.map((w) => w.slug)]), [["palette", ["checkout-copy"]]]);
+  assert.deepEqual(missing, []);
+
+  // Once palette is done nothing holds it up; a finished item's own dependencies don't count.
+  const done = load(withFront(withFront(epicFiles(), "palette", "status", "done"), "cart-rules", "depends_on", ["logo"]));
+  assert.deepEqual(core.epicOrder(done, "checkout").outside, []);
+});
+
+test("an epic's progress counts its items by stage", () => {
+  const s = load(epicFiles());
+  const { next, ...counts } = core.epicProgress(s, "checkout");
+  assert.deepEqual(counts, { total: 6, done: 1, setAside: 1, active: 1, ready: 1, blocked: 2, other: 0 });
+  assert.equal(next.slug, "refund-page");
+
+  const f = withFront(epicFiles(), "refund-page", "status", "in-progress");
+  const busy = core.epicProgress(load(f), "checkout");
+  assert.equal(busy.next, null);
+  assert.equal(busy.active, 2);
+  assert.throws(() => core.epicProgress(s, "nope"), /no item called nope/);
+});
+
+test("epics report what doesn't add up", () => {
+  const f = withFront(epicFiles(), "checkout", "items", ["receipt-email", "ghost", "checkout", "alpha", "refund-page", "refund-page"]);
+  f["alpha.md"] = "---\ntitle: Alpha launch\nstatus: idea\npriority: low\narea: ops\nitems: [cart-rules]\n---\n";
+  const messages = load(f).problems.filter((p) => p.slug === "checkout").map((p) => p.message);
+  assert.deepEqual(messages, [
+    "items names ghost, which isn't an item",
+    "items names the epic itself",
+    "items names alpha, which is an epic: epics can't contain epics",
+    "items names refund-page twice",
+  ]);
+
+  const done = load(withFront(epicFiles(), "checkout", "status", "done")).problems.filter((p) => p.slug === "checkout");
+  assert.deepEqual(done.map((p) => p.message), [
+    "it's done, but 4 of its 6 items aren't done or closed: receipt-email, payment-retry, refund-page, checkout-copy",
+    "README.md's index says status in-progress, the item says done",
+  ]);
+  assert.ok(done.every((p) => !p.notice));
+});
+
+test("an epic whose items are all done gets a suggestion, not a problem", () => {
+  let f = epicFiles();
+  for (const slug of ["payment-retry", "receipt-email", "refund-page", "checkout-copy", "apple-pay"]) f = withFront(f, slug, "status", "done");
+  const notes = load(f).problems.filter((p) => p.slug === "checkout");
+  assert.deepEqual(notes, [{ slug: "checkout", message: "every item in it is done: set it to done once its own acceptance holds", notice: true }]);
+
+  const parked = load(withFront(f, "apple-pay", "status", "parked")).problems.filter((p) => p.slug === "checkout");
+  assert.equal(parked[0].message, "every item in it is done or closed: set it to done once its own acceptance holds");
+
+  // Done, and the index row says so too: nothing left to say.
+  const closed = withFront(f, "checkout", "status", "done");
+  closed["README.md"] = closed["README.md"].replace("| [Checkout v2](checkout.md) | mid | in-progress |", "| [Checkout v2](checkout.md) | mid | done |");
+  assert.deepEqual(load(closed).problems.filter((p) => p.slug === "checkout"), []);
+});
+
+test("adding to and removing from an epic writes only the epic's file", () => {
+  const s = load(epicFiles());
+  const add = core.planAddToEpic(s, "checkout", "palette");
+  assert.deepEqual(Object.keys(add), ["checkout.md"]);
+  assert.match(add["checkout.md"], /^items: \[receipt-email, cart-rules, payment-retry, refund-page, checkout-copy, apple-pay, palette\]$/m);
+  assert.deepEqual(core.planAddToEpic(s, "checkout", "refund-page"), {}, "adding twice changes nothing");
+
+  const remove = core.planRemoveFromEpic(s, "checkout", "payment-retry");
+  assert.match(remove["checkout.md"], /^items: \[receipt-email, cart-rules, refund-page, checkout-copy, apple-pay\]$/m);
+  assert.deepEqual(core.planRemoveFromEpic(s, "checkout", "palette"), {});
+  assert.equal(remove["checkout.md"].replace(/^items:.*$/m, ""), epicFiles()["checkout.md"].replace(/^items:.*$/m, ""), "nothing else changes");
+
+  assert.throws(() => core.planAddToEpic(s, "checkout", "checkout"), /can't list itself/);
+  assert.throws(() => core.planAddToEpic(s, "checkout", "ghost"), /no item called ghost/);
+  const f = { ...epicFiles(), "alpha.md": "---\ntitle: Alpha launch\nstatus: idea\npriority: low\narea: ops\nitems: [palette]\n---\n" };
+  assert.throws(() => core.planAddToEpic(load(f), "checkout", "alpha"), /alpha is an epic/);
+  assert.throws(() => core.planAddToEpic(load(f), "refund-page", "logo"), /refund-page is in the epic checkout/);
+
+  // Any other item can start a list, and the last item out leaves an empty one: no longer an epic.
+  assert.match(core.planAddToEpic(s, "palette", "logo")["palette.md"], /\nitems: \[logo\]\n---\n/);
+  const solo = load(withFront(epicFiles(), "checkout", "items", ["refund-page"]));
+  assert.match(core.planRemoveFromEpic(solo, "checkout", "refund-page")["checkout.md"], /^items: \[\]$/m);
+});
+
+test("a list keeps its style when it changes", () => {
+  const block = "---\r\ntitle: Checkout\r\nitems:\r\n  - cart-rules\r\n  # next\r\n  - refund-page\r\nstatus: idea\r\n---\r\n\r\nBody\r\n";
+  assert.equal(core.setFront(block, "items", ["cart-rules", "refund-page", "palette"]),
+    "---\r\ntitle: Checkout\r\nitems:\r\n  - cart-rules\r\n  - refund-page\r\n  - palette\r\nstatus: idea\r\n---\r\n\r\nBody\r\n");
+  assert.equal(core.setFront("---\nitems:\n- a\n- b\n---\n", "items", ["b"]), "---\nitems:\n- b\n---\n");
+  assert.equal(core.setFront("---\nitems: [a,\n  b]\nstatus: idea\n---\n", "items", ["a"]), "---\nitems: [a]\nstatus: idea\n---\n");
+  assert.equal(core.setFront("---\ntitle: X\nitems:\n  - a\n---\n", "items", ""), "---\ntitle: X\n---\n");
+  assert.equal(core.setFront("---\ntitle: X\n---\n", "items", ["a", "b"]), "---\ntitle: X\nitems: [a, b]\n---\n");
+  assert.equal(core.setFront("---\ntitle: X\n---\n", "items", ["x,y"]), '---\ntitle: X\nitems: ["x,y"]\n---\n');
+});
+
+test("a new item can go straight into an epic", () => {
+  const s = load(epicFiles());
+  const { slug, writes } = core.planCreate(s, { title: "Gift cards", fields: { status: "idea", priority: "low", area: "ops" }, epic: "checkout" }, "2026-10-16");
+  assert.equal(slug, "gift-cards");
+  assert.deepEqual(Object.keys(writes), ["gift-cards.md", "checkout.md", "README.md"]);
+  assert.match(writes["checkout.md"], /^items: \[receipt-email, cart-rules, payment-retry, refund-page, checkout-copy, apple-pay, gift-cards\]$/m);
+
+  const again = load({ ...epicFiles(), ...writes });
+  assert.deepEqual(core.epicsOf(again, "gift-cards").map((e) => e.slug), ["checkout"]);
+  assert.deepEqual(again.problems.map((p) => p.slug), ["backups"]);
+  assert.throws(() => core.planCreate(s, { title: "X", epic: "ghost" }), /no item called ghost/);
+  assert.throws(() => core.planCreate(s, { title: "X", epic: "refund-page" }), /refund-page is in the epic checkout/);
+});
+
+test("an epic copies as one prompt for an agent", () => {
+  const f = epicFiles();
+  f["checkout-copy.md"] = f["checkout-copy.md"].replace("status: ready", "status: idea"); // its index row now disagrees
+  const s = load(f);
+  const prompt = core.epicPrompt(s, "checkout");
+  assert.match(prompt, /^Work through this epic from the backlog: Checkout v2\n/);
+  assert.match(prompt, /^Epic: docs\/backlog\/checkout\.md$/m);
+  assert.match(prompt, /^Progress: 1 of 6 items done, 1 in progress, 1 can start, 2 waiting, 1 set aside$/m);
+  assert.match(prompt, /\n```markdown\n## Why\nOne checkout for web and app\.\n\n## Acceptance\n- A customer pays, a failed payment retries, and a receipt arrives\.\n```\n/);
+  assert.ok(prompt.includes([
+    "",
+    "1. Cart rules (docs/backlog/cart-rules.md)",
+    "   status: done, priority: mid, weight: 3",
+    "2. Payment retry (docs/backlog/payment-retry.md)",
+    "   status: in-progress, priority: mid",
+    "3. Receipt email (docs/backlog/receipt-email.md)",
+    "   status: idea, priority: mid",
+    "   waits on: 2. Payment retry",
+    "4. Refund page (docs/backlog/refund-page.md)",
+  ].join("\n")), prompt);
+  assert.match(prompt, /^5\. Checkout copy \(docs\/backlog\/checkout-copy\.md\)\n   status: idea, priority: mid\n   waits on: Brand palette \(docs\/backlog\/palette\.md, status: idea\), outside the epic\n   problems: README\.md's index says status ready, the item says idea$/m);
+  assert.match(prompt, /^Next up: 4\. Refund page, the first item that can start now\.$/m);
+  assert.match(prompt, /^- Brand palette \(docs\/backlog\/palette\.md, status: idea\): 5\. Checkout copy waits on it$/m);
+  assert.match(prompt, /^- Read each item's file before you start it\./m);
+  assert.match(prompt, /^- Follow the work order unless an item's file says otherwise\.$/m);
+  assert.match(prompt, /^- Keep each item's status current: set it to in-progress when you start it and to done when it's finished, in its front matter and its row in docs\/backlog\/README\.md\.$/m);
+  assert.doesNotMatch(prompt, /Set the epic's status/, "it's in progress already");
+  assert.match(prompt, /^- Set the epic to done only when every item in it is done \(or parked\) and the epic's own acceptance holds\.$/m);
+  assert.match(prompt, /^- If an item lists open questions, stop and ask me before you decide any of them\.\n$/m);
+  assert.doesNotMatch(prompt, /Plain text or HTML/, "items' text stays in their files");
+
+  const idea = core.epicPrompt(load(withFront(epicFiles(), "checkout", "status", "idea")), "checkout");
+  assert.match(idea, /^- Set the epic's status to in-progress when you start, in its front matter and its row in docs\/backlog\/README\.md\.$/m);
+  assert.match(core.itemPrompt(s, "refund-page"), /^In the epic:\n- Checkout v2 \(docs\/backlog\/checkout\.md, status: in-progress\)$/m);
+  assert.throws(() => core.epicPrompt(s, "refund-page"), /refund-page isn't an epic/);
+  assert.throws(() => core.epicPrompt(s, "nope"), /no item called nope/);
+});
+
+test("the starter backlog reads cleanly, epic included", () => {
+  const dir = new URL("../starter/", import.meta.url);
+  const f = Object.fromEntries(readdirSync(dir).filter((name) => core.FILE_NAME.test(name)).map((name) => [name, readFileSync(new URL(name, dir), "utf8")]));
+  const s = load(f);
+  assert.deepEqual(s.problems, []);
+  assert.deepEqual(core.epicOrder(s, "adopt-the-backlog").order.map((i) => i.slug), ["set-up-the-backlog", "move-ideas-in"]);
+  assert.equal(core.epicProgress(s, "adopt-the-backlog").next, null);
 });
 
 test("setFront keeps the rest of the file as it is", () => {

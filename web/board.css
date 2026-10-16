@@ -92,6 +92,7 @@
 .bb-i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .bb-faint { color: var(--faint); }
 .bb-nowrap { white-space: nowrap; }
+.bb-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .bb-spacer { flex: 1; }
 html.bb-locked { overflow: hidden; }
 
@@ -194,6 +195,11 @@ html.bb-locked { overflow: hidden; }
 .bb-problems li a, .bb-problems li b { font-family: var(--mono); font-size: 12.5px; font-weight: 600; text-decoration: none; }
 .bb-problems li a:hover { text-decoration: underline; text-underline-offset: 2px; }
 .bb-problems li span { color: var(--muted); }
+/* Suggestions: worth a look, nothing to fix. */
+.bb-problems.is-calm { border-color: var(--line); background: var(--surface); }
+.bb-problems.is-calm summary > .bb-i:first-child, .bb-problems li.is-notice > .bb-i { color: var(--accent); }
+.bb-problems li.is-notice { position: relative; }
+.bb-problems li.is-notice > .bb-i { position: absolute; top: 2px; left: -22px; width: 14px; height: 14px; }
 
 /* Toolbar */
 .bb-toolbar {
@@ -320,6 +326,8 @@ a.bb-path:hover { background: var(--sunken); color: var(--ink); }
 .bb-item-problems { display: grid; gap: 6px; margin: 16px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--amber-soft); list-style: none; font-size: 13px; }
 .bb-item-problems li { display: flex; gap: 8px; }
 .bb-item-problems .bb-i { margin-top: 2px; color: var(--amber); }
+.bb-item-problems.is-notice { background: var(--accent-soft); }
+.bb-item-problems.is-notice .bb-i { color: var(--accent); }
 .bb-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 18px; font-size: 12px; }
 .bb-tags button { height: 24px; padding: 0 9px; border: 0; border-radius: 999px; background: var(--sunken); color: var(--muted); font-weight: 600; transition: all 0.15s; }
 .bb-tags button:hover { background: var(--accent-soft); color: var(--accent); }
@@ -399,6 +407,93 @@ a.bb-path:hover { background: var(--sunken); color: var(--ink); }
 .bb-toast.is-leaving { opacity: 0; transform: translateY(6px); transition: all 0.25s; }
 @keyframes bb-rise { from { opacity: 0; transform: translateY(10px); } }
 
+/* Epics: a card with a stack of cards behind it, and a bar with a segment per item. */
+.bb-card.is-epic {
+  --stack: 0 4px 0 -2px var(--surface), 0 4px 0 -1px var(--line-strong), 0 8px 0 -4px var(--surface), 0 8px 0 -3px var(--line);
+  margin-bottom: 8px; box-shadow: var(--stack), var(--shadow-card);
+}
+.bb-card.is-epic:hover { box-shadow: var(--stack), var(--shadow-lift); }
+.bb-card.is-epic.is-selected { box-shadow: var(--stack), 0 0 0 3px var(--accent-soft); }
+/* Positioned, so its hidden text stays inside the board's and the list's scrolling. */
+.bb-progress { position: relative; display: flex; min-width: 0; align-items: center; gap: 8px; color: var(--faint); }
+.bb-progress > .bb-i { width: 14px; height: 14px; }
+.bb-progress-bar { display: flex; flex: 1; min-width: 40px; height: 6px; gap: 2px; overflow: hidden; border-radius: 999px; }
+.bb-progress-bar:empty { background: var(--sunken); }
+.bb-progress-bar.is-dense { gap: 1px; }
+.bb-progress-bar > span { flex: 1; min-width: 1px; border-radius: 1.5px; background: var(--tone); }
+.bb-progress-count { color: var(--muted); font: 600 11px/1 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bb-card .bb-progress { margin: 2px 0 1px; }
+.bb-td-epic .bb-progress { width: 150px; }
+.bb-progress.is-large { gap: 12px; }
+.bb-progress.is-large .bb-progress-bar { height: 10px; gap: 3px; }
+.bb-progress.is-large .bb-progress-bar > span { border-radius: 2px; }
+.bb-progress.is-large .bb-progress-count { color: var(--ink); font-size: 13px; }
+.bb-select.bb-epic-filter { max-width: 15rem; text-overflow: ellipsis; }
+.bb-epic-link {
+  display: inline-block; max-width: 200px; overflow: hidden; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft);
+  color: var(--accent); font-size: 11.5px; font-weight: 650; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
+}
+.bb-epic-link + .bb-epic-link { margin-left: 4px; }
+.bb-epic-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* The Epics row in an item's sheet */
+.bb-epics { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; font-size: 12px; }
+.bb-epics-label { display: inline-flex; align-items: center; gap: 5px; margin-right: 4px; color: var(--faint); font-weight: 600; }
+.bb-epics-label .bb-i { width: 14px; height: 14px; }
+.bb-epic-chip { display: inline-flex; align-items: center; height: 26px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+.bb-epic-chip a { display: inline-flex; align-items: center; gap: 6px; height: 100%; padding: 0 10px; border-radius: 999px; text-decoration: none; }
+.bb-epic-chip a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.bb-epic-chip-count { font: 600 11px/1 var(--mono); opacity: 0.75; }
+.bb-epic-chip button {
+  display: grid; place-items: center; width: 22px; height: 22px; margin: 0 2px 0 -6px; padding: 0; border: 0; border-radius: 50%;
+  background: none; color: inherit; opacity: 0.7; transition: background 0.15s, opacity 0.15s;
+}
+.bb-epic-chip button:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); opacity: 1; }
+.bb-epic-chip button .bb-i { width: 12px; height: 12px; }
+.bb-select.bb-epic-add { height: 26px; padding: 0 26px 0 10px; background-position: right 8px center; font-size: 12px; }
+
+/* An epic's sheet: progress, next up, and its items in work order */
+.bb-epic { margin-top: 22px; padding: 14px 18px 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-card); }
+.bb-epic-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.bb-epic-head h3 { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--faint); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.bb-epic-head .bb-i { width: 14px; height: 14px; }
+.bb-epic-head .bb-link-btn { height: 28px; margin-right: -8px; font-size: 13px; }
+.bb-epic-summary { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+.bb-epic-summary b { color: var(--ink); font-weight: 650; }
+.bb-epic .bb-notice { margin-top: 14px; }
+.bb-notice a { font-weight: 650; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 2px; }
+.bb-steps { display: grid; margin: 12px -10px 0; padding: 0; list-style: none; }
+.bb-step { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 8px 10px; border-radius: 10px; transition: background 0.15s; }
+.bb-step:hover { background: var(--sunken); }
+.bb-step.is-next { background: var(--green-soft); }
+.bb-step::before, .bb-step::after { content: ""; position: absolute; left: 20px; width: 2px; background: var(--line); }
+.bb-step::before { top: 0; height: 8px; }
+.bb-step::after { top: 30px; bottom: 0; }
+.bb-step:first-child::before, .bb-step:last-child::after { display: none; }
+.bb-step-n {
+  position: relative; z-index: 1; display: grid; flex: none; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--tone-soft, var(--sunken)); color: var(--tone-ink, var(--faint)); font: 700 11px/1 var(--mono);
+}
+.bb-step.is-done .bb-step-n { background: var(--tone); color: var(--surface); }
+.bb-step-body { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 4px; }
+.bb-step-body > a { font-size: 13.5px; font-weight: 650; line-height: 1.35; text-decoration: none; }
+.bb-step-body > a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.bb-step.is-done .bb-step-body > a, .bb-step.is-set-aside .bb-step-body > a { color: var(--muted); text-decoration: line-through; }
+.bb-step-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; color: var(--muted); font-size: 12px; }
+.bb-step-waits { display: inline-flex; align-items: flex-start; gap: 4px; }
+.bb-step-waits .bb-i { width: 13px; height: 13px; margin-top: 1px; }
+.bb-step-waits a { color: var(--ink); font-weight: 600; text-decoration: none; }
+.bb-step-waits a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.bb-outside { padding: 0 6px; border-radius: 999px; background: var(--amber-soft); color: var(--amber-ink); font-size: 11px; font-weight: 650; }
+.bb-epic-outside { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.bb-epic-outside h4 { margin: 0 0 8px; color: var(--faint); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.bb-epic-outside ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.bb-epic-outside li { display: flex; align-items: flex-start; gap: 8px; }
+.bb-epic-outside li .bb-dot { margin-top: 6px; }
+.bb-epic-outside a { font-weight: 600; text-decoration: none; }
+.bb-epic-outside a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.bb-epic-new { margin-top: 16px; }
+
 /* Small screens */
 @media (max-width: 760px) {
   .bb-app { padding: 20px 16px 64px; }
@@ -413,6 +508,8 @@ a.bb-path:hover { background: var(--sunken); color: var(--ink); }
   .bb-column { scroll-snap-align: start; }
   .bb-panel-body { padding: 20px 18px 48px; }
   .bb-relations { grid-template-columns: 1fr; }
+  .bb-epic { padding: 12px 14px 16px; }
+  .bb-select.bb-epic-filter { max-width: 100%; }
   .bb-item-title { font-size: 23px; }
   .bb h1 { font-size: 26px; }
 }

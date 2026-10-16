@@ -12,7 +12,7 @@ export const FILE_NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]*\.(md|ya?ml)$/;
 export const COLORS = ["gray", "blue", "teal", "green", "amber", "orange", "red", "pink", "violet", "indigo"];
 
 // The front matter keys the board reads itself, so they can't be choice fields.
-const RESERVED = ["title", "weight", "created", "tags", "branches", "depends_on", "related"];
+const RESERVED = ["title", "weight", "created", "tags", "branches", "depends_on", "related", "items"];
 
 // What the board guesses when backlog.yml doesn't say: well-known values in their usual order.
 const KNOWN_ORDER = {
@@ -141,7 +141,7 @@ function takeTitle(body) {
 export function parseItem(slug, source) {
   const item = {
     slug, file: `${slug}.md`, title: "", weight: "", created: "", fields: {},
-    tags: [], branches: [], dependsOn: [], related: [], problems: [],
+    tags: [], branches: [], dependsOn: [], related: [], items: [], problems: [],
   };
 
   const split = splitFront(source);
@@ -184,6 +184,7 @@ function readFront(item, front) {
       case "branches": item.branches = list(value); break;
       case "depends_on": item.dependsOn = list(value); break;
       case "related": item.related = list(value); break;
+      case "items": item.items = list(value); break;
       case "title": case "weight": case "created": item[key] = text(value); break;
       default:
         if (value != null && typeof value !== "object" && text(value) !== "") item.fields[key] = text(value);
@@ -362,7 +363,8 @@ function tagCounts(items) {
 
 // What doesn't add up: a file the board can't read well, a value backlog.yml doesn't allow, a field
 // a strict list leaves empty, a weight that isn't a positive whole number, a link to no item, a
-// dependency loop, and an index that disagrees with the items.
+// dependency loop, an epic's list or status, and an index that disagrees with the items. A problem
+// with `notice: true` is a suggestion rather than something wrong.
 function problems(s) {
   const out = [];
   const add = (slug, message) => out.push({ slug, message });
@@ -385,6 +387,7 @@ function problems(s) {
     }
     const loop = dependencyLoop(s, item);
     if (loop) add(item.slug, `its dependencies go round in a loop: ${loop.join(" → ")}`);
+    out.push(...epicProblems(s, item));
     out.push(...indexProblems(s, item));
   }
   for (const row of indexRows(s)) {
@@ -410,6 +413,121 @@ function dependencyLoop(s, start) {
   };
   const path = walk(start.slug, [start.slug]);
   return path && path.every((slug) => slug >= start.slug) ? path : null;
+}
+
+// ---- Epics -------------------------------------------------------------------------------------
+// An epic is an item whose front matter lists other items (`items: [a, b]`): work that belongs
+// together and is worked through as one. Its items keep their own dependencies; the epic groups
+// them, in the order it lists them. People set its status; the board only points out mismatches.
+
+export function isEpic(item) {
+  return !!item && item.items.length > 0;
+}
+
+// The items an epic lists, each once, in its order. Not the epic itself, and not slugs that are no
+// item: both are problems of their own.
+function members(s, epic) {
+  return [...new Set(epic.items)].filter((slug) => slug !== epic.slug && s.bySlug.has(slug)).map((slug) => s.bySlug.get(slug));
+}
+
+function itemCalled(s, slug) {
+  const item = s.bySlug.get(slug);
+  if (!item) throw new Error(`there's no item called ${slug}`);
+  return item;
+}
+
+// The epics an item belongs to, in title order.
+export function epicsOf(s, slug) {
+  return sortItems(s, s.items.filter((epic) => epic.slug !== slug && epic.items.includes(slug)), "title");
+}
+
+// Where an item stands: "done"; "setAside" (closed but not done, like parked); "active" (under
+// way); "ready" (not started, with nothing unfinished before it); "blocked" (not started, waiting
+// on something unfinished); or "other" (open in any other status, or in none).
+export function stage(s, item) {
+  if (item.done) return "done";
+  if (!item.open) return "setAside";
+  if (s.active.includes(item.fields.status)) return "active";
+  if (item.startable) return "ready";
+  const notStarted = field(s, "status").values.length === 0 || s.startable.includes(item.fields.status);
+  return notStarted ? "blocked" : "other";
+}
+
+// An epic's items in work order: each after the items it depends on in the epic, and otherwise as
+// early as the epic's list allows. Its first item and what that needs come first, then its second,
+// and so on. Items in a dependency loop can't all follow each other; the loop is reported on its
+// own and the order goes on regardless.
+// Also what holds the epic up from outside (each unfinished item outside it that its open items
+// wait on, with those items) and the slugs it lists that are no item.
+export function epicOrder(s, slug) {
+  const epic = itemCalled(s, slug);
+  const left = members(s, epic);
+  const inEpic = new Set(left.map((item) => item.slug));
+  // Filled from the end: last comes the last-listed item that nothing left waits on, or, in a
+  // loop, the last-listed one.
+  const order = [];
+  while (left.length) {
+    const free = left.filter((item) => !left.some((other) => other !== item && other.dependsOn.includes(item.slug)));
+    const last = (free.length ? free : left).at(-1);
+    order.unshift(last);
+    left.splice(left.indexOf(last), 1);
+  }
+
+  const outside = new Map();
+  for (const item of order.filter((i) => i.open)) {
+    for (const dep of item.blockers) {
+      if (inEpic.has(dep)) continue;
+      if (!outside.has(dep)) outside.set(dep, { item: s.bySlug.get(dep), waiting: [] });
+      const { waiting } = outside.get(dep);
+      if (!waiting.includes(item)) waiting.push(item);
+    }
+  }
+  const missing = [...new Set(epic.items)].filter((x) => x !== epic.slug && !s.bySlug.has(x));
+  return { order, outside: [...outside.values()], missing };
+}
+
+// How far an epic has got: how many items it has, how many are at each stage (done, set aside,
+// active, ready, blocked, other), and next, the first ready item in work order.
+export function epicProgress(s, slug) {
+  const { order } = epicOrder(s, slug);
+  const progress = { total: order.length, done: 0, setAside: 0, active: 0, ready: 0, blocked: 0, other: 0, next: null };
+  for (const item of order) {
+    const at = stage(s, item);
+    progress[at]++;
+    if (at === "ready") progress.next ??= item;
+  }
+  return progress;
+}
+
+// What doesn't add up in an epic: a slug in its list that's no item, the epic itself, another epic
+// or listed twice, and the epic done while items in it are open. And, as a suggestion, every item
+// in it closed while it's still open.
+function epicProblems(s, epic) {
+  if (!epic.items.length) return [];
+  const out = [];
+  const add = (message) => out.push({ slug: epic.slug, message });
+  const counts = new Map();
+  for (const slug of epic.items) counts.set(slug, (counts.get(slug) ?? 0) + 1);
+  for (const [slug, count] of counts) {
+    const other = s.bySlug.get(slug);
+    if (slug === epic.slug) add("items names the epic itself");
+    else if (!other) add(`items names ${slug}, which isn't an item`);
+    else if (isEpic(other)) add(`items names ${slug}, which is an epic: epics can't contain epics`);
+    if (count > 1) add(`items names ${slug} ${count === 2 ? "twice" : `${count} times`}`);
+  }
+
+  const items = members(s, epic);
+  const open = items.filter((item) => item.open);
+  if (epic.done && open.length) {
+    add(`it's ${epic.fields.status}, but ${open.length} of its ${items.length} items ${open.length === 1 ? "isn't" : "aren't"} done or closed: ${open.map((item) => item.slug).join(", ")}`);
+  } else if (epic.open && items.length && !open.length) {
+    const done = items.filter((item) => item.done).length;
+    const message = done === 0
+      ? "every item in it is closed and none is done: close it too, or list the work that's left"
+      : `every item in it is ${done === items.length ? "done" : "done or closed"}: set it to ${s.done[0]} once its own acceptance holds`;
+    out.push({ slug: epic.slug, message, notice: true });
+  }
+  return out;
 }
 
 // ---- The README's index ------------------------------------------------------------------------
@@ -546,22 +664,51 @@ export function validate(s, name, value) {
   return "";
 }
 
-// Sets one line of the front matter (adding it, or the front matter itself, when it isn't there).
-// An empty value removes the line.
+// Sets one field of the front matter, adding it (or the front matter itself) when it isn't there.
+// It replaces the field's whole value, even one that runs over several lines, and leaves the other
+// lines as they are. An empty value removes the field. A list (an array) is written the way the
+// field had it: as [a, b], or as a "- a" line per value.
 export function setFront(source, name, value) {
   const split = splitFront(source);
-  if (!split) return value === "" ? source : `---\n${name}: ${scalar(value)}\n---\n\n${source}`;
-  const key = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const line = new RegExp(`^${key}:[^\\r\\n]*$`, "m");
-  let front = split.front;
-  if (value === "") {
-    front = front.replace(new RegExp(`^${key}:[^\\r\\n]*(\\r?\\n|$)`, "m"), "").replace(/\r?\n$/, "");
-  } else if (line.test(front)) {
-    front = front.replace(line, () => `${name}: ${scalar(value)}`);
-  } else {
-    front = (front === "" ? "" : front.replace(/\r?\n$/, "") + split.nl) + `${name}: ${scalar(value)}`;
+  if (!split) return value === "" ? source : `---\n${fieldLines(name, value).join("\n")}\n---\n\n${source}`;
+  // The front matter's lines with the line breaks between them: [line, break, line, …].
+  const parts = split.front === "" ? [] : split.front.split(/(\r?\n)/);
+  const start = parts.findIndex((part, i) => i % 2 === 0 && part.startsWith(`${name}:`));
+  if (start < 0) {
+    if (value === "") return source;
+    const front = (split.front === "" ? "" : split.front.replace(/\r?\n$/, "") + split.nl) + fieldLines(name, value).join(split.nl);
+    return joinFront({ ...split, front });
   }
-  return joinFront({ ...split, front });
+
+  // The value goes on over the lines below it that are indented or list entries, and over blank
+  // lines and comments between those.
+  let end = start;
+  for (let i = start + 2; i < parts.length; i += 2) {
+    if (/^([ \t]|-([ \t]|$))/.test(parts[i])) end = i;
+    else if (!/^\s*(#.*)?$/.test(parts[i])) break;
+  }
+  if (value === "") {
+    // The field's lines go with one line break: the one after them, or the one before at the end.
+    parts.splice(end + 1 < parts.length ? start : Math.max(start - 1, 0), end - start + 2);
+  } else {
+    const entry = parts.slice(start + 2, end + 1).find((part, i) => i % 2 === 0 && /^\s*-([ \t]|$)/.test(part));
+    const indent = entry && /^\s*(#.*)?$/.test(parts[start].slice(name.length + 1)) ? /^\s*/.exec(entry)[0] : null;
+    parts.splice(start, end - start + 1, fieldLines(name, value, indent).join(parts[start + 1] ?? split.nl));
+  }
+  return joinFront({ ...split, front: parts.join("") });
+}
+
+// A field as lines of front matter: `name: value`, `name: [a, b]`, or, for a list given an indent,
+// `name:` and a `- a` line per value.
+function fieldLines(name, value, indent = null) {
+  if (!Array.isArray(value)) return [`${name}: ${scalar(value)}`];
+  if (indent == null || value.length === 0) return [`${name}: [${value.map(flowScalar).join(", ")}]`];
+  return [`${name}:`, ...value.map((v) => `${indent}- ${scalar(v)}`)];
+}
+
+// value inside [a, b], where a comma or a bracket would end it early.
+function flowScalar(value) {
+  return /[,[\]{}]/.test(value) ? JSON.stringify(value) : scalar(value);
 }
 
 // value as YAML: bare when it reads back the same, quoted when it wouldn't.
@@ -598,8 +745,8 @@ export function slugify(title) {
 const DEFAULT_TEMPLATE = "## Why\n\n\n## Acceptance\n\n- \n";
 
 // The writes for a new item, { slug, writes }: its file, with the body from _template.md when the
-// folder has one, and its row in the index.
-export function planCreate(s, { title = "", weight = "", fields = {}, tags = [] }, today = new Date().toISOString().slice(0, 10)) {
+// folder has one, then the epic's list when epic names one to add it to, then its row in the index.
+export function planCreate(s, { title = "", weight = "", fields = {}, tags = [], epic = "" }, today = new Date().toISOString().slice(0, 10)) {
   title = title.trim();
   weight = String(weight ?? "").trim();
   if (!title) throw new Error("a new item needs a title");
@@ -612,6 +759,8 @@ export function planCreate(s, { title = "", weight = "", fields = {}, tags = [] 
     if (problem) throw new Error(problem);
     values[name] = v;
   }
+  const target = epic ? itemCalled(s, epic) : null;
+  if (target) canListItems(s, target);
 
   const base = slugify(title);
   let slug = base;
@@ -624,6 +773,7 @@ export function planCreate(s, { title = "", weight = "", fields = {}, tags = [] 
   lines.push(`created: ${today}`, "depends_on: []", "related: []", "---", "", `# ${title}`, "", "");
 
   const writes = { [`${slug}.md`]: lines.join("\n") + template(s, title) };
+  if (target) writes[target.file] = setFront(s.files[target.file], "items", [...target.items, slug]);
   const index = indexWithItem(s, { slug, title, weight, fields: values });
   if (index != null) writes[s.index] = index;
   return { slug, writes };
@@ -637,28 +787,73 @@ function template(s, title) {
   return out.trim() ? out : DEFAULT_TEMPLATE;
 }
 
+// The write ({ name: text }) that adds an item to the end of an epic's list, or none ({}) when the
+// list has it already. Only the epic's file changes. Epics can't contain epics, so an epic can't
+// be added, and an item in an epic can't start a list of its own.
+export function planAddToEpic(s, epic, slug) {
+  const target = itemCalled(s, epic);
+  const item = itemCalled(s, slug);
+  if (target.items.includes(slug)) return {};
+  if (item === target) throw new Error("an epic can't list itself");
+  if (isEpic(item)) throw new Error(`${slug} is an epic, and epics can't contain epics`);
+  canListItems(s, target);
+  return { [target.file]: setFront(s.files[target.file], "items", [...target.items, slug]) };
+}
+
+// The write that takes an item out of an epic's list, keeping the rest in order, or none when the
+// list doesn't have it. A slug that's no item comes out the same way.
+export function planRemoveFromEpic(s, epic, slug) {
+  const target = itemCalled(s, epic);
+  if (!target.items.includes(slug)) return {};
+  return { [target.file]: setFront(s.files[target.file], "items", target.items.filter((x) => x !== slug)) };
+}
+
+// Whether target may list items: an epic may, and so may any item that isn't in an epic itself.
+function canListItems(s, target) {
+  const outer = isEpic(target) ? null : epicsOf(s, target.slug)[0];
+  if (outer) throw new Error(`${target.slug} is in the epic ${outer.slug}, so it can't be an epic itself`);
+}
+
 // ---- Prompts -----------------------------------------------------------------------------------
 
+// Paths in prompts are relative to the project, so a prompt works in any session there.
+const promptPath = (s, file) => `${s.dir}/${file}`;
+
+// An item in a prompt: its title, file and status.
+function promptRef(s, item) {
+  return `${item.title} (${promptPath(s, item.file)}${item.fields.status ? `, status: ${item.fields.status}` : ""})`;
+}
+
+// Linked items for a prompt: a heading, then a line for each.
+function promptList(s, heading, slugs) {
+  if (!slugs.length) return [];
+  return [`${heading}:`, ...slugs.map((x) => (s.bySlug.has(x) ? `- ${promptRef(s, s.bySlug.get(x))}` : `- ${x} (no such item)`)), ""];
+}
+
+function promptFields(item) {
+  return [...Object.entries(item.fields).map(([name, value]) => `${name}: ${value}`), item.weight && `weight: ${item.weight}`].filter(Boolean);
+}
+
+// Markdown in a fence that its own code blocks can't close.
+function fenced(body) {
+  const fence = "`".repeat(Math.max(3, ...[...body.matchAll(/`+/g)].map((m) => m[0].length + 1)));
+  return [`${fence}markdown`, body, fence];
+}
+
+// Where items keep their status: their front matter, and their index rows when they have them.
+function statusPlaces(s, items) {
+  const rows = items.filter((item) => indexRows(s).some((r) => r.slug === item.slug)).length;
+  if (rows === 0) return "in its front matter";
+  return `in its front matter and${rows < items.length ? ", where it has one," : ""} its row in ${promptPath(s, s.index)}`;
+}
+
 // An item as a prompt to paste into a coding agent's session in the project: its file, fields,
-// what it waits on, unblocks and relates to, any problems, and its text. Paths are relative to the
-// project, so the prompt works in any session there.
+// what it waits on, unblocks and relates to, its epics, any problems, and its text.
 export function itemPrompt(s, slug) {
-  const item = s.bySlug.get(slug);
-  if (!item) throw new Error(`there's no item called ${slug}`);
-  const path = (file) => `${s.dir}/${file}`;
-  const list = (heading, slugs) => slugs.length ? [`${heading}:`, ...slugs.map((x) => {
-    const other = s.bySlug.get(x);
-    if (!other) return `- ${x} (no such item)`;
-    return `- ${other.title} (${path(other.file)}${other.fields.status ? `, status: ${other.fields.status}` : ""})`;
-  }), ""] : [];
-  const fields = [
-    ...Object.entries(item.fields).map(([name, value]) => `${name}: ${value}`),
-    item.weight && `weight: ${item.weight}`,
-  ].filter(Boolean);
+  const item = itemCalled(s, slug);
+  const fields = promptFields(item);
+  const epics = epicsOf(s, item.slug);
   const problems = s.problems.filter((p) => p.slug === item.slug).map((p) => `- ${p.message}`);
-  const fence = "`".repeat(Math.max(3, ...[...item.body.matchAll(/`+/g)].map((m) => m[0].length + 1)));
-  const where = indexRows(s).some((r) => r.slug === item.slug)
-    ? `in its front matter and its row in ${path(s.index)}` : "in its front matter";
   const keep = [
     s.active.length && `to ${s.active[0]} when you start`,
     s.done.length && `to ${s.done[0]} when it's finished`,
@@ -667,7 +862,7 @@ export function itemPrompt(s, slug) {
   return [
     `Work on this item from the backlog: ${item.title}`,
     "",
-    `File: ${path(item.file)}`,
+    `File: ${promptPath(s, item.file)}`,
     ...(fields.length ? [`Fields: ${fields.join(", ")}`] : []),
     ...(item.tags.length ? [`Tags: ${item.tags.join(", ")}`] : []),
     ...(item.branches.length ? [`Branches: ${item.branches.join(", ")}`] : []),
@@ -675,18 +870,116 @@ export function itemPrompt(s, slug) {
     ...(item.blockers.length
       ? [`It waits on ${item.blockers.length === 1 ? "an unfinished item" : `${item.blockers.length} unfinished items`}. Tell me before you start on it anyway.`, ""]
       : []),
-    ...list("Depends on", item.dependsOn),
-    ...list("Unblocks", item.dependents),
-    ...list("Related", item.related),
+    ...promptList(s, "Depends on", item.dependsOn),
+    ...promptList(s, "Unblocks", item.dependents),
+    ...promptList(s, "Related", item.related),
+    ...promptList(s, epics.length === 1 ? "In the epic" : "In the epics", epics.map((epic) => epic.slug)),
     ...(problems.length ? ["Problems the board found in it:", ...problems, ""] : []),
     `The item (its links are relative to ${s.dir}):`,
     "",
-    `${fence}markdown`,
-    item.body,
-    fence,
+    ...fenced(item.body),
     ...(keep.length && "status" in item.fields
-      ? ["", `Keep it current as you work: set status ${keep.join(" and ")}, ${where}.`]
+      ? ["", `Keep it current as you work: set status ${keep.join(" and ")}, ${statusPlaces(s, [item])}.`]
       : []),
+  ].join("\n") + "\n";
+}
+
+// An epic as one brief for a coding agent working through it in the project: the epic's file and
+// whole text (its goal and end-to-end acceptance), its items in work order, each with its file,
+// status, priority, weight, what it waits on and any problems, what holds it up from outside, and
+// how to work. It points to the items' files rather than pasting them: the agent reads each one
+// when it gets there, and the brief stays short.
+export function epicPrompt(s, slug) {
+  const epic = itemCalled(s, slug);
+  if (!isEpic(epic)) throw new Error(`${slug} isn't an epic: it lists no items`);
+  const { order, outside } = epicOrder(s, slug);
+  const progress = epicProgress(s, slug);
+  const step = (item) => `${order.indexOf(item) + 1}. ${item.title}`;
+  const fields = promptFields(epic);
+  const found = s.problems.filter((p) => p.slug === epic.slug);
+  const counts = [
+    progress.active && `${progress.active} ${label(s.active[0]).toLowerCase()}`,
+    progress.ready && `${progress.ready} can start`,
+    progress.blocked && `${progress.blocked} waiting`,
+    progress.setAside && `${progress.setAside} set aside`,
+    progress.other && `${progress.other} in another status`,
+  ].filter(Boolean);
+
+  const items = order.flatMap((item, i) => {
+    const facts = [
+      item.fields.status && `status: ${item.fields.status}`,
+      item.fields.priority && `priority: ${item.fields.priority}`,
+      item.weight && `weight: ${item.weight}`,
+    ].filter(Boolean);
+    const waits = (item.open ? item.blockers : []).map((dep) => {
+      const other = s.bySlug.get(dep);
+      return order.includes(other) ? step(other) : `${promptRef(s, other)}, outside the epic`;
+    });
+    const problems = s.problems.filter((p) => p.slug === item.slug).map((p) => p.message);
+    return [
+      `${i + 1}. ${item.title} (${promptPath(s, item.file)})`,
+      ...(facts.length ? [`   ${facts.join(", ")}`] : []),
+      ...(waits.length ? [`   waits on: ${waits.join("; ")}`] : []),
+      ...(problems.length ? [`   problems: ${problems.join("; ")}`] : []),
+    ];
+  });
+
+  const next = progress.next
+    ? `Next up: ${step(progress.next)}, the first item that can start now.`
+    : progress.total && progress.done + progress.setAside === progress.total
+      ? "Every item is done or closed: what's left is the epic's own acceptance."
+      : "No item can start right now: the open ones are under way or wait on unfinished work.";
+
+  const active = s.active[0], done = s.done[0];
+  const setAside = s.closed.filter((status) => !s.done.includes(status));
+  const keep = [active && `to ${active} when you start it`, done && `to ${done} when it's finished`].filter(Boolean);
+  const work = [
+    "Read each item's file before you start it. This brief points to the files rather than repeating them.",
+    "Follow the work order unless an item's file says otherwise.",
+    keep.length && `Keep each item's status current: set it ${keep.join(" and ")}, ${statusPlaces(s, order)}.`,
+    active && !s.active.includes(epic.fields.status) && `Set the epic's status to ${active} when you start, ${statusPlaces(s, [epic])}.`,
+    done && `Set the epic to ${done} only when every item in it is ${done}${setAside.length ? ` (or ${setAside.join(" or ")})` : ""} and the epic's own acceptance holds.`,
+    "If an item lists open questions, stop and ask me before you decide any of them.",
+  ].filter(Boolean);
+
+  return [
+    `Work through this epic from the backlog: ${epic.title}`,
+    "",
+    "An epic groups items that belong together, to be worked through as one. Its text below says what the whole of it is for and how to tell it's finished; each item's file says what that item needs.",
+    "",
+    `Epic: ${promptPath(s, epic.file)}`,
+    ...(fields.length ? [`Fields: ${fields.join(", ")}`] : []),
+    ...(epic.tags.length ? [`Tags: ${epic.tags.join(", ")}`] : []),
+    ...(epic.branches.length ? [`Branches: ${epic.branches.join(", ")}`] : []),
+    `Progress: ${progress.done} of ${progress.total} ${progress.total === 1 ? "item" : "items"} done${counts.length ? `, ${counts.join(", ")}` : ""}`,
+    "",
+    ...(epic.blockers.length
+      ? [`The epic itself waits on ${epic.blockers.length === 1 ? "an unfinished item" : `${epic.blockers.length} unfinished items`}. Tell me before you start on it anyway.`, ""]
+      : []),
+    ...promptList(s, "Depends on", epic.dependsOn),
+    ...promptList(s, "Unblocks", epic.dependents),
+    ...promptList(s, "Related", epic.related),
+    ...(found.some((p) => !p.notice) ? ["Problems the board found in the epic:", ...found.filter((p) => !p.notice).map((p) => `- ${p.message}`), ""] : []),
+    ...(found.some((p) => p.notice) ? ["The board suggests:", ...found.filter((p) => p.notice).map((p) => `- ${p.message}`), ""] : []),
+    `The epic (its links are relative to ${s.dir}):`,
+    "",
+    ...fenced(epic.body),
+    "",
+    "Its items in work order (each comes after the items it depends on, and otherwise in the order the epic lists them):",
+    "",
+    ...items,
+    "",
+    next,
+    "",
+    ...(outside.length
+      ? [
+        "Outside the epic, these unfinished items hold up items in it. Tell me before you start an item that waits on one of them:",
+        ...outside.map(({ item, waiting }) => `- ${promptRef(s, item)}: ${waiting.map(step).join("; ")} ${waiting.length === 1 ? "waits" : "wait"} on it`),
+        "",
+      ]
+      : []),
+    "How to work:",
+    ...work.map((line) => `- ${line}`),
   ].join("\n") + "\n";
 }
 
