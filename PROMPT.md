@@ -23,10 +23,11 @@ provides exactly three things, all under one mount path, say `/dev/backlog`:
    modules), `.css` as `text/css` and `.svg` as `image/svg+xml`.
 2. **`GET /dev/backlog/files`.** It returns JSON: `files` maps each name to its text for every
    regular file directly in the backlog folder matching
-   `^[A-Za-z0-9][A-Za-z0-9._-]*\.(md|ya?ml)$`, with no subfolders. Also `dir` (the folder as the
-   project names it, e.g. `"docs/backlog"`), `path` (its absolute path, for "open in editor"
-   links) and `writable` (`true`). Optionally, add an `ETag` and answer `If-None-Match` with
-   `304`: the page polls every 2 seconds.
+   `^[A-Za-z0-9_][A-Za-z0-9._-]*\.(md|ya?ml)$`, with no subfolders. That includes
+   `_template.md`, the body for new items. Also `dir` (the folder as the project names it,
+   e.g. `"docs/backlog"`), `path` (its absolute path, for "open in editor" links) and
+   `writable` (`true`). Optionally, add an `ETag` and answer `If-None-Match` with `304`: the
+   page polls every 2 seconds.
 3. **`PUT /dev/backlog/files/<name>`.** The body is the file's whole new text. Refuse with 403
    unless the request has the header `X-Open-Backlog: 1`. Refuse with 400 any name that doesn't
    match the pattern above, which also rules out `/`, `..` and hidden files. Cap the body (1 MB
@@ -67,8 +68,8 @@ the same.
    If it exists, add a `backlog.yml` only when the items' values need an order or a strict
    list, which the board can't guess (e.g. a status no item uses yet).
 4. **Test the routes** with the project's own test tools:
-   - `GET files` returns the folder's `.md`/`.yml` files and nothing else (no hidden files, no
-     other kinds), and `writable` is true;
+   - `GET files` returns the folder's `.md`/`.yml` files, `_template.md` included, and nothing
+     else (no hidden files, no other kinds), and `writable` is true;
    - `PUT` writes the file;
    - `PUT` refuses a missing header (403), `..%2Fx.md`, `x.sh` and `.x.md` (400), and nothing
      is written outside the folder;

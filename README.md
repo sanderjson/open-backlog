@@ -43,12 +43,13 @@ PUT <mount>/files/<name>
   204 on success; 4xx/5xx with { "error": "…" } otherwise
 ```
 
-- `files` holds every `.md`, `.yml` and `.yaml` file directly in the folder, with none whose
-  name starts with `.`. No subfolders.
-- `PUT` writes only names matching `^[A-Za-z0-9][A-Za-z0-9._-]*\.(md|ya?ml)$`, only in that
-  folder, and only with the header. A page on another site can't send that header without the
-  browser asking your server first, and your server never says yes. That's the board's
-  protection against cross-site writes, so the route needs no CSRF token.
+- `files` holds every regular file directly in the folder whose name matches
+  `^[A-Za-z0-9_][A-Za-z0-9._-]*\.(md|ya?ml)$` (`FILE_NAME` in `core.js`): the items,
+  `backlog.yml`, the README and `_template.md`, with no hidden files and no subfolders.
+- `PUT` writes only names matching that pattern, only in that folder, and only with the
+  header. A page on another site can't send that header without the browser asking your
+  server first, and your server never says yes. That's the board's protection against
+  cross-site writes, so the route needs no CSRF token.
 - An `ETag` on `GET` (answering `If-None-Match` with `304`) is optional. It makes the page's
   polling cost next to nothing.
 
