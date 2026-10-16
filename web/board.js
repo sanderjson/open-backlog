@@ -72,6 +72,9 @@ class Board {
     this.lastItem = "";
     this.problemsOpen = false;
     this.fieldsKey = "";
+    this.writes = Promise.resolve();
+    this.pendingWrites = 0;
+    this.polling = false;
   }
 
   start() {
@@ -96,16 +99,21 @@ class Board {
 
   async poll() {
     clearTimeout(this.timer);
-    if (document.visibilityState !== "hidden") {
+    if (this.polling) return;
+    this.polling = true;
+    if (document.visibilityState !== "hidden" && !this.pendingWrites) {
+      const version = this.version;
       try {
         const body = await this.fetchFiles();
         this.setLive(true);
-        if (body != null && body !== this.body) this.apply(body);
+        if (version !== this.version || this.pendingWrites) this.etag = "";
+        else if (body != null && body !== this.body) this.apply(body);
       } catch (e) {
         this.setLive(false);
         if (!this.snap) this.renderError(e);
       }
     }
+    this.polling = false;
     this.timer = setTimeout(() => this.poll(), POLL_MS);
   }
 
@@ -113,6 +121,7 @@ class Board {
     this.body = body;
     this.payload = JSON.parse(body);
     this.snap = core.parseBacklog(this.payload);
+    if (this.payload.saveError) this.snap.problems.push({ slug: "", message: this.payload.saveError });
     this.version++;
     this.render();
   }
@@ -125,64 +134,97 @@ class Board {
   }
 
   async write(writes) {
-    for (const [name, text] of Object.entries(writes)) {
-      const res = await fetch(new URL(`files/${encodeURIComponent(name)}`, this.api), {
-        method: "PUT",
-        headers: { "Content-Type": "text/plain; charset=utf-8", "X-Open-Backlog": "1" },
-        body: text,
-      });
+    if (!Object.keys(writes).length) return;
+    const before = { ...this.payload.files };
+    const saved = [];
+    const send = async (url, options) => {
+      const res = await fetch(url, options);
       if (!res.ok) {
         let why = `the host answered ${res.status}`;
         try { why = (await res.json()).error || why; } catch { /* not JSON */ }
-        throw new Error(`Couldn't save ${name}: ${why}`);
+        throw new Error(why);
       }
+    };
+    try {
+      if (this.payload.capabilities?.changes === true) {
+        const changes = Object.entries(writes).map(([name, after]) => ({ name, before: before[name] ?? null, after }));
+        await send(new URL("files", this.api), { method: "POST", headers: { "Content-Type": "application/json", "X-Open-Backlog": "1" }, body: JSON.stringify({ changes }) });
+      } else {
+        for (const [name, text] of Object.entries(writes)) {
+          // Older hosts have no compare-and-save operation. Detect intervening edits before
+          // each PUT, but do not pretend this closes their read/write race.
+          const current = JSON.parse(await this.fetchFiles({ fresh: true }));
+          if (!current.writable || (current.files[name] ?? null) !== (before[name] ?? null)) throw new Error(`${name} changed; review the current files before trying again`);
+          await send(new URL(`files/${encodeURIComponent(name)}`, this.api), { method: "PUT", headers: { "Content-Type": "text/plain; charset=utf-8", "X-Open-Backlog": "1" }, body: text });
+          saved.push(name);
+        }
+      }
+      await this.fresh();
+    } catch (e) {
+      try { await this.fresh(); } catch { this.setLive(false); }
+      throw new Error(`Couldn't finish saving: ${e.message}${saved.length ? `. Already saved: ${saved.join(", ")}. Review the refreshed backlog before retrying.` : ""}`);
+    } finally {
+      this.etag = "";
     }
-    // Show the result at once; the next poll confirms it.
-    const files = { ...this.payload.files, ...writes };
-    this.apply(JSON.stringify({ ...this.payload, files }));
-    this.etag = "";
+  }
+
+  // A second quick edit must plan from the first edit's result. Keep polls out of the write
+  // sequence, and always read the actual files after saving or encountering a conflict.
+  mutate(prepare) {
+    this.pendingWrites++;
+    const run = this.writes.then(async () => {
+      const snap = await this.fresh();
+      if (!snap.writable) throw new Error("this backlog is read-only");
+      const result = prepare(snap);
+      await this.write(result.writes);
+      return result;
+    });
+    this.writes = run.catch(() => {});
+    return run.finally(() => { this.pendingWrites--; this.render(); });
   }
 
   async update(slug, name, value) {
     try {
-      const snap = await this.fresh();
-      await this.write(core.planUpdate(snap, slug, name, value));
+      await this.mutate((snap) => ({ writes: core.planUpdate(snap, slug, name, value) }));
       const shown = value === "" ? "none" : name === "weight" ? value : core.label(value);
       this.toast(`${core.label(name)} → ${shown}`, "ok", `${slug}.md`);
     } catch (e) {
       this.toast(e.message, "error");
+      this.sheetKey = "";
       this.render();
     }
   }
 
   async create(form) {
+    if (this.creating) return;
+    this.creating = true;
     const data = new FormData(form);
     const fields = {};
     for (const f of this.snap.fields) fields[f.name] = data.get(`field-${f.name}`) || "";
     const tags = String(data.get("tags") || "").split(",").map((t) => t.trim()).filter(Boolean);
     const epic = String(data.get("epic") || "");
     try {
-      const snap = await this.fresh();
-      const { slug, writes } = core.planCreate(snap, { title: data.get("title") || "", weight: data.get("weight") || "", fields, tags, epic });
-      await this.write(writes);
+      const { slug, epicTitle } = await this.mutate((snap) => ({ ...core.planCreate(snap, { title: data.get("title") || "", weight: data.get("weight") || "", fields, tags, epic }), epicTitle: snap.bySlug.get(epic)?.title }));
       this.el.newDialog.close();
       form.reset();
       this.setParams({ item: slug }, { push: true });
-      this.toast(epic ? `Item created in ${snap.bySlug.get(epic).title}` : "Item created", "ok", `${slug}.md`);
+      this.toast(epic ? `Item created in ${epicTitle}` : "Item created", "ok", `${slug}.md`);
     } catch (e) {
       this.el.newError.textContent = e.message;
       this.el.newError.hidden = false;
+    } finally {
+      this.creating = false;
     }
   }
 
   // Adds an item to an epic, or takes it out: either way only the epic's file changes.
   async changeEpic(plan, epic, slug) {
     try {
-      const snap = await this.fresh();
-      const title = snap.bySlug.get(epic)?.title ?? epic;
-      const writes = plan === "add" ? core.planAddToEpic(snap, epic, slug) : core.planRemoveFromEpic(snap, epic, slug);
+      const { title, writes } = await this.mutate((snap) => ({
+        title: snap.bySlug.get(epic)?.title ?? epic,
+        writes: plan === "add" ? core.planAddToEpic(snap, epic, slug) : core.planRemoveFromEpic(snap, epic, slug),
+      }));
       if (!Object.keys(writes).length) return this.toast(plan === "add" ? `Already in ${title}` : `Not in ${title}`, "ok", `${epic}.md`);
-      await this.write(writes);
       const left = plan === "add" || core.isEpic(this.snap.bySlug.get(epic)) ? "" : ", which lists no items now";
       this.toast(`${plan === "add" ? "Added to" : "Taken out of"} ${title}${left}`, "ok", `${epic}.md`);
     } catch (e) {
@@ -399,6 +441,7 @@ class Board {
     });
 
     sheet.addEventListener("submit", (e) => e.preventDefault());
+    sheet.addEventListener("focusout", () => setTimeout(() => this.renderSheet(this.params()), 0));
     sheet.addEventListener("change", (e) => {
       const item = this.params().item;
       if (!item) return;
@@ -490,6 +533,16 @@ class Board {
     if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
     const typing = e.target.closest?.("input, textarea, select, [contenteditable]");
     const dialogOpen = this.root.querySelector("dialog[open]");
+    const panel = this.el.sheet.querySelector(".bb-panel");
+    if (e.key === "Tab" && panel && !dialogOpen) {
+      const targets = [...panel.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])')].filter((el) => el.getClientRects().length);
+      const first = targets[0], last = targets.at(-1);
+      if (first && (e.shiftKey && (document.activeElement === first || document.activeElement === panel) || !e.shiftKey && document.activeElement === last)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      }
+      return;
+    }
     if (e.key === "Escape") {
       if (dialogOpen) return;
       if (typing === this.el.search) {
@@ -872,17 +925,25 @@ depends_on: []
     if (key === this.sheetKey) return;
     const wasOpen = !!this.sheetKey;
     const sameItem = item && this.sheetKey.startsWith(`${item.slug}:`);
+    const focused = this.el.sheet.contains(document.activeElement) ? document.activeElement : null;
+    const focusAttribute = focused && ["data-field", "data-action", "data-el-open", "data-item", "data-tag", "data-add-epic"].find((name) => focused.hasAttribute(name));
+    const focusSelector = focusAttribute ? `[${focusAttribute}="${CSS.escape(focused.getAttribute(focusAttribute))}"]` : "";
+    // An external edit must not replace a focused control or its uncommitted value. On blur,
+    // the deferred refresh runs; the change handler saves against freshly read source.
+    if (sameItem && this.el.sheet.contains(document.activeElement) && document.activeElement.closest("[data-field], [data-add-epic]")) return;
     const scroll = sameItem ? this.el.sheet.querySelector(".bb-panel")?.scrollTop : 0;
     this.sheetKey = key;
 
     if (!item) {
       this.el.sheet.innerHTML = "";
       document.documentElement.classList.remove("bb-locked");
+      for (const el of this.root.querySelectorAll('.bb-header, .bb-toolbar, .bb-main')) el.inert = false;
       if (wasOpen && this.lastItem) this.root.querySelector(`#bb-card-${CSS.escape(this.lastItem)}, [data-row="${CSS.escape(this.lastItem)}"] a`)?.focus();
       return;
     }
     this.lastItem = item.slug;
     document.documentElement.classList.add("bb-locked");
+    for (const el of this.root.querySelectorAll('.bb-header, .bb-toolbar, .bb-main')) el.inert = true;
 
     const file = s.path ? core.resolvePath(s.path, item.file) : "";
     const editor = core.editorURL(s.editor, file);
@@ -977,8 +1038,10 @@ depends_on: []
 
     this.linkBody(this.el.sheet.querySelector(".bb-prose"), s);
     const panel = this.el.sheet.querySelector(".bb-panel");
-    if (sameItem) panel.scrollTop = scroll;
-    else if (!this.el.sheet.contains(document.activeElement)) panel.focus({ preventScroll: true });
+    if (sameItem) {
+      panel.scrollTop = scroll;
+      if (focused) (this.el.sheet.querySelector(focusSelector || ".bb-panel") || panel).focus({ preventScroll: true });
+    } else if (!this.el.sheet.contains(document.activeElement)) panel.focus({ preventScroll: true });
   }
 
   // An epic's part of its sheet: its progress, what's next, its items in work order with what each

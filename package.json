@@ -1,0 +1,13 @@
+{
+  "name": "open-backlog",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:silent": "PWDEBUG=0 playwright test",
+    "check": "node bin/open-backlog.mjs check"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.2"
+  }
+}
