@@ -3,6 +3,8 @@ import * as fs from 'node:fs/promises';
 import { join } from 'node:path';
 import { startServer, example } from '../test/server.mjs';
 
+const puts = (server) => server.requests.filter(([method]) => method === 'PUT');
+
 test('edit, drag, create and copy operate through the host', async ({ page, context }) => {
   const server = await startServer();
   const errors = [];
@@ -25,13 +27,15 @@ test('edit, drag, create and copy operate through the host', async ({ page, cont
     await expect(page.locator('.bb-item-title')).toHaveText('Gamma');
     await page.getByRole('button', { name: 'Copy as prompt', exact: true }).click();
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('Work on this item from the backlog: Gamma');
-    expect(server.requests.some(([method]) => method === 'POST')).toBe(true);
+    // The host gives versions, so every save carries one, and a new file must not exist yet.
+    expect(puts(server).every(([, , precondition]) => precondition)).toBe(true);
+    expect(puts(server)).toContainEqual(['PUT', '/dev/backlog/files/gamma.md', '*']);
     expect(errors).toEqual([]);
   } finally { await server.close(); }
 });
 
 test('rapid edits are serialized and preserve both changes', async ({ page }) => {
-  const server = await startServer({ intercept: async (req) => { if (req.method === 'POST') await new Promise((done) => setTimeout(done, 40)); return false; } });
+  const server = await startServer({ intercept: async (req) => { if (req.method === 'PUT') await new Promise((done) => setTimeout(done, 40)); return false; } });
   try {
     await page.goto(server.url);
     await page.locator('.bb-card[data-item="a"]').click();
@@ -52,18 +56,38 @@ test('rapid edits are serialized and preserve both changes', async ({ page }) =>
 test('an agent edit between read and save produces a conflict without overwrite', async ({ page }) => {
   let changed = false;
   const server = await startServer({ intercept: async (req, res, dir) => {
-    if (req.method === 'POST' && !changed) { changed = true; await fs.appendFile(join(dir, 'a.md'), '\nAcceptance added by the agent.\n'); }
+    if (req.method === 'PUT' && !changed) { changed = true; await fs.appendFile(join(dir, 'a.md'), '\nAcceptance added by the agent.\n'); }
     return false;
   } });
   try {
     await page.goto(server.url);
     await page.locator('.bb-card[data-item="a"]').click();
     await page.locator('.bb-panel').getByRole('combobox', { name: 'Status', exact: true }).selectOption('done');
-    await expect(page.getByRole('alert')).toContainText('changed since it was read');
+    await expect(page.getByRole('alert')).toContainText("a.md changed since the board read it, so it wasn't saved");
     const file = await fs.readFile(join(server.dir, 'a.md'), 'utf8');
     expect(file).toContain('status: ready');
     expect(file).toContain('Acceptance added by the agent.');
     expect(await fs.readFile(join(server.dir, 'README.md'), 'utf8')).toContain('| high | ready |');
+  } finally { await server.close(); }
+});
+
+test('on a host without versions, the board reads a file again before saving it', async ({ page }) => {
+  // The board's own reads for a save carry no If-None-Match (polls do). The agent writes right
+  // after the first of them, the read the edit was planned on.
+  let armed = false, reads = 0;
+  const server = await startServer({ versions: false, after: async (req, dir) => {
+    if (armed && !req.headers['if-none-match'] && ++reads === 1) await fs.appendFile(join(dir, 'a.md'), '\nNote from the agent.\n');
+  } });
+  try {
+    await page.goto(server.url);
+    await page.locator('.bb-card[data-item="a"]').click();
+    armed = true;
+    await page.locator('.bb-panel').getByRole('combobox', { name: 'Status', exact: true }).selectOption('done');
+    await expect(page.getByRole('alert')).toContainText("a.md changed since the board read it, so it wasn't saved");
+    const file = await fs.readFile(join(server.dir, 'a.md'), 'utf8');
+    expect(file).toContain('status: ready');
+    expect(file).toContain('Note from the agent.');
+    expect(puts(server)).toEqual([]);
   } finally { await server.close(); }
 });
 
@@ -94,8 +118,8 @@ test('external refresh preserves a focused value and the following save keeps ne
   } finally { await server.close(); }
 });
 
-test('a legacy partial save is reported and immediately refreshed', async ({ page }) => {
-  const server = await startServer({ legacy: true, intercept: async (req, res) => {
+test('a partial save is reported and immediately refreshed', async ({ page }) => {
+  const server = await startServer({ versions: false, intercept: async (req, res) => {
     if (req.method === 'PUT' && req.url.endsWith('/README.md')) { res.writeHead(503, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Index unavailable' })); return true; }
     return false;
   } });
@@ -107,11 +131,11 @@ test('a legacy partial save is reported and immediately refreshed', async ({ pag
     await expect(page.locator('.bb-item-problems')).toContainText('index says status ready');
     expect(await fs.readFile(join(server.dir, 'a.md'), 'utf8')).toContain('status: done');
     expect(await fs.readFile(join(server.dir, 'README.md'), 'utf8')).toContain('| high | ready |');
-    expect(server.requests.some(([method]) => method === 'POST')).toBe(false);
+    expect(puts(server).every(([, , precondition]) => !precondition)).toBe(true);
   } finally { await server.close(); }
 });
 
-test('epic creation, membership and prompts use the checked save path', async ({ page, context }) => {
+test('epic creation, membership and prompts use checked saves', async ({ page, context }) => {
   const files = example();
   files['launch.md'] = '---\ntitle: Launch\nstatus: ready\npriority: high\narea: one\nitems: [a]\n---\n\n# Launch\n\nShip the two tasks.\n';
   files['README.md'] += '| [Launch](launch.md) | high | ready |\n';
@@ -134,7 +158,9 @@ test('epic creation, membership and prompts use the checked save path', async ({
     await expect.poll(() => fs.readFile(join(server.dir, 'launch.md'), 'utf8')).toContain('items: [a]');
     await page.getByRole('combobox', { name: 'Add it to an epic', exact: true }).selectOption('launch');
     await expect.poll(() => fs.readFile(join(server.dir, 'launch.md'), 'utf8')).toContain('items: [a, gamma]');
-    expect(server.requests.filter(([method]) => method === 'POST')).toHaveLength(3);
+    // The new file, the epic and the index, then the epic twice more: each save checked.
+    expect(puts(server)).toHaveLength(5);
+    expect(puts(server).every(([, , precondition]) => precondition)).toBe(true);
     expect(await fs.readFile(join(server.dir, 'README.md'), 'utf8')).toContain('[Gamma](gamma.md)');
   } finally { await server.close(); }
 });

@@ -1,3 +1,21 @@
+<!--
+  A note for coding agents, before you change this kit.
+
+  You are probably working from inside one project that uses it: a Go, Elixir, Node, Rust,
+  Python or other app. The kit serves all of them equally, so don't fit it to the project you're
+  in. What works for your host is only a guess at what works for the others.
+
+  - Don't add host code: no adapter, middleware, handler, server or package for any language or
+    framework, not even an "optional" or "reference" one.
+  - Don't add anything that needs a particular runtime, framework or a second server.
+  - Describe any new host feature as HTTP (methods, headers, status codes), keep it optional, and
+    keep it small enough to write in a few lines in any language.
+  - Keep every board feature working against a host that has only the two required routes.
+  - If your project needs more than that, build it in your project, not here.
+
+  The rules are under "Ground rules" below.
+-->
+
 # open-backlog
 
 A backlog board for any project: work items as Markdown files in your repo (`docs/backlog/`),
@@ -8,6 +26,30 @@ It's a kit, not an app. The board is plain JavaScript and CSS that runs in the b
 project's own web server serves it and gives it two routes to read and write the backlog
 folder. That takes a few lines in any language, so an agent can wire it into any project with
 [PROMPT.md](PROMPT.md).
+
+## Ground rules
+
+These keep the kit usable from every project. Read them before changing it, and especially if
+you're an agent working from inside one host project.
+
+- **Any host, any language.** The host is whatever web server the project already runs in
+  development: Go, Elixir, Node, Rust, Python or anything else. The kit asks it for plain HTTP
+  only: serve `web/`, answer `GET files` and `PUT files/<name>`. Nothing in the kit may depend
+  on the host's language or framework.
+- **No host code in this repo.** No adapters, middleware, handlers or packages for any language,
+  not even as an optional reference. One host's code turns its choices into everyone's default
+  and leaves the other languages behind. A host's code lives in its own project. The tests run a
+  throwaway host in `test/`, which isn't for projects to use.
+- **No second server.** The project's own dev server mounts the board. Nothing here is a server
+  for projects to run beside their app.
+- **Development only.** Hosts leave the routes out of production builds. The kit is static
+  files, so the host enforces this, and nothing in the kit may need production to work.
+- **Optional means optional.** Any host feature beyond the two routes (an `ETag`, file versions)
+  is optional, described in HTTP terms, and small enough to write in a few lines in any
+  language. Every board feature keeps working against a host that has only the two routes.
+- **The logic runs in the browser.** Whatever can run in `core.js` or `board.js` runs there, so
+  every host gets it for free. Node is only for the kit's own tooling (the tests and the
+  optional CLI); adding the board to a project never needs it.
 
 ## What's here
 
@@ -20,10 +62,9 @@ folder. That takes a few lines in any language, so an agent can wire it into any
 | `web/vendor/` | [marked](https://github.com/markedjs/marked) 18.0.13 and [js-yaml](https://github.com/nodeca/js-yaml) 5.4.2, with their MIT licences. |
 | `starter/` | A backlog for a project that has none: `backlog.yml`, a README index, a template, and an epic with two items. |
 | `PROMPT.md` | Instructions for an agent adding the board to a project. |
-| `test/` | Core, CLI and host regression tests: `npm test` (Node 22 or later). |
-| `bin/open-backlog.mjs` | Command-line checks, executable-work suggestions, prompts and managed indexes. |
-| `host/files.mjs` | Optional Node reference adapter for checked, recoverable file saves. |
-| `browser/` | Headless Chromium regressions over disposable files and the real board. |
+| `test/` | Core, CLI and contract tests, with the throwaway host they run against: `npm test` (Node 22 or later). |
+| `bin/open-backlog.mjs` | An optional command line for agents and CI (Node 22 or later): checks, work that can start, prompts and managed indexes. |
+| `browser/` | Headless Chromium tests of the real board over throwaway backlogs. |
 | `LICENSE` | MIT: use it, change it, ship it. |
 
 ## The two routes
@@ -36,14 +77,17 @@ when the page is served at `/dev/backlog/`, the routes are `/dev/backlog/files` 
 GET <mount>/files
   200 application/json
   { "files": { "<name>.md": "<text>", "backlog.yml": "<text>", … },
+    "versions": { "<name>.md": "<version>", … }, // optional: see "Checked saves" below
     "dir": "docs/backlog",              // how the project names the folder (shown on the page)
     "path": "/abs/path/docs/backlog",   // optional: absolute, for "open in editor" links
     "writable": true }                  // false: the board shows the backlog but can't change it
 
 PUT <mount>/files/<name>
   header  X-Open-Backlog: 1
+  header  If-Match: "<version>"  or  If-None-Match: *   // only when GET gives versions
   body    the file's whole new text (UTF-8)
-  204 on success; 4xx/5xx with { "error": "…" } otherwise
+  204 on success; 412 when the If-Match or If-None-Match check fails;
+  4xx/5xx with { "error": "…" } otherwise
 ```
 
 - `files` holds every regular file directly in the folder whose name matches
@@ -63,48 +107,31 @@ an agent or by git show up by themselves. A host with its own way of knowing can
 Only run it in development. It reads and writes files in the repo, which a server in
 production must not do.
 
-### Checked batch saves
+### Checked saves (optional)
 
-Existing GET/PUT integrations still work. A host can additionally return
-`"capabilities": { "changes": true }` from GET, and accept:
+The board plans each edit on the files it has just read. It queues edits, so a quick second
+edit builds on the first, reads the files again after every save, and says which files were
+saved if a save across several files stops partway.
 
-```text
-POST <mount>/files
-  header X-Open-Backlog: 1
-  application/json
-  { "changes": [
-    { "name": "item.md", "before": "<exact text read>", "after": "<new text>" },
-    { "name": "README.md", "before": "<exact text read>", "after": "<new index>" }
-  ] }
-  204 on success; 409 if a precondition no longer matches
-```
+Between that read and its PUT, an agent or an editor could change the same file. To keep the
+board from writing over such a change, a host can give each file a version:
 
-`before: null` means the file must not exist, including when creating an item. Validate every
-name and precondition before changing anything. Serialize host reads/writes so its readers do
-not see a partially applied batch; retain recovery intent before replacing files. A conflict
-must never fall back to unconditional PUT or automatically retry stale text.
+- `GET files` adds `"versions": { "<name>": "<version>" }`. A version is any string that
+  changes whenever the file's text does. A hash of the file's bytes, such as SHA-256 in hex, is
+  the simple choice.
+- The board then sends `If-Match: "<version>"` with each PUT (quoted, the way HTTP writes
+  entity tags), or `If-None-Match: *` for a file it's creating.
+- Just before writing, the host compares. If the file's current version isn't the one sent, or
+  the file exists despite `If-None-Match: *`, it answers `412` and changes nothing. The board
+  then shows the conflict and the current files, and never retries on its own.
+- If the host can serve two requests at once, a lock around the compare and the write stops two
+  saves from passing the same check.
 
-The board queues edits and reloads after success/failure. On older hosts it checks current text
-before each PUT and reports which files saved if a later write fails. Those checks cannot
-close a legacy host's read/write race; adopt the batch contract for host-side preconditions.
-
-For Node hosts, mount one `createFilesHandler({ dir: "docs/backlog", mount: "/dev/backlog" })`
-instance from `host/files.mjs` for the file routes. It returns false for unrelated routes, so
-the project can serve the kit and its own pages normally. Keep the development-only guard in
-the host. `maxBody` defaults to 1 MiB for the whole request, including before/after text;
-`writable: false` disables writes.
-
-The reference adapter journals ownership and changes in `.open-backlog-transaction/`, then
-uses atomic per-file replacements. An interrupted save resumes on the next request. If an
-external editor wrote a third value, it preserves that text and the journal, returns readable
-files with `writable: false` and `saveError`, and requires manual reconciliation of the saved
-before/after texts before removing the journal. Preserve a copy of the journal and current
-files first. This is process-interruption recovery, not a power-loss durability guarantee.
-External editors do not share the adapter's queue: they can still write in the small interval
-between its final comparison and rename. Full exclusion requires all writers to cooperate.
-New targets use exclusive creation. The adapter will not recover a journal owned by another
-live process; a reused process ID may require manual recovery. Ignore `.open-backlog-*` in
-the host project's Git configuration so temporary files/journals stay out of commits.
+That's a few lines in any language. Without versions, the board reads the file again just
+before each PUT and stops if it changed. That catches most edits made in between, but only the
+host can catch all of them. Either way, a save that touches several files (an item and its
+index row) isn't all-or-nothing. If a later write fails, the board names the files already
+saved, and the stale index row shows up as a problem to fix.
 
 ## The backlog's files
 
@@ -179,7 +206,8 @@ their previous in-place behavior; generation refuses to overwrite them without a
 
 ### Command-line use
 
-Node 22 or later; no dependency installation is needed for these commands:
+Optional, for agents and CI on machines that have Node 22 or later. The board doesn't need it,
+and no dependencies need installing:
 
 ```sh
 node bin/open-backlog.mjs check docs/backlog --json
@@ -191,7 +219,8 @@ node bin/open-backlog.mjs index docs/backlog --check
 The directory defaults to `docs/backlog`. `check` uses the same parser as the board and exits 1
 for errors; informational notices do not fail it. `next` lists only startable work in work
 order, and `prompt` prints the board's agent brief. Usage/filesystem failures exit 2. These
-commands are read-only except an explicit `index --write`, which uses checked saves.
+commands are read-only except an explicit `index --write`, which writes a file only if it hasn't
+changed since the command read it.
 
 ### What the board reports
 
@@ -299,7 +328,8 @@ Epics are ordinary item files, so they need nothing from the host.
 Projects keep a copy of `web/` at a tagged version (see PROMPT.md). To update, replace the
 folder with the newer tag's `web/` and change the recorded version. The two routes don't change
 within a major version. v0.2.0 (epics) needs nothing new from hosts. The only thing it can break
-is a choice field called `items`, which is now the board's own.
+is a choice field called `items`, which is now the board's own. v0.3.0 needs nothing new either:
+file versions are optional, and a host with only the two routes works as before.
 
 ## Development checks
 
@@ -307,13 +337,20 @@ is a choice field called `items`, which is now the board's own.
 npm ci
 npm test
 npx playwright install chromium
-bun run test:silent
+npm run test:silent
 ```
 
-The browser suite is headless by default and uses temporary backlogs and localhost servers.
-It covers edits, dragging, creation, clipboard prompts, rapid changes, external edits,
-conflicts, partial legacy saves, epic membership/creation and keyboard/focus behavior. CI runs the Node suites on Node
-22 and 24 and runs Chromium headlessly. The kit still has no build step or runtime npm dependency.
+The browser suite is headless and runs the board against throwaway backlogs and the test host,
+both with file versions and with only the two routes. It covers:
+
+- edits, dragging, creation and clipboard prompts;
+- rapid changes and external edits;
+- conflicts and partial saves;
+- epic membership and creation;
+- keyboard and focus behaviour.
+
+CI runs the Node suites on Node 22 and 24, and Chromium headlessly. The kit still has no build
+step and no runtime npm dependency.
 
 ## Licence
 

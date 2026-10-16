@@ -1,8 +1,11 @@
 // The board: the page over core.js. It mounts on any element with data-open-backlog, reads the
 // backlog from the host's two routes (data-api, default "."), and polls them to stay current.
 //
-//   GET  <api>/files          → { files: { "name.md": "text", … }, dir, path, writable }
-//   PUT  <api>/files/<name>   ← the file's new text, with the header X-Open-Backlog: 1
+//   GET  <api>/files          → { files: { "name.md": "text", … }, versions?, dir, path, writable }
+//   PUT  <api>/files/<name>   ← the file's new text, with the header X-Open-Backlog: 1, and
+//                               If-Match or If-None-Match: * when the host gives versions
+//
+// That's plain HTTP, so any host in any language can serve it (see README.md).
 
 import * as core from "./core.js";
 
@@ -121,7 +124,6 @@ class Board {
     this.body = body;
     this.payload = JSON.parse(body);
     this.snap = core.parseBacklog(this.payload);
-    if (this.payload.saveError) this.snap.problems.push({ slug: "", message: this.payload.saveError });
     this.version++;
     this.render();
   }
@@ -133,31 +135,33 @@ class Board {
     return this.snap;
   }
 
+  // Saves each file with a PUT, as planned against this.payload. When the host gives versions,
+  // each PUT carries one (If-Match, or If-None-Match: * for a new file) and the host refuses with
+  // 412 if the file changed since it was read. Without them, the board reads the file again just
+  // before writing it: that catches most edits made in between, but only the host can catch all.
   async write(writes) {
     if (!Object.keys(writes).length) return;
-    const before = { ...this.payload.files };
+    const { files: before, versions } = this.payload;
     const saved = [];
-    const send = async (url, options) => {
-      const res = await fetch(url, options);
-      if (!res.ok) {
-        let why = `the host answered ${res.status}`;
-        try { why = (await res.json()).error || why; } catch { /* not JSON */ }
-        throw new Error(why);
-      }
-    };
+    const changed = (name) => new Error(`${name} changed since the board read it, so it wasn't saved`);
     try {
-      if (this.payload.capabilities?.changes === true) {
-        const changes = Object.entries(writes).map(([name, after]) => ({ name, before: before[name] ?? null, after }));
-        await send(new URL("files", this.api), { method: "POST", headers: { "Content-Type": "application/json", "X-Open-Backlog": "1" }, body: JSON.stringify({ changes }) });
-      } else {
-        for (const [name, text] of Object.entries(writes)) {
-          // Older hosts have no compare-and-save operation. Detect intervening edits before
-          // each PUT, but do not pretend this closes their read/write race.
+      for (const [name, text] of Object.entries(writes)) {
+        const headers = { "Content-Type": "text/plain; charset=utf-8", "X-Open-Backlog": "1" };
+        if (versions && before[name] == null) headers["If-None-Match"] = "*";
+        else if (versions?.[name] != null) headers["If-Match"] = `"${versions[name]}"`;
+        else {
           const current = JSON.parse(await this.fetchFiles({ fresh: true }));
-          if (!current.writable || (current.files[name] ?? null) !== (before[name] ?? null)) throw new Error(`${name} changed; review the current files before trying again`);
-          await send(new URL(`files/${encodeURIComponent(name)}`, this.api), { method: "PUT", headers: { "Content-Type": "text/plain; charset=utf-8", "X-Open-Backlog": "1" }, body: text });
-          saved.push(name);
+          if (!current.writable) throw new Error("the backlog is read-only now");
+          if ((current.files[name] ?? null) !== (before[name] ?? null)) throw changed(name);
         }
+        const res = await fetch(new URL(`files/${encodeURIComponent(name)}`, this.api), { method: "PUT", headers, body: text });
+        if (res.status === 412) throw changed(name);
+        if (!res.ok) {
+          let why = `the host answered ${res.status}`;
+          try { why = (await res.json()).error || why; } catch { /* not JSON */ }
+          throw new Error(why);
+        }
+        saved.push(name);
       }
       await this.fresh();
     } catch (e) {

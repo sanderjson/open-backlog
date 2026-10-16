@@ -1,7 +1,7 @@
 # Add the open-backlog board to this project
 
 Give this file to a coding agent working in the project, with the version to use (a tag of
-https://github.com/sanderjson/open-backlog, e.g. `v0.2.0`).
+https://github.com/sanderjson/open-backlog, e.g. `v0.3.0`).
 
 ## Goal
 
@@ -34,16 +34,19 @@ provides exactly three things, all under one mount path, say `/dev/backlog`:
    is plenty) and write atomically: a temporary file in the same folder, then a rename. Answer
    204, or an error status with `{"error": "<why>"}`, which the page shows.
 
-The GET/PUT routes remain sufficient for every board feature, including epics (items whose
-front matter lists other items under `items`).
+These routes are enough for every board feature, epics included (items whose front matter lists
+other items under `items`). Write them in the project's own language and framework, in the
+server it already runs: the kit ships no host code to install, and needs none.
 
-For checked saves, also implement the optional batch contract in README.md: advertise
-`capabilities: { changes: true }` on GET and accept `POST /dev/backlog/files` with exact
-before/after texts. Verify all preconditions, reject mismatches with 409, serialize host
-requests and retain interrupted-save recovery intent. Node projects can reuse
-`host/files.mjs`; other languages should implement the same contract. Keep the existing PUT
-route for compatibility. Without this extension, legacy PUT still has a read/write race.
-Ignore `.open-backlog-*` temporary files and recovery journals in the project's Git configuration.
+Optionally, make saves checked, so the board can never write over an edit made between its read
+and its save:
+- add `versions` to `GET files`: each file's name mapped to a string that changes whenever the
+  file's text does (a SHA-256 hex digest of its bytes is simplest);
+- the board then sends `If-Match: "<version>"` with each PUT, or `If-None-Match: *` when it
+  creates a file;
+- just before writing, compare: if the file's version is different, or the file exists despite
+  `If-None-Match: *`, answer 412 and change nothing;
+- if the server handles requests concurrently, hold a lock around the compare and the write.
 
 The header check is the protection against cross-site writes (a foreign page can't add a custom
 header without a CORS preflight, which this server never allows). So keep the route out of any
@@ -69,11 +72,11 @@ the same.
 
 1. **Vendor the kit.** Copy the tag's `web/` into the project unchanged (e.g.
    `vendor/open-backlog/`, or wherever the project keeps vendored code), with the repo's
-   `LICENSE` and a `VERSION` file holding the tag beside it. Don't edit those files: updating means replacing the folder. Don't put
-   them in a folder the server publishes in production (a public or static directory). The dev
-   route serves them itself.
-   If using the optional Node adapter, copy `host/files.mjs` beside the vendored `web/`
-   directory too, preserving their relative layout.
+   `LICENSE` and a `VERSION` file holding the tag beside it. Don't edit those files: updating
+   means replacing the folder. If the kit falls short for this project, say so in your report
+   instead of patching the copy. The kit has to stay the same for every host, whatever its
+   language (see "Ground rules" in its README). Don't put the files in a folder the server
+   publishes in production (a public or static directory). The dev route serves them itself.
 2. **Add the route in development only.** It should be absent from production builds, not just
    hidden: a compile-time or startup check on the environment, the way the project already
    limits other dev tools.
@@ -87,13 +90,15 @@ the same.
    - `PUT` refuses a missing header (403), `..%2Fx.md`, `x.sh` and `.x.md` (400), and nothing
      is written outside the folder;
    - `GET /dev/backlog/` serves the page and `board.js` is served as JavaScript;
-   - in a production build or configuration, the route doesn't exist.
-5. **Check it in a headless browser.** Open the board, change an item's status in its sheet, and confirm
-   the file's front matter (and its README row, if the index shows status) changed. Then edit
-   a file by hand and see the board follow within a few seconds.
-   For a batch-capable host, test concurrent saves, a precondition conflict and recovery after
-   an interrupted item/index save. Verify that an externally changed file is never replaced
-   merely to finish recovery. Keep browser windows hidden unless explicitly requested.
+   - in a production build or configuration, the route doesn't exist;
+   - if the host gives versions: a PUT with the current version writes, a PUT with a stale
+     `If-Match` gets 412 and changes nothing, and `If-None-Match: *` on an existing file gets 412.
+5. **Check it in a headless browser.** Open the board, change an item's status in its sheet, and
+   confirm the file's front matter (and its README row, if the index shows status) changed. Then
+   edit a file by hand and see the board follow within a few seconds. If the host gives
+   versions, also edit a file by hand while its sheet is open, then change a field in the sheet:
+   the board reports the conflict and your hand edit stays. Keep browser windows hidden unless
+   explicitly requested.
 6. **Link it** from the project's dev menu, if there is one, and mention the board in the
    project's docs where dev tools are listed.
 7. **Report** where the kit lives and at which version, the route and how it's limited to
