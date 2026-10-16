@@ -123,6 +123,30 @@ test("hosts send the template, and it's not an item", () => {
   assert.match(writes["restore-drill.md"], /\n# Restore drill\n\n## Notes\n\nAbout Restore drill\.\n$/);
 });
 
+test("an item copies as a prompt for an agent", () => {
+  const s = load();
+  const logo = core.itemPrompt(s, "logo");
+  assert.match(logo, /^Work on this item from the backlog: Logo build\n/);
+  assert.match(logo, /^File: docs\/backlog\/logo\.md$/m);
+  assert.match(logo, /^Fields: priority: high, status: idea, area: design, weight: 2$/m);
+  assert.match(logo, /^Tags: brand$/m);
+  assert.match(logo, /^It waits on an unfinished item\. Tell me before you start on it anyway\.$/m);
+  assert.match(logo, /^Depends on:\n- Brand palette \(docs\/backlog\/palette\.md, status: idea\)$/m);
+  assert.match(logo, /\n```markdown\nThe logo, drawn from the palette\.\n```\n/);
+  assert.match(logo, /set status to in-progress when you start and to done when it's finished, in its front matter and its row in docs\/backlog\/README\.md\.\n$/);
+
+  const palette = core.itemPrompt(s, "palette");
+  assert.doesNotMatch(palette, /waits on/);
+  assert.match(palette, /^Unblocks:\n- Logo build \(docs\/backlog\/logo\.md, status: idea\)$/m);
+  assert.match(palette, /^Related:\n- Logo build/m);
+  assert.match(core.itemPrompt(s, "backups"), /^Problems the board found in it:\n- README\.md's index says/m);
+
+  // A code block in the item can't close the prompt's own fence.
+  const fenced = load({ ...files(), "logo.md": files()["logo.md"] + "\n```sh\nmake logo\n```\n" });
+  assert.match(core.itemPrompt(fenced, "logo"), /\n````markdown\n[\s\S]*```sh\nmake logo\n```\n````\n/);
+  assert.throws(() => core.itemPrompt(s, "missing"), /no item called missing/);
+});
+
 test("setFront keeps the rest of the file as it is", () => {
   const text = "---\r\ntitle: X\r\nstatus: idea\r\n---\r\n\r\nBody\r\n";
   assert.equal(core.setFront(text, "status", "done"), "---\r\ntitle: X\r\nstatus: done\r\n---\r\n\r\nBody\r\n");

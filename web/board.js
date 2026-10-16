@@ -29,6 +29,7 @@ const ICONS = {
   up: '<path d="M6 15l6-6 6 6"/>',
   keys: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
+  copy: '<rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5v-3a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
 };
 
 const icon = (name, cls = "") => `<svg class="bb-i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
@@ -47,7 +48,8 @@ const CYCLE = ["violet", "orange", "teal", "blue", "pink", "green", "indigo", "a
 
 const SHORTCUTS = [
   ["/", "Search"], ["n", "New item"], ["b", "Board"], ["l", "List"], ["j / k", "Next / previous item"],
-  ["e", "Open the item in your editor"], ["Esc", "Close"], ["?", "These shortcuts"],
+  ["e", "Open the item in your editor"], ["c", "Copy the item as a prompt for an agent"], ["Esc", "Close"],
+  ["?", "These shortcuts"],
 ];
 
 class Board {
@@ -429,6 +431,7 @@ class Board {
       case "prev": return this.step(-1);
       case "next": return this.step(1);
       case "problems": return void (this.problemsOpen = !this.problemsOpen);
+      case "prompt": return this.copyPrompt(this.params().item);
     }
   }
 
@@ -458,6 +461,7 @@ class Board {
       j: () => (p.item ? this.step(1) : this.openFirst()),
       k: () => (p.item ? this.step(-1) : this.openFirst()),
       e: () => p.item && this.root.querySelector("[data-el-open]")?.click(),
+      c: () => p.item && this.copyPrompt(p.item),
       "?": () => this.el.helpDialog.showModal(),
     }[e.key];
     if (run) {
@@ -803,6 +807,7 @@ depends_on: []
               ? `<a class="bb-path" href="${esc(editor)}" data-el-open title="Open in your editor (e)">${icon("edit")}<span>${esc(s.dir)}/${esc(item.file)}</span></a>`
               : `<span class="bb-path">${esc(s.dir)}/${esc(item.file)}</span>`}
             <span class="bb-spacer"></span>
+            <button type="button" class="bb-btn bb-prompt-btn" data-action="prompt" title="Copy as a prompt for an agent (c)" aria-label="Copy as prompt">${icon("copy")}<span>Copy as prompt</span></button>
             <button type="button" class="bb-icon-btn" data-action="prev" title="Previous (k)" aria-label="Previous item">${icon("up")}</button>
             <button type="button" class="bb-icon-btn" data-action="next" title="Next (j)" aria-label="Next item">${icon("down")}</button>
             <button type="button" class="bb-icon-btn" data-action="close" title="Close (Esc)" aria-label="Close">${icon("x")}</button>
@@ -858,6 +863,34 @@ depends_on: []
         a.title = path;
       }
     }
+  }
+
+  // Copies the item as a prompt for an agent. The clipboard API needs a secure context (https or
+  // localhost); elsewhere, fall back to copying from a hidden text area.
+  async copyPrompt(slug) {
+    const item = this.snap?.bySlug.get(slug);
+    if (!item) return;
+    const text = core.itemPrompt(this.snap, slug);
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+    } catch {
+      const back = document.activeElement;
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.className = "bb-copy-area";
+      this.root.append(area);
+      area.select();
+      try {
+        copied = document.execCommand("copy");
+      } catch {}
+      area.remove();
+      back?.focus({ preventScroll: true });
+    }
+    if (copied) this.toast("Copied as a prompt", "ok", item.file);
+    else this.toast("The browser didn't allow copying", "error");
   }
 
   toast(message, kind = "ok", detail = "") {

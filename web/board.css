@@ -302,6 +302,8 @@ html.bb-locked { overflow: hidden; }
 }
 .bb-path { display: inline-flex; min-width: 0; align-items: center; gap: 6px; padding: 4px 8px; margin-left: -8px; border-radius: 8px; color: var(--muted); font: 500 12px/1.4 var(--mono); text-decoration: none; transition: background 0.15s, color 0.15s; }
 .bb-path span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bb-prompt-btn { flex: none; margin-right: 6px; }
+.bb-copy-area { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; }
 a.bb-path:hover { background: var(--sunken); color: var(--ink); }
 .bb-panel-body { padding: 26px 32px 64px; }
 .bb-item-title { margin: 0; font-size: 28px; line-height: 1.2; font-weight: 750; letter-spacing: -0.022em; text-wrap: balance; }
@@ -405,6 +407,8 @@ a.bb-path:hover { background: var(--sunken); color: var(--ink); }
   .bb-search { width: 100%; }
   .bb-search kbd { display: none; }
   .bb-spacer { display: none; }
+  .bb-prompt-btn { margin-left: auto; padding: 0 10px; }
+  .bb-prompt-btn span { display: none; }
   .bb-board { grid-auto-columns: 84vw; scroll-snap-type: x mandatory; }
   .bb-column { scroll-snap-align: start; }
   .bb-panel-body { padding: 20px 18px 48px; }
