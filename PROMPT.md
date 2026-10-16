@@ -1,7 +1,7 @@
 # Add the open-backlog board to this project
 
 Give this file to a coding agent working in the project, with the version to use (a tag of
-https://github.com/sanderjson/open-backlog, e.g. `v0.1.0`).
+https://github.com/sanderjson/open-backlog, e.g. `v0.1.1`).
 
 ## Goal
 
@@ -56,8 +56,8 @@ the same.
 ## Expectations
 
 1. **Vendor the kit.** Copy the tag's `web/` into the project unchanged (e.g.
-   `vendor/open-backlog/`, or wherever the project keeps vendored code). Add a `VERSION` file
-   with the tag beside it. Don't edit those files: updating means replacing the folder. Don't put
+   `vendor/open-backlog/`, or wherever the project keeps vendored code), with the repo's
+   `LICENSE` and a `VERSION` file holding the tag beside it. Don't edit those files: updating means replacing the folder. Don't put
    them in a folder the server publishes in production (a public or static directory). The dev
    route serves them itself.
 2. **Add the route in development only.** It should be absent from production builds, not just
