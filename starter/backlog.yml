@@ -1,0 +1,31 @@
+# The board's settings for this backlog. Every line is optional: without this file the board
+# uses the fields and values the items themselves have.
+
+title: Backlog
+
+# The choice fields, in the order the board shows them, each with its values in order. A field
+# with values listed is strict: anything else is reported as a problem. An empty list ([])
+# means "a field, with whatever values the items use".
+fields:
+  status: [idea, ready, in-progress, parked, done]
+  priority: [high, mid, low]
+  type: [build, spike, discuss]
+  area: []
+
+# Which statuses count as finished (a dependency on them no longer blocks), which "Hide closed"
+# hides, which are work not started yet, and which are under way. Without these, the board
+# picks the well-known names out of the status values.
+done: [done]
+closed: [done, parked]
+startable: [idea, ready]
+active: [in-progress]
+
+# Colours for values: gray, blue, teal, green, amber, orange, red, pink, violet or indigo.
+# colors:
+#   area: {design: violet, ops: blue}
+
+# Where links to files open: vscode, cursor, windsurf, zed, idea, none, or a URL with {path}.
+editor: vscode
+
+# The file whose tables list the items (kept up to date by the board), or none.
+index: README.md
