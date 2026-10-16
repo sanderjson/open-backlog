@@ -30,6 +30,8 @@ const ICONS = {
   keys: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
   copy: '<rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5v-3a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
+  epic: '<path d="M12 3.5l8.5 4.5-8.5 4.5L3.5 8 12 3.5z"/><path d="M3.5 12l8.5 4.5 8.5-4.5"/><path d="M3.5 16l8.5 4.5 8.5-4.5"/>',
+  info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11.5v5M12 8h.01"/>',
 };
 
 const icon = (name, cls = "") => `<svg class="bb-i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
@@ -46,10 +48,13 @@ const STATUS_TONES = {
 };
 const CYCLE = ["violet", "orange", "teal", "blue", "pink", "green", "indigo", "amber"];
 
+// The order an epic's progress bar shows its items in (see core.stage).
+const STAGES = ["done", "setAside", "active", "ready", "blocked", "other"];
+
 const SHORTCUTS = [
-  ["/", "Search"], ["n", "New item"], ["b", "Board"], ["l", "List"], ["j / k", "Next / previous item"],
-  ["e", "Open the item in your editor"], ["c", "Copy the item as a prompt for an agent"], ["Esc", "Close"],
-  ["?", "These shortcuts"],
+  ["/", "Search"], ["n", "New item"], ["b", "Board"], ["l", "List"], ["Shift E", "Filter by epic"],
+  ["j / k", "Next / previous item"], ["e", "Open the item in your editor"],
+  ["c", "Copy the item, or the epic, as a prompt for an agent"], ["Esc", "Close"], ["?", "These shortcuts"],
 ];
 
 class Board {
@@ -155,17 +160,35 @@ class Board {
     const fields = {};
     for (const f of this.snap.fields) fields[f.name] = data.get(`field-${f.name}`) || "";
     const tags = String(data.get("tags") || "").split(",").map((t) => t.trim()).filter(Boolean);
+    const epic = String(data.get("epic") || "");
     try {
       const snap = await this.fresh();
-      const { slug, writes } = core.planCreate(snap, { title: data.get("title") || "", weight: data.get("weight") || "", fields, tags });
+      const { slug, writes } = core.planCreate(snap, { title: data.get("title") || "", weight: data.get("weight") || "", fields, tags, epic });
       await this.write(writes);
       this.el.newDialog.close();
       form.reset();
       this.setParams({ item: slug }, { push: true });
-      this.toast("Item created", "ok", `${slug}.md`);
+      this.toast(epic ? `Item created in ${snap.bySlug.get(epic).title}` : "Item created", "ok", `${slug}.md`);
     } catch (e) {
       this.el.newError.textContent = e.message;
       this.el.newError.hidden = false;
+    }
+  }
+
+  // Adds an item to an epic, or takes it out: either way only the epic's file changes.
+  async changeEpic(plan, epic, slug) {
+    try {
+      const snap = await this.fresh();
+      const title = snap.bySlug.get(epic)?.title ?? epic;
+      const writes = plan === "add" ? core.planAddToEpic(snap, epic, slug) : core.planRemoveFromEpic(snap, epic, slug);
+      if (!Object.keys(writes).length) return this.toast(plan === "add" ? `Already in ${title}` : `Not in ${title}`, "ok", `${epic}.md`);
+      await this.write(writes);
+      const left = plan === "add" || core.isEpic(this.snap.bySlug.get(epic)) ? "" : ", which lists no items now";
+      this.toast(`${plan === "add" ? "Added to" : "Taken out of"} ${title}${left}`, "ok", `${epic}.md`);
+    } catch (e) {
+      this.toast(e.message, "error");
+      this.sheetKey = "";
+      this.render();
     }
   }
 
@@ -188,7 +211,17 @@ class Board {
     };
     for (const key of ["q", "tag", "item", ...names]) if (raw[key]?.trim()) p[key] = raw[key].trim();
     for (const key of ["open", "next"]) if (raw[key] === "1") p[key] = "1";
+    if (this.epicFilterOn() && core.isEpic(this.snap.bySlug.get(raw.epic?.trim()))) p.epic = raw.epic.trim();
     return p;
+  }
+
+  // ?epic= filters to an epic's items, unless the backlog has a choice field called epic.
+  epicFilterOn() {
+    return !!this.snap && !this.snap.fields.some((f) => f.name === "epic");
+  }
+
+  epics() {
+    return core.sortItems(this.snap, this.snap.items.filter(core.isEpic), "title");
   }
 
   href(changes = {}) {
@@ -208,20 +241,28 @@ class Board {
     this.render();
   }
 
+  filters() {
+    return ["q", "tag", "epic", "open", "next", ...this.snap.fields.map((f) => f.name)];
+  }
+
   filtering(p) {
-    return ["q", "tag", "open", "next", ...this.snap.fields.map((f) => f.name)].some((k) => p[k]);
+    return this.filters().some((k) => p[k]);
   }
 
   visible(p) {
     const s = this.snap;
     const q = p.q?.toLowerCase();
+    const epic = this.epicFilterOn() && p.epic ? s.bySlug.get(p.epic) : null;
     const items = s.items.filter((item) =>
       s.fields.every((f) => !p[f.name] || (item.fields[f.name] ?? "") === (p[f.name] === "none" ? "" : p[f.name])) &&
+      (!epic || item === epic || epic.items.includes(item.slug)) &&
       (!p.tag || item.tags.includes(p.tag)) &&
       (!p.open || item.open) &&
       (!p.next || item.startable) &&
       (!q || [item.title, item.slug, item.summary, item.body, ...item.tags].some((t) => t?.toLowerCase().includes(q))));
-    return core.sortItems(s, items, p.sort);
+    const sorted = core.sortItems(s, items, p.sort);
+    // An epic's items come with the epic itself, first.
+    return epic && sorted.includes(epic) ? [epic, ...sorted.filter((item) => item !== epic)] : sorted;
   }
 
   // ---- Colours ---------------------------------------------------------------------------------
@@ -277,6 +318,7 @@ class Board {
               <kbd>/</kbd>
             </label>
             <span class="bb-filter-fields" data-el="fieldFilters"></span>
+            <select name="epic" class="bb-select bb-epic-filter" data-el="epicFilter" aria-label="Epic" title="An epic's items (Shift E)" hidden></select>
             <select name="tag" class="bb-select" data-el="tagFilter" aria-label="Tag"></select>
             <button type="button" class="bb-toggle" data-toggle="next" title="Open items with nothing unfinished before them">${icon("play")}<span>Can start</span></button>
             <button type="button" class="bb-toggle" data-toggle="open" title="Hide closed items">${icon("hide")}<span>Hide closed</span></button>
@@ -358,15 +400,21 @@ class Board {
 
     sheet.addEventListener("submit", (e) => e.preventDefault());
     sheet.addEventListener("change", (e) => {
-      const input = e.target.closest("[data-field]");
       const item = this.params().item;
-      if (input && item) this.update(item, input.dataset.field, input.value);
+      if (!item) return;
+      if (e.target.matches("[data-add-epic]")) {
+        if (e.target.value) this.changeEpic("add", e.target.value, item);
+        return;
+      }
+      const input = e.target.closest("[data-field]");
+      if (input) this.update(item, input.dataset.field, input.value);
     });
 
     newForm.addEventListener("submit", (e) => {
       e.preventDefault();
       this.create(newForm);
     });
+    newForm.addEventListener("change", (e) => e.target.name === "epic" && this.noteNew());
 
     this.bindDrag(main);
 
@@ -426,12 +474,15 @@ class Board {
       case "help": return this.el.helpDialog.showModal();
       case "dismiss": return target.closest("dialog").close();
       case "theme": return this.cycleTheme();
-      case "clear": return this.setParams(Object.fromEntries(["q", "tag", "open", "next", ...this.snap.fields.map((f) => f.name)].map((k) => [k, null])));
+      case "clear": return this.setParams(Object.fromEntries(this.filters().map((k) => [k, null])));
       case "close": return this.close();
       case "prev": return this.step(-1);
       case "next": return this.step(1);
       case "problems": return void (this.problemsOpen = !this.problemsOpen);
       case "prompt": return this.copyPrompt(this.params().item);
+      case "new-in-epic": return this.openNew({ epic: this.params().item });
+      case "show-epic": return this.setParams({ epic: this.params().item, item: null });
+      case "leave-epic": return this.changeEpic("remove", target.dataset.epic, this.params().item);
     }
   }
 
@@ -458,6 +509,7 @@ class Board {
       n: () => this.snap.writable && this.openNew(),
       b: () => this.setParams({ view: "board" }),
       l: () => this.setParams({ view: "list" }),
+      E: () => this.openEpicFilter(),
       j: () => (p.item ? this.step(1) : this.openFirst()),
       k: () => (p.item ? this.step(-1) : this.openFirst()),
       e: () => p.item && this.root.querySelector("[data-el-open]")?.click(),
@@ -492,9 +544,13 @@ class Board {
     if (next) this.setParams({ item: next.slug });
   }
 
-  openNew() {
+  // The New item dialog starts where the board is looking: the values the filters pick, and the
+  // epic they show (or the one given).
+  openNew({ epic = "" } = {}) {
     const s = this.snap;
-    const { newFields, newNote, newError, newDialog, newForm } = this.el;
+    const { newFields, newError, newDialog, newForm } = this.el;
+    const epics = this.epics();
+    const inEpic = epic || this.params().epic || "";
     newError.hidden = true;
     newFields.innerHTML = [
       ...s.fields.map((f) => {
@@ -504,10 +560,33 @@ class Board {
         </select></label>`;
       }),
       `<label class="bb-field"><span>Weight</span><input name="weight" type="number" min="1" step="1" inputmode="numeric" placeholder="—"></label>`,
+      epics.length ? `<label class="bb-field"><span>Epic</span><select class="bb-select" name="epic">
+          <option value="">—</option>${epics.map((e) => `<option value="${esc(e.slug)}" ${e.slug === inEpic ? "selected" : ""}>${esc(e.title)}</option>`).join("")}
+        </select></label>` : "",
     ].join("");
-    newNote.textContent = `Writes ${s.dir}/<name>.md${s.indexTables.length ? ` and a row in ${s.index}` : ""}.`;
+    this.noteNew();
     newDialog.showModal();
     newForm.elements.title.focus();
+  }
+
+  noteNew() {
+    const s = this.snap;
+    const epic = s.bySlug.get(this.el.newForm.elements.epic?.value || "");
+    this.el.newNote.textContent = `Writes ${s.dir}/<name>.md${s.indexTables.length ? ` and a row in ${s.index}` : ""}.` +
+      (epic ? ` Adds it to the end of ${epic.file}'s items.` : "");
+  }
+
+  // Shift E: the Epic filter, focused with its options open (an item's sheet closes first).
+  openEpicFilter() {
+    const select = this.el.epicFilter;
+    if (select.hidden) return;
+    if (this.params().item) this.close();
+    select.focus();
+    try {
+      select.showPicker();
+    } catch {
+      // Focused is enough: the arrow keys pick an epic.
+    }
   }
 
   // ---- Theme -----------------------------------------------------------------------------------
@@ -595,16 +674,20 @@ class Board {
         <span class="bb-stat-name">${esc(name)}</span><span class="bb-stat-count">${count}</span></button>`).join("");
   }
 
+  // Problems first, then suggestions (problems with `notice`), which aren't things to fix.
   renderProblems() {
     const { problems, bySlug } = this.snap;
     if (!problems.length) {
       this.el.problems.innerHTML = "";
       return;
     }
+    const fixes = problems.filter((x) => !x.notice);
+    const notes = problems.filter((x) => x.notice);
+    const what = [fixes.length && `${plural(fixes.length, "thing")} to fix`, notes.length && plural(notes.length, "suggestion")].filter(Boolean).join(" and ");
     this.el.problems.innerHTML = `
-      <details class="bb-problems" ${this.problemsOpen ? "open" : ""}>
-        <summary data-action="problems">${icon("warning")}<span>${plural(problems.length, "thing")} to fix in the backlog</span>${icon("down", "bb-chevron")}</summary>
-        <ul>${problems.map(({ slug, message }) => `<li>${
+      <details class="bb-problems ${fixes.length ? "" : "is-calm"}" ${this.problemsOpen ? "open" : ""}>
+        <summary data-action="problems">${icon(fixes.length ? "warning" : "info")}<span>${what} in the backlog</span>${icon("down", "bb-chevron")}</summary>
+        <ul>${[...fixes, ...notes].map(({ slug, message, notice }) => `<li class="${notice ? "is-notice" : ""}">${notice ? icon("info") : ""}${
           slug && bySlug.has(slug) ? `<a href="${esc(this.href({ item: slug }))}" data-item="${esc(slug)}">${esc(slug)}</a>` : slug ? `<b>${esc(slug)}</b>` : ""
         }<span>${esc(message)}</span></li>`).join("")}</ul>
       </details>`;
@@ -612,9 +695,16 @@ class Board {
 
   renderToolbar(p, visible) {
     const s = this.snap;
-    const key = JSON.stringify(s.fields.map((f) => [f.name, f.values])) + JSON.stringify(s.tags);
+    const epics = (this.epicFilterOn() ? this.epics() : []).map((e) => {
+      const { done, total } = core.epicProgress(s, e.slug);
+      return [e.slug, `${e.title} · ${done}/${total}`];
+    });
+    const key = JSON.stringify([s.fields.map((f) => [f.name, f.values]), s.tags, epics]);
     if (key !== this.fieldsKey) {
       this.fieldsKey = key;
+      this.el.epicFilter.innerHTML = `<option value="">Epic</option>` +
+        epics.map(([slug, name]) => `<option value="${esc(slug)}">${esc(name)}</option>`).join("");
+      this.el.epicFilter.hidden = epics.length === 0;
       this.el.fieldFilters.innerHTML = s.fields.map((f) =>
         `<select name="${esc(f.name)}" class="bb-select" aria-label="${esc(f.label)}">
           <option value="">${esc(f.label)}</option>
@@ -689,11 +779,13 @@ class Board {
       item.dependents.length && `<span title="${plural(item.dependents.length, "item")} wait on it">${icon("unblocks")}${item.dependents.length}</span>`,
       item.startable && s.active.length && `<span class="bb-can-start" title="Can start now">${icon("play")}</span>`,
     ].filter(Boolean).join("");
+    const epic = core.isEpic(item);
     return `
-      <a class="bb-card ${p.item === item.slug ? "is-selected" : ""} ${item.open ? "" : "is-closed"}" id="bb-card-${esc(item.slug)}"
+      <a class="bb-card ${epic ? "is-epic" : ""} ${p.item === item.slug ? "is-selected" : ""} ${item.open ? "" : "is-closed"}" id="bb-card-${esc(item.slug)}"
          href="${esc(this.href({ item: item.slug }))}" data-item="${esc(item.slug)}" ${s.writable ? 'draggable="true"' : ""}>
         <span class="bb-card-top"><span class="bb-card-title">${esc(item.title)}</span>${this.priority(item.fields.priority)}</span>
         ${item.summary ? `<span class="bb-card-summary">${esc(item.summary)}</span>` : ""}
+        ${epic ? this.progress(item) : ""}
         <span class="bb-card-meta">
           ${item.weight ? `<span class="bb-weight" title="Weight: lower comes first">${esc(item.weight)}</span>` : ""}
           ${others.map((f) => this.chip(f.name, item.fields[f.name])).join("")}
@@ -702,9 +794,36 @@ class Board {
       </a>`;
   }
 
+  // An epic's progress: a bar with a segment for each item in it, coloured by the item's status
+  // (done first, then set aside, under way, ready, waiting and the rest), and how many are done.
+  progress(epic, { large = false } = {}) {
+    const s = this.snap;
+    const { order } = core.epicOrder(s, epic.slug);
+    const at = (item) => STAGES.indexOf(core.stage(s, item));
+    const items = [...order].sort((a, b) => at(a) - at(b) || core.rank(s, "status", a.fields.status) - core.rank(s, "status", b.fields.status));
+    const done = order.filter((item) => item.done).length;
+    return `
+      <span class="bb-progress ${large ? "is-large" : ""}">
+        ${large ? "" : icon("epic")}
+        <span class="bb-progress-bar ${order.length > 24 ? "is-dense" : ""}" aria-hidden="true">${items.map((item) =>
+          `<span class="tone-${this.tone("status", item.fields.status)}"></span>`).join("")}</span>
+        <span class="bb-progress-count" aria-hidden="true">${done}/${order.length}</span>
+        <span class="bb-sr">${done} of ${plural(order.length, "item")} done</span>
+      </span>`;
+  }
+
+  // The list's Epic column: an epic's own progress, or the epics an item is in.
+  epicCell(item) {
+    if (core.isEpic(item)) return this.progress(item);
+    const epics = core.epicsOf(this.snap, item.slug);
+    return epics.map((e) => `<a href="${esc(this.href({ item: e.slug }))}" data-item="${esc(e.slug)}" class="bb-epic-link" title="${esc(e.title)}">${esc(e.title)}</a>`).join("") ||
+      '<span class="bb-faint">—</span>';
+  }
+
   renderList(p, visible) {
     const s = this.snap;
-    const cols = [["Item", "title"], ["Weight", "weight"], ...s.fields.map((f) => [f.label, f.name]), ["Waits on", null], ["Created", "created"]];
+    const epics = s.items.some(core.isEpic);
+    const cols = [["Item", "title"], ["Weight", "weight"], ...s.fields.map((f) => [f.label, f.name]), ...(epics ? [["Epic", null]] : []), ["Waits on", null], ["Created", "created"]];
     this.el.main.innerHTML = `
       <div class="bb-table-wrap">
         <table class="bb-table">
@@ -716,6 +835,7 @@ class Board {
               <td class="bb-td-item"><a href="${esc(this.href({ item: item.slug }))}" data-item="${esc(item.slug)}">${esc(item.title)}</a><span>${esc(item.summary)}</span></td>
               <td class="bb-num">${esc(item.weight || "—")}</td>
               ${s.fields.map((f) => `<td>${f.name === "priority" ? this.priority(item.fields.priority, { text: true }) : item.fields[f.name] ? this.chip(f.name, item.fields[f.name]) : '<span class="bb-faint">—</span>'}</td>`).join("")}
+              ${epics ? `<td class="bb-td-epic">${this.epicCell(item)}</td>` : ""}
               <td class="bb-num">${item.blockers.length || '<span class="bb-faint">—</span>'}</td>
               <td class="bb-num bb-nowrap">${esc(item.created || "—")}</td>
             </tr>`).join("")}</tbody>
@@ -766,7 +886,10 @@ depends_on: []
 
     const file = s.path ? core.resolvePath(s.path, item.file) : "";
     const editor = core.editorURL(s.editor, file);
-    const problems = s.problems.filter((x) => x.slug === item.slug);
+    const epic = core.isEpic(item);
+    const found = s.problems.filter((x) => x.slug === item.slug);
+    const notes = (list, kind) => list.length
+      ? `<ul class="bb-item-problems ${kind === "info" ? "is-notice" : ""}">${list.map((x) => `<li>${icon(kind)}<span>${esc(x.message)}</span></li>`).join("")}</ul>` : "";
     const relation = (title, slugs) => `
       <div class="bb-relation"><h3>${title}</h3>${slugs.length ? `<ul>${slugs.map((slug) => {
         const other = s.bySlug.get(slug);
@@ -794,9 +917,28 @@ depends_on: []
 
     const status = item.blockers.length
       ? `<p class="bb-notice">${icon("lock")}<span>Waits on ${plural(item.blockers.length, "open item")} under <b>Depends on</b>.</span></p>`
-      : item.startable && s.active.length
+      : item.startable && s.active.length && !epic
         ? `<p class="bb-notice is-good">${icon("play")}<span>Nothing open stands in front of it: it can start now.</span></p>`
         : "";
+
+    // The epics it's in, each opening the epic, with a way out of each and into another. An epic
+    // can't go in an epic, so an epic only gets the row when one lists it by mistake.
+    const epics = core.epicsOf(s, item.slug);
+    const others = s.writable && !epic ? this.epics().filter((e) => e !== item && !e.items.includes(item.slug)) : [];
+    const memberships = epics.length || others.length ? `
+      <div class="bb-epics">
+        <span class="bb-epics-label">${icon("epic")}<span>Epics</span></span>
+        ${epics.map((e) => {
+          const { done, total } = core.epicProgress(s, e.slug);
+          return `<span class="bb-epic-chip">
+            <a href="${esc(this.href({ item: e.slug }))}" data-item="${esc(e.slug)}" title="Open the epic">${esc(e.title)}<span class="bb-epic-chip-count">${done}/${total}</span></a>
+            ${s.writable ? `<button type="button" data-action="leave-epic" data-epic="${esc(e.slug)}" title="Take it out of this epic" aria-label="Take it out of ${esc(e.title)}">${icon("x")}</button>` : ""}
+          </span>`;
+        }).join("")}
+        ${others.length ? `<select class="bb-select bb-epic-add" data-add-epic aria-label="Add it to an epic">
+          <option value="">Add to epic…</option>${others.map((e) => `<option value="${esc(e.slug)}">${esc(e.title)}</option>`).join("")}
+        </select>` : ""}
+      </div>` : "";
 
     this.el.sheet.innerHTML = `
       <div class="bb-sheet">
@@ -807,7 +949,7 @@ depends_on: []
               ? `<a class="bb-path" href="${esc(editor)}" data-el-open title="Open in your editor (e)">${icon("edit")}<span>${esc(s.dir)}/${esc(item.file)}</span></a>`
               : `<span class="bb-path">${esc(s.dir)}/${esc(item.file)}</span>`}
             <span class="bb-spacer"></span>
-            <button type="button" class="bb-btn bb-prompt-btn" data-action="prompt" title="Copy as a prompt for an agent (c)" aria-label="Copy as prompt">${icon("copy")}<span>Copy as prompt</span></button>
+            <button type="button" class="bb-btn bb-prompt-btn" data-action="prompt" title="${epic ? "Copy the epic and its items, in work order, as a prompt for an agent (c)" : "Copy as a prompt for an agent (c)"}" aria-label="${epic ? "Copy epic as prompt" : "Copy as prompt"}">${icon("copy")}<span>${epic ? "Copy epic as prompt" : "Copy as prompt"}</span></button>
             <button type="button" class="bb-icon-btn" data-action="prev" title="Previous (k)" aria-label="Previous item">${icon("up")}</button>
             <button type="button" class="bb-icon-btn" data-action="next" title="Next (j)" aria-label="Next item">${icon("down")}</button>
             <button type="button" class="bb-icon-btn" data-action="close" title="Close (Esc)" aria-label="Close">${icon("x")}</button>
@@ -815,13 +957,16 @@ depends_on: []
           <div class="bb-panel-body">
             <h2 id="bb-item-title" class="bb-item-title">${esc(item.title)}</h2>
             ${fields}
-            ${problems.length ? `<ul class="bb-item-problems">${problems.map((x) => `<li>${icon("warning")}<span>${esc(x.message)}</span></li>`).join("")}</ul>` : ""}
+            ${notes(found.filter((x) => !x.notice), "warning")}
+            ${notes(found.filter((x) => x.notice), "info")}
             <div class="bb-tags">
               ${item.tags.map((t) => `<button type="button" data-tag="${esc(t)}" title="Show items tagged ${esc(t)}">#${esc(t)}</button>`).join("")}
               ${item.branches.map((b) => `<span class="bb-branch">${icon("branch")}${esc(b)}</span>`).join("")}
               ${item.created ? `<span class="bb-faint">Created ${esc(item.created)}</span>` : ""}
             </div>
+            ${memberships}
             ${status}
+            ${epic ? this.epicSection(item) : ""}
             <div class="bb-relations">
               ${relation("Depends on", item.dependsOn)}${relation("Unblocks", item.dependents)}${relation("Related", item.related)}
             </div>
@@ -834,6 +979,72 @@ depends_on: []
     const panel = this.el.sheet.querySelector(".bb-panel");
     if (sameItem) panel.scrollTop = scroll;
     else if (!this.el.sheet.contains(document.activeElement)) panel.focus({ preventScroll: true });
+  }
+
+  // An epic's part of its sheet: its progress, what's next, its items in work order with what each
+  // waits on, what holds it up from outside, and a new item in it.
+  epicSection(epic) {
+    const s = this.snap;
+    const { order, outside, missing } = core.epicOrder(s, epic.slug);
+    const progress = core.epicProgress(s, epic.slug);
+    const link = (item, text = item.title) => `<a href="${esc(this.href({ item: item.slug }))}" data-item="${esc(item.slug)}">${esc(text)}</a>`;
+    const numbered = (item) => link(item, `${order.indexOf(item) + 1}. ${item.title}`);
+    const summary = [
+      `<b>${progress.done} of ${plural(progress.total, "item")} done</b>`,
+      progress.active && `${progress.active} ${esc(core.label(s.active[0]).toLowerCase())}`,
+      progress.ready && `${progress.ready} can start`,
+      progress.blocked && `${progress.blocked} waiting`,
+      progress.setAside && `${progress.setAside} set aside`,
+      progress.other && `${progress.other} in another status`,
+    ].filter(Boolean).join(" · ");
+    const next = progress.next
+      ? `<p class="bb-notice is-good">${icon("play")}<span>Next up: ${numbered(progress.next)}</span></p>`
+      : !progress.total ? ""
+        : progress.done + progress.setAside === progress.total
+          ? `<p class="bb-notice is-good">${icon("check")}<span>Every item is done${progress.setAside ? " or closed" : ""}.</span></p>`
+          : `<p class="bb-notice">${icon("lock")}<span>Nothing can start now: the open items are under way or wait on unfinished work.</span></p>`;
+
+    const steps = order.map((item, i) => {
+      const at = core.stage(s, item);
+      const waits = item.open ? item.blockers.map((slug) => s.bySlug.get(slug)) : [];
+      const meta = [
+        item.fields.status && this.chip("status", item.fields.status),
+        waits.length && `<span class="bb-step-waits">${icon("lock")}<span>Waits on ${waits.map((w) =>
+          order.includes(w) ? numbered(w) : `${link(w)} <span class="bb-outside">outside</span>`).join(", ")}</span></span>`,
+      ].filter(Boolean).join("");
+      return `
+        <li class="bb-step is-${at === "setAside" ? "set-aside" : at} ${item === progress.next ? "is-next" : ""}">
+          <span class="bb-step-n tone-${this.tone("status", item.fields.status)}">${i + 1}</span>
+          <span class="bb-step-body">${link(item)}${meta ? `<span class="bb-step-meta">${meta}</span>` : ""}</span>
+        </li>`;
+    }).join("") + missing.map((slug) => `
+        <li class="bb-step is-missing">
+          <span class="bb-step-n">?</span>
+          <span class="bb-step-body"><span class="bb-missing">${esc(slug)} <span>(no such item)</span></span></span>
+        </li>`).join("");
+
+    const held = outside.length ? `
+      <div class="bb-epic-outside">
+        <h4>Waiting on, outside the epic</h4>
+        <ul>${outside.map(({ item, waiting }) => `
+          <li><span class="bb-dot tone-${this.tone("status", item.fields.status)}" title="${esc(core.label(item.fields.status))}"></span>
+            <span>${link(item)} <span class="bb-faint">holds up ${waiting.map((w) => `${order.indexOf(w) + 1}. ${esc(w.title)}`).join(", ")}</span></span></li>`).join("")}
+        </ul>
+      </div>` : "";
+
+    return `
+      <section class="bb-epic" aria-labelledby="bb-epic-head">
+        <div class="bb-epic-head">
+          <h3 id="bb-epic-head">${icon("epic")}<span>Epic</span></h3>
+          ${this.epicFilterOn() ? `<button type="button" class="bb-link-btn" data-action="show-epic" title="Show only this epic's items on the board">Show on the board</button>` : ""}
+        </div>
+        ${this.progress(epic, { large: true })}
+        <p class="bb-epic-summary">${summary}</p>
+        ${next}
+        <ol class="bb-steps" aria-label="Its items in work order">${steps}</ol>
+        ${held}
+        ${s.writable ? `<button type="button" class="bb-btn bb-epic-new" data-action="new-in-epic">${icon("plus")}<span>New item in this epic</span></button>` : ""}
+      </section>`;
   }
 
   // Links in an item: to another item, they open it here; to another file, in the editor; to the
@@ -865,12 +1076,14 @@ depends_on: []
     }
   }
 
-  // Copies the item as a prompt for an agent. The clipboard API needs a secure context (https or
-  // localhost); elsewhere, fall back to copying from a hidden text area.
+  // Copies the item as a prompt for an agent, or an epic with its items in work order. The
+  // clipboard API needs a secure context (https or localhost); elsewhere, fall back to copying from
+  // a hidden text area.
   async copyPrompt(slug) {
     const item = this.snap?.bySlug.get(slug);
     if (!item) return;
-    const text = core.itemPrompt(this.snap, slug);
+    const epic = core.isEpic(item);
+    const text = epic ? core.epicPrompt(this.snap, slug) : core.itemPrompt(this.snap, slug);
     let copied = false;
     try {
       await navigator.clipboard.writeText(text);
@@ -889,7 +1102,7 @@ depends_on: []
       area.remove();
       back?.focus({ preventScroll: true });
     }
-    if (copied) this.toast("Copied as a prompt", "ok", item.file);
+    if (copied) this.toast(epic ? "Copied the epic as a prompt" : "Copied as a prompt", "ok", item.file);
     else this.toast("The browser didn't allow copying", "error");
   }
 

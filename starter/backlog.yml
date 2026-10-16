@@ -9,7 +9,7 @@ title: Backlog
 fields:
   status: [idea, ready, in-progress, parked, done]
   priority: [high, mid, low]
-  type: [build, spike, discuss]
+  type: [build, spike, discuss, epic]
   area: []
 
 # Which statuses count as finished (a dependency on them no longer blocks), which "Hide closed"

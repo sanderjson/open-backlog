@@ -1,7 +1,7 @@
 # Add the open-backlog board to this project
 
 Give this file to a coding agent working in the project, with the version to use (a tag of
-https://github.com/sanderjson/open-backlog, e.g. `v0.1.1`).
+https://github.com/sanderjson/open-backlog, e.g. `v0.2.0`).
 
 ## Goal
 
@@ -33,6 +33,10 @@ provides exactly three things, all under one mount path, say `/dev/backlog`:
    match the pattern above, which also rules out `/`, `..` and hidden files. Cap the body (1 MB
    is plenty) and write atomically: a temporary file in the same folder, then a rename. Answer
    204, or an error status with `{"error": "<why>"}`, which the page shows.
+
+That's the whole contract. Everything else the board does, epics included (items whose front
+matter lists other items under `items`), is plain files read and written through these routes,
+so it needs nothing more from the host.
 
 The header check is the protection against cross-site writes (a foreign page can't add a custom
 header without a CORS preflight, which this server never allows). So keep the route out of any
