@@ -109,6 +109,20 @@ test("a new item gets a file and a row in the table it fits", () => {
   assert.equal(core.planCreate(again, { title: "Restore drill: monthly" }).slug, "restore-drill-monthly-2");
 });
 
+test("hosts send the template, and it's not an item", () => {
+  for (const name of [core.TEMPLATE_FILE, core.CONFIG_FILE, "README.md", "palette.md", "notes.yaml"]) {
+    assert.match(name, core.FILE_NAME);
+  }
+  for (const name of [".hidden.md", "../palette.md", "old/palette.md", "..", "run.sh", "palette.md.bak"]) {
+    assert.doesNotMatch(name, core.FILE_NAME);
+  }
+
+  const s = load({ ...files(), [core.TEMPLATE_FILE]: "# {{title}}\n\n## Notes\n\nAbout {{title}}.\n" });
+  assert.equal(s.bySlug.has("_template"), false);
+  const { writes } = core.planCreate(s, { title: "Restore drill" }, "2026-10-16");
+  assert.match(writes["restore-drill.md"], /\n# Restore drill\n\n## Notes\n\nAbout Restore drill\.\n$/);
+});
+
 test("setFront keeps the rest of the file as it is", () => {
   const text = "---\r\ntitle: X\r\nstatus: idea\r\n---\r\n\r\nBody\r\n";
   assert.equal(core.setFront(text, "status", "done"), "---\r\ntitle: X\r\nstatus: done\r\n---\r\n\r\nBody\r\n");
