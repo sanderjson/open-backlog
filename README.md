@@ -20,7 +20,10 @@ folder. That takes a few lines in any language, so an agent can wire it into any
 | `web/vendor/` | [marked](https://github.com/markedjs/marked) 18.0.13 and [js-yaml](https://github.com/nodeca/js-yaml) 5.4.2, with their MIT licences. |
 | `starter/` | A backlog for a project that has none: `backlog.yml`, a README index, a template, and an epic with two items. |
 | `PROMPT.md` | Instructions for an agent adding the board to a project. |
-| `test/` | Tests for `core.js`: `node --test test/` (Node 22 or later). |
+| `test/` | Core, CLI and host regression tests: `npm test` (Node 22 or later). |
+| `bin/open-backlog.mjs` | Command-line checks, executable-work suggestions, prompts and managed indexes. |
+| `host/files.mjs` | Optional Node reference adapter for checked, recoverable file saves. |
+| `browser/` | Headless Chromium regressions over disposable files and the real board. |
 | `LICENSE` | MIT: use it, change it, ship it. |
 
 ## The two routes
@@ -60,6 +63,49 @@ an agent or by git show up by themselves. A host with its own way of knowing can
 Only run it in development. It reads and writes files in the repo, which a server in
 production must not do.
 
+### Checked batch saves
+
+Existing GET/PUT integrations still work. A host can additionally return
+`"capabilities": { "changes": true }` from GET, and accept:
+
+```text
+POST <mount>/files
+  header X-Open-Backlog: 1
+  application/json
+  { "changes": [
+    { "name": "item.md", "before": "<exact text read>", "after": "<new text>" },
+    { "name": "README.md", "before": "<exact text read>", "after": "<new index>" }
+  ] }
+  204 on success; 409 if a precondition no longer matches
+```
+
+`before: null` means the file must not exist, including when creating an item. Validate every
+name and precondition before changing anything. Serialize host reads/writes so its readers do
+not see a partially applied batch; retain recovery intent before replacing files. A conflict
+must never fall back to unconditional PUT or automatically retry stale text.
+
+The board queues edits and reloads after success/failure. On older hosts it checks current text
+before each PUT and reports which files saved if a later write fails. Those checks cannot
+close a legacy host's read/write race; adopt the batch contract for host-side preconditions.
+
+For Node hosts, mount one `createFilesHandler({ dir: "docs/backlog", mount: "/dev/backlog" })`
+instance from `host/files.mjs` for the file routes. It returns false for unrelated routes, so
+the project can serve the kit and its own pages normally. Keep the development-only guard in
+the host. `maxBody` defaults to 1 MiB for the whole request, including before/after text;
+`writable: false` disables writes.
+
+The reference adapter journals ownership and changes in `.open-backlog-transaction/`, then
+uses atomic per-file replacements. An interrupted save resumes on the next request. If an
+external editor wrote a third value, it preserves that text and the journal, returns readable
+files with `writable: false` and `saveError`, and requires manual reconciliation of the saved
+before/after texts before removing the journal. Preserve a copy of the journal and current
+files first. This is process-interruption recovery, not a power-loss durability guarantee.
+External editors do not share the adapter's queue: they can still write in the small interval
+between its final comparison and rename. Full exclusion requires all writers to cooperate.
+New targets use exclusive creation. The adapter will not recover a journal owned by another
+live process; a reused process ID may require manual recovery. Ignore `.open-backlog-*` in
+the host project's Git configuration so temporary files/journals stay out of commits.
+
 ## The backlog's files
 
 Each item is `<slug>.md`: front matter, then Markdown. The file name is the item's id.
@@ -90,7 +136,8 @@ One palette drives every screen.
   or your own) is a **choice field**: a filter, a board grouping and a select in the item.
 - `weight` is the work order, smallest first. Ties go to priority, then title.
 - `depends_on` makes an item wait until those items are done. "Can start" shows the open
-  items that wait on nothing.
+  items in a startable status that wait on nothing. Missing, self-referencing or malformed
+  dependencies exclude an item from this queue as well as producing diagnostics.
 - `items` makes the item an epic: see [Epics](#epics).
 - Files starting with `_` or `.` aren't items. `_template.md` is the body for new items, with
   `{{title}}` replaced.
@@ -110,6 +157,41 @@ an item, like `| [Brand palette](brand-palette.md) | build | high | idea |`. A c
 header names a field (Status, Priority, Weight…) is checked against each item and rewritten
 when the board changes that field. New items get a row in the table they fit best: with one
 table per area, under their area.
+
+H1/front-matter title differences, stale index titles and duplicate rows are reported too.
+To validate a hand-maintained table's area, place
+`<!-- open-backlog:group area=authoring -->` above it (URL-encode a value containing spaces).
+Unannotated headings remain free prose; their meaning is not guessed.
+
+For a generated index, wrap just the existing item tables in these comments:
+
+```markdown
+<!-- open-backlog:index start -->
+...the item tables...
+<!-- open-backlog:index end -->
+```
+
+`node bin/open-backlog.mjs index docs/backlog --write` replaces only that region, groups by area,
+orders by weight and includes the configured fields. Text outside it is preserved. `--check`
+reports drift without writing. Board edits also regenerate a marked region, so area changes,
+new items and weight changes keep its grouping/order current. Existing unmarked tables retain
+their previous in-place behavior; generation refuses to overwrite them without adoption.
+
+### Command-line use
+
+Node 22 or later; no dependency installation is needed for these commands:
+
+```sh
+node bin/open-backlog.mjs check docs/backlog --json
+node bin/open-backlog.mjs next docs/backlog --json
+node bin/open-backlog.mjs prompt item-slug docs/backlog
+node bin/open-backlog.mjs index docs/backlog --check
+```
+
+The directory defaults to `docs/backlog`. `check` uses the same parser as the board and exits 1
+for errors; informational notices do not fail it. `next` lists only startable work in work
+order, and `prompt` prints the board's agent brief. Usage/filesystem failures exit 2. These
+commands are read-only except an explicit `index --write`, which uses checked saves.
 
 ### What the board reports
 
@@ -218,6 +300,20 @@ Projects keep a copy of `web/` at a tagged version (see PROMPT.md). To update, r
 folder with the newer tag's `web/` and change the recorded version. The two routes don't change
 within a major version. v0.2.0 (epics) needs nothing new from hosts. The only thing it can break
 is a choice field called `items`, which is now the board's own.
+
+## Development checks
+
+```sh
+npm ci
+npm test
+npx playwright install chromium
+bun run test:silent
+```
+
+The browser suite is headless by default and uses temporary backlogs and localhost servers.
+It covers edits, dragging, creation, clipboard prompts, rapid changes, external edits,
+conflicts, partial legacy saves, epic membership/creation and keyboard/focus behavior. CI runs the Node suites on Node
+22 and 24 and runs Chromium headlessly. The kit still has no build step or runtime npm dependency.
 
 ## Licence
 

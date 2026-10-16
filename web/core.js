@@ -141,19 +141,21 @@ function takeTitle(body) {
 export function parseItem(slug, source) {
   const item = {
     slug, file: `${slug}.md`, title: "", weight: "", created: "", fields: {},
-    tags: [], branches: [], dependsOn: [], related: [], items: [], problems: [],
+    tags: [], branches: [], dependsOn: [], related: [], items: [], problems: [], invalidDependencies: false,
   };
 
   const split = splitFront(source);
   let body = source;
   if (!split) {
     item.problems.push("it doesn't start with front matter between --- lines");
+    item.invalidDependencies = true;
   } else {
     body = split.body;
     readFront(item, split.front);
   }
 
   const [heading, rest] = takeTitle(body);
+  if (heading && item.title && heading !== item.title) item.problems.push("its H1 title disagrees with its front matter title");
   item.title ||= heading;
   if (!item.title) {
     item.title = slug;
@@ -171,18 +173,26 @@ function readFront(item, front) {
     meta = yaml(front);
   } catch (e) {
     item.problems.push(`its front matter isn't YAML (${e.reason || e.message})`);
+    item.invalidDependencies = true;
     return;
   }
   if (meta == null) return;
   if (!isMap(meta)) {
     item.problems.push("its front matter isn't a list of fields");
+    item.invalidDependencies = true;
     return;
   }
   for (const [key, value] of Object.entries(meta)) {
     switch (key) {
       case "tags": item.tags = list(value); break;
       case "branches": item.branches = list(value); break;
-      case "depends_on": item.dependsOn = list(value); break;
+      case "depends_on":
+        if (value != null && (typeof value === "object" && !Array.isArray(value) || Array.isArray(value) && value.some((v) => v == null || typeof v === "object"))) {
+          item.problems.push("depends_on should be a list of item slugs");
+          item.invalidDependencies = true;
+        }
+        item.dependsOn = list(value);
+        break;
       case "related": item.related = list(value); break;
       case "items": item.items = list(value); break;
       case "title": case "weight": case "created": item[key] = text(value); break;
@@ -311,14 +321,17 @@ function link(s) {
   for (const item of s.items) {
     for (const dep of item.dependsOn) {
       const other = s.bySlug.get(dep);
-      if (!other || other === item) continue;
+      if (!other || other === item) {
+        item.invalidDependencies = true;
+        continue;
+      }
       if (!other.done) item.blockers.push(dep);
       other.dependents.push(item.slug);
     }
   }
   for (const item of s.items) {
     const ready = !hasStatus || s.startable.includes(item.fields.status);
-    item.startable = item.open && ready && item.blockers.length === 0;
+    item.startable = item.open && ready && !item.invalidDependencies && item.blockers.length === 0;
   }
 }
 
@@ -368,6 +381,7 @@ function tagCounts(items) {
 function problems(s) {
   const out = [];
   const add = (slug, message) => out.push({ slug, message });
+  try { managedRegion(s.files[s.index] || ""); } catch (e) { add("", e.message); }
   for (const item of [...s.items].sort((a, b) => (a.slug < b.slug ? -1 : 1))) {
     for (const p of item.problems) add(item.slug, p);
     for (const f of s.fields) {
@@ -544,18 +558,24 @@ function readIndex(s) {
   const names = ["weight", ...s.fields.map((f) => f.name)];
   const tables = [];
   const lines = s.indexLines;
+  let group = null;
   for (let i = 0; i + 1 < lines.length; i++) {
+    const annotation = /^<!-- open-backlog:group area=(.*?) -->\r?$/.exec(lines[i]);
+    if (annotation) {
+      try { group = decodeURIComponent(annotation[1]); } catch { group = null; }
+    }
     const header = cells(lines[i]), sep = cells(lines[i + 1]);
     if (!header || !sep || sep.length !== header.length || !sep.every((c) => /^:?-+:?$/.test(c))) continue;
-    const table = { cols: header.map((h, c) => (c > 0 && names.find((n) => squash(n) === squash(h))) || ""), rows: [] };
+    const table = { cols: header.map((h, c) => (c > 0 && names.find((n) => squash(n) === squash(h))) || ""), rows: [], group };
     let j = i + 2;
     for (; j < lines.length; j++) {
       const row = cells(lines[j]);
       if (!row) break;
       const m = ROW_LINK_RE.exec(row[0]);
-      if (m) table.rows.push({ line: j, slug: m[1], cells: row });
+      if (m) table.rows.push({ line: j, slug: m[1], cells: row, title: /^\[((?:[^\]\\]|\\.)*)\]/.exec(row[0])?.[1].replace(/\\([\[\]|])/g, "$1") });
     }
     if (table.rows.length) tables.push(table);
+    group = null;
     i = j - 1;
   }
   return tables;
@@ -580,10 +600,14 @@ function indexRows(s) {
 function indexProblems(s, item) {
   if (indexRows(s).length === 0) return [];
   const out = [];
+  const rows = indexRows(s).filter((row) => row.slug === item.slug);
+  if (rows.length > 1) out.push({ slug: item.slug, message: `it's listed ${rows.length} times in ${s.index}'s index` });
   let found = false;
   for (const table of s.indexTables) {
     for (const row of table.rows.filter((r) => r.slug === item.slug)) {
       found = true;
+      if (row.title !== item.title) out.push({ slug: item.slug, message: `${s.index}'s index title disagrees with the item` });
+      if (table.group != null && (item.fields.area || "") !== table.group) out.push({ slug: item.slug, message: `${s.index}'s index puts it in area ${table.group || "none"}, the item says ${item.fields.area || "none"}` });
       table.cols.forEach((name, c) => {
         if (!name || c >= row.cells.length) return;
         const want = name === "weight" ? item.weight : item.fields[name];
@@ -645,6 +669,61 @@ function indexWithItem(s, item) {
   const lines = [...s.indexLines];
   lines.splice(best.rows.at(-1).line + 1, 0, rowLine(s, row));
   return lines.join("\n");
+}
+
+export const INDEX_START = "<!-- open-backlog:index start -->";
+export const INDEX_END = "<!-- open-backlog:index end -->";
+
+function hasManagedIndex(s) {
+  return !!s.index && !!managedRegion(s.files[s.index] || "");
+}
+
+function managedRegion(source) {
+  const markers = [];
+  let fence = "", offset = 0;
+  for (const line of source.split("\n")) {
+    const boundary = /^\s*(`{3,}|~{3,})(.*)$/.exec(line);
+    if (fence) {
+      if (boundary && boundary[1][0] === fence[0] && boundary[1].length >= fence.length && !boundary[2].trim()) fence = "";
+    } else if (boundary) fence = boundary[1];
+    else if ([INDEX_START, INDEX_END].includes(line.trim())) markers.push({ kind: line.trim(), at: offset + line.indexOf("<!--") });
+    offset += line.length + 1;
+  }
+  if (!markers.length) return null;
+  if (markers.length !== 2 || markers[0].kind !== INDEX_START || markers[1].kind !== INDEX_END) throw new Error("the managed index needs one matching start/end marker pair");
+  return { start: markers[0].at, end: markers[1].at + INDEX_END.length };
+}
+
+// Only an explicitly marked region is generated. Hand-written prose and indexes stay owned by
+// their author; wrap existing item tables in the markers before adopting generation.
+export function planIndex(s) {
+  if (!s.index) throw new Error("this backlog has index: none");
+  const source = s.files[s.index] || "";
+  const bounds = managedRegion(source);
+  if (!bounds && s.indexTables.length) throw new Error("wrap the existing index tables in open-backlog:index start/end comments before regenerating");
+  if (bounds) {
+    const first = source.slice(0, bounds.start).split("\n").length - 1;
+    const last = source.slice(0, bounds.end).split("\n").length - 1;
+    if (indexRows(s).some((row) => row.line < first || row.line > last)) throw new Error("move all item index rows inside the managed region before regenerating");
+  }
+  const nl = source.includes("\r\n") ? "\r\n" : "\n";
+  const cols = ["weight", ...s.fields.map((f) => f.name).filter((name) => name !== "area")];
+  const areas = [...new Set([...field(s, "area").values, ...s.items.map((item) => item.fields.area || "")])];
+  const lines = [INDEX_START];
+  const cell = (value) => String(value ?? "").replace(/[\r\n]+/g, " ").replace(/\|/g, "\\|");
+  for (const area of areas) {
+    const items = s.items.filter((item) => (item.fields.area || "") === area);
+    if (!items.length) continue;
+    lines.push("", `### ${label(area)}`, "", `<!-- open-backlog:group area=${encodeURIComponent(area)} -->`, "", `| Item | ${cols.map(label).join(" | ")} |`, `| --- | ${cols.map(() => "---").join(" | ")} |`);
+    for (const item of sortItems(s, items, "weight")) {
+      const title = item.title.replace(/[|[\]]/g, (c) => "\\" + c);
+      lines.push(`| [${title}](${item.slug}.md) | ${cols.map((name) => cell(name === "weight" ? item.weight : item.fields[name])).join(" | ")} |`);
+    }
+  }
+  lines.push("", INDEX_END);
+  const region = lines.join(nl);
+  const index = bounds ? source.slice(0, bounds.start) + region + source.slice(bounds.end) : source + (source.endsWith(nl) ? nl : nl + nl) + region + nl;
+  return index === source ? {} : { [s.index]: index };
 }
 
 // ---- Edits -------------------------------------------------------------------------------------
@@ -730,7 +809,7 @@ export function planUpdate(s, slug, name, value) {
   const problem = validate(s, name, value);
   if (problem) throw new Error(problem);
   const writes = { [item.file]: setFront(s.files[item.file], name, value) };
-  const index = indexWithValue(s, slug, name, value);
+  const index = hasManagedIndex(s) ? planIndex(parseBacklog({ files: { ...s.files, ...writes } }))[s.index] : indexWithValue(s, slug, name, value);
   if (index != null) writes[s.index] = index;
   return writes;
 }
@@ -769,12 +848,12 @@ export function planCreate(s, { title = "", weight = "", fields = {}, tags = [],
   const lines = ["---", `title: ${scalar(title)}`];
   for (const f of s.fields) if (values[f.name]) lines.push(`${f.name}: ${scalar(values[f.name])}`);
   if (weight) lines.push(`weight: ${weight}`);
-  lines.push(`tags: [${tags.map((t) => scalar(t.trim())).filter((t) => t !== '""').join(", ")}]`);
+  lines.push(`tags: [${tags.map((t) => t.trim()).filter(Boolean).map((t) => JSON.stringify(t)).join(", ")}]`);
   lines.push(`created: ${today}`, "depends_on: []", "related: []", "---", "", `# ${title}`, "", "");
 
   const writes = { [`${slug}.md`]: lines.join("\n") + template(s, title) };
   if (target) writes[target.file] = setFront(s.files[target.file], "items", [...target.items, slug]);
-  const index = indexWithItem(s, { slug, title, weight, fields: values });
+  const index = hasManagedIndex(s) ? planIndex(parseBacklog({ files: { ...s.files, ...writes } }))[s.index] : indexWithItem(s, { slug, title, weight, fields: values });
   if (index != null) writes[s.index] = index;
   return { slug, writes };
 }
