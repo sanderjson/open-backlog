@@ -36,10 +36,16 @@ async function main(args) {
     if (flags.includes('--check')) {
       if (Object.keys(writes).length) { process.stderr.write(`${join(dir, s.index)} needs regeneration\n`); return 1; }
     } else {
-      // Use the same checked, journaled writer as the reference host; don't overwrite an edit
-      // that happened while the index was being generated.
-      const { saveChanges } = await import('../host/files.mjs');
-      await saveChanges(path, Object.entries(writes).map(([name, after]) => ({ name, before: files[name] ?? null, after })));
+      // Don't overwrite an edit made while the index was generated: write only if the file still
+      // holds what was read, through a hidden temporary file and a rename.
+      for (const [name, text] of Object.entries(writes)) {
+        const target = join(path, name);
+        const current = await fs.readFile(target, 'utf8').catch((e) => { if (e.code === 'ENOENT') return null; throw e; });
+        if (current !== (files[name] ?? null)) throw new Error(`${join(dir, name)} changed while the index was generated; run it again`);
+        const temp = join(path, `.${name}.${process.pid}.tmp`);
+        await fs.writeFile(temp, text, { flag: 'wx' });
+        await fs.rename(temp, target);
+      }
     }
     return 0;
   }
