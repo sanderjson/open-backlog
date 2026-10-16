@@ -6,7 +6,8 @@ import * as core from "../web/core.js";
 
 // A small backlog: `palette` (high, idea, nothing before it), `logo` (high, idea, waits on
 // `palette`) and `backups` (mid, done, with an index row that disagrees on its status). Weights
-// 10, 2 and 1, so work order differs from priority order.
+// 10, 2 and 1, so work order differs from priority order, and `logo` comes before what it waits
+// on: the board suggests a look at that (a notice, never a problem).
 const files = () => ({
   "backlog.yml": "title: Example\nfields:\n  status: [idea, ready, in-progress, parked, done]\n  priority: [high, mid, low]\n  area: [design, ops]\n",
   "palette.md": "---\ntitle: \"Brand palette\"\npriority: high\nweight: 10\nstatus: idea\narea: design\ntags: [brand, palette]\ncreated: 2026-10-15\ndepends_on: []\nrelated: [logo]\n---\n\n# Brand palette\n\n## Why\nOne palette drives **every** screen.\n\n- See [the logo](logo.md) and [notes](../notes.md).\n",
@@ -106,7 +107,7 @@ test("a new item gets a file and a row in the table it fits", () => {
   assert.ok(at > lines.indexOf("### Ops"), "should land in the Ops table");
 
   const again = load({ ...files(), ...writes });
-  assert.deepEqual(again.problems.map((p) => p.slug), ["backups"]); // the fixture's own stale row
+  assert.deepEqual(again.problems.filter((p) => !p.notice).map((p) => p.slug), ["backups"]); // the fixture's own stale row
   assert.equal(core.planCreate(again, { title: "Restore drill: monthly" }).slug, "restore-drill-monthly-2");
 });
 
@@ -179,7 +180,7 @@ test("an item that lists items is an epic", () => {
   assert.equal(core.isEpic(checkout), true);
   assert.equal(core.isEpic(s.bySlug.get("cart-rules")), false);
   assert.equal(checkout.fields.items, undefined, "items isn't a choice field");
-  assert.deepEqual(s.problems.map((p) => p.slug), ["backups"]); // the fixture's own stale row
+  assert.deepEqual(s.problems.filter((p) => !p.notice).map((p) => p.slug), ["backups"]); // the fixture's own stale row
 
   const f = epicFiles();
   f["solo.md"] = "---\ntitle: Solo\nitems: refund-page\n---\n";
@@ -222,7 +223,7 @@ test("an epic's work order puts dependencies first, then follows its list", () =
   f["copy.md"] = item("copy", "[launch]");
   const looped = load(f);
   assert.deepEqual(core.epicOrder(looped, "site").order.map((i) => i.slug).sort(), ["analytics", "copy", "design", "launch"]);
-  assert.deepEqual(looped.problems.map((p) => p.message), ["its dependencies go round in a loop: copy → launch → copy"]);
+  assert.deepEqual(looped.problems.filter((p) => !p.notice).map((p) => p.message), ["its dependencies go round in a loop: copy → launch → copy"]);
 });
 
 test("an epic lists what holds it up from outside", () => {
@@ -327,7 +328,7 @@ test("a new item can go straight into an epic", () => {
 
   const again = load({ ...epicFiles(), ...writes });
   assert.deepEqual(core.epicsOf(again, "gift-cards").map((e) => e.slug), ["checkout"]);
-  assert.deepEqual(again.problems.map((p) => p.slug), ["backups"]);
+  assert.deepEqual(again.problems.filter((p) => !p.notice).map((p) => p.slug), ["backups"]);
   assert.throws(() => core.planCreate(s, { title: "X", epic: "ghost" }), /no item called ghost/);
   assert.throws(() => core.planCreate(s, { title: "X", epic: "refund-page" }), /refund-page is in the epic checkout/);
 });
@@ -368,6 +369,82 @@ test("an epic copies as one prompt for an agent", () => {
   assert.match(core.itemPrompt(s, "refund-page"), /^In the epic:\n- Checkout v2 \(docs\/backlog\/checkout\.md, status: in-progress\)$/m);
   assert.throws(() => core.epicPrompt(s, "refund-page"), /refund-page isn't an epic/);
   assert.throws(() => core.epicPrompt(s, "nope"), /no item called nope/);
+});
+
+test("an epic can start only when one of its items can", () => {
+  // In a startable status, with refund-page able to start, the epic can start.
+  const f = withFront(epicFiles(), "checkout", "status", "idea");
+  assert.equal(load(f).bySlug.get("checkout").startable, true);
+
+  // Every open item under way or waiting: the epic waits too, though nothing of its own holds it.
+  const held = withFront(f, "refund-page", "status", "in-progress");
+  const epic = load(held).bySlug.get("checkout");
+  assert.equal(epic.startable, false);
+  assert.deepEqual(epic.blockers, []);
+  assert.equal(core.epicProgress(load(held), "checkout").next, null);
+  assert.equal(core.stage(load(held), epic), "blocked");
+
+  // Once palette is done, checkout-copy can start, and so can the epic.
+  assert.equal(load(withFront(held, "palette", "status", "done")).bySlug.get("checkout").startable, true);
+
+  // Nothing open left: what remains is the epic's own acceptance, so it can start.
+  let finished = held;
+  for (const slug of ["payment-retry", "receipt-email", "refund-page", "checkout-copy"]) finished = withFront(finished, slug, "status", "done");
+  assert.equal(load(finished).bySlug.get("checkout").startable, true);
+
+  // Its own dependencies and status still count.
+  assert.equal(load(withFront(f, "checkout", "depends_on", ["palette"])).bySlug.get("checkout").startable, false);
+  assert.equal(load(epicFiles()).bySlug.get("checkout").startable, false, "in progress isn't a startable status");
+});
+
+test("a prerequisite that comes after its dependent in work order is a suggestion", () => {
+  assert.deepEqual(load().problems.filter((p) => p.slug === "logo"),
+    [{ slug: "logo", message: "it depends on palette, which comes after it in work order (weight 10 after 2)", notice: true }]);
+  assert.deepEqual(load(withFront(files(), "palette", "status", "done")).problems.filter((p) => p.slug === "logo"), [], "a finished one is no longer in the way");
+  assert.equal(load(withFront(files(), "palette", "weight", "")).problems.find((p) => p.slug === "logo").message,
+    "it depends on palette, which comes after it in work order (no weight)");
+  assert.deepEqual(load(withFront(files(), "logo", "weight", "")).problems.filter((p) => p.slug === "logo"), [], "an unweighted item comes last anyway");
+  assert.deepEqual(load(withFront(files(), "logo", "weight", "10")).problems.filter((p) => p.slug === "logo"), [], "equal weights are a tie, not an order");
+});
+
+test("related repeating depends_on is a suggestion", () => {
+  const s = load(withFront(files(), "logo", "related", ["palette", "backups"]));
+  assert.deepEqual(s.problems.filter((p) => p.slug === "logo").map((p) => [p.message, p.notice]), [
+    ["it depends on palette, which comes after it in work order (weight 10 after 2)", true],
+    ["related names palette, which is already in depends_on", true],
+  ]);
+});
+
+test("type epic on an item that lists no items is a suggestion", () => {
+  const f = withFront(files(), "palette", "type", "epic");
+  assert.deepEqual(load(f).problems.filter((p) => p.slug === "palette"), [{ slug: "palette", message: "its type is epic, but it lists no items", notice: true }]);
+  assert.deepEqual(load(withFront(f, "palette", "items", ["logo"])).problems.filter((p) => p.slug === "palette"), []);
+  assert.deepEqual(load(withFront(epicFiles(), "checkout", "type", "epic")).problems.filter((p) => p.slug === "checkout"), []);
+});
+
+test("a link in an item's text to a file that isn't there is a problem", () => {
+  const f = files();
+  f["palette.md"] += "\nSee [retired](retired.md), [./notes](./old-notes.md), [the config](backlog.yml), [outside](../notes.md), [deep](sub/x.md), " +
+    "[web](https://example.com/x.md), [mail](mailto:a@b.md), [a section](logo.md#why), [titled](<backups.md> \"Backups\") and `[code](nope.md)`.\n\n```md\n[fenced](nope.md)\n```\n";
+  const messages = load(f).problems.filter((p) => p.slug === "palette").map((p) => p.message);
+  assert.deepEqual(messages, ["it links to retired.md, which isn't in docs/backlog", "it links to old-notes.md, which isn't in docs/backlog"]);
+  assert.match(core.itemPrompt(load(f), "palette"), /^- it links to retired\.md, which isn't in docs\/backlog$/m);
+});
+
+test("a table under open-backlog:ignore is neither checked nor rewritten", () => {
+  const f = files();
+  f["README.md"] += "\n## Overview\n\n<!-- open-backlog:ignore -->\n\n| Item | Status | Note |\n|---|---|---|\n| [Brand palette](palette.md) | someday | first |\n| [Backups](backups.md) | done | nightly |\n";
+  const s = load(f);
+  assert.equal(s.indexTables.length, 2);
+  assert.deepEqual(s.problems.filter((p) => !p.notice).map((p) => `${p.slug}: ${p.message}`), ["backups: README.md's index says status idea, the item says done"]);
+  const writes = core.planUpdate(s, "palette", "status", "ready");
+  assert.match(writes["README.md"], /^\| \[Brand palette\]\(palette\.md\) \| high \| ready \|$/m);
+  assert.match(writes["README.md"], /^\| \[Brand palette\]\(palette\.md\) \| someday \| first \|$/m);
+
+  // The annotation covers the next table only: one after it is an index table again.
+  const t = load({ ...f, "README.md": f["README.md"] + "\n| Item | Status |\n|---|---|\n| [Logo build](logo.md) | idea |\n" });
+  assert.equal(t.indexTables.length, 3);
+  assert.ok(t.problems.some((p) => p.slug === "logo" && p.message === "it's listed 2 times in README.md's index"));
 });
 
 test("the starter backlog reads cleanly, epic included", () => {

@@ -188,7 +188,9 @@ table per area, under their area.
 H1/front-matter title differences, stale index titles and duplicate rows are reported too.
 To validate a hand-maintained table's area, place
 `<!-- open-backlog:group area=authoring -->` above it (URL-encode a value containing spaces).
-Unannotated headings remain free prose; their meaning is not guessed.
+Unannotated headings remain free prose; their meaning is not guessed. A table the board should
+leave alone, such as an overview whose rows link items, goes under
+`<!-- open-backlog:ignore -->`: it's neither checked nor rewritten, and its rows aren't index rows.
 
 For a generated index, wrap just the existing item tables in these comments:
 
@@ -225,10 +227,13 @@ changed since the command read it.
 ### What the board reports
 
 A value `backlog.yml` doesn't allow, a strict field left empty, a weight that isn't a positive
-whole number, a link to no item, a dependency loop, a file without front matter or a title, an
-index that disagrees with the items, and an epic whose list or status doesn't add up (see
-[Epics](#epics)). These appear in a panel at the top and on each item, with suggestions (things
-worth a look, not mistakes) after the problems.
+whole number, a link to no item (in `depends_on`, `related` or the index) or to a file in the
+folder that isn't there (in an item's text), a dependency loop, a file without front matter or a
+title, an index that disagrees with the items, and an epic whose list or status doesn't add up
+(see [Epics](#epics)). These appear in a panel at the top and on each item, with suggestions
+(things worth a look, not mistakes) after the problems: an unfinished prerequisite that comes
+after its dependent in work order, `related` repeating `depends_on`, `type: epic` on an item
+that lists no items, and an epic whose items are all done.
 
 ## Epics
 
@@ -260,6 +265,10 @@ One checkout for web and app.
 - An item may be in more than one epic. An epic can't contain an epic: the board reports that
   as a problem rather than nesting them.
 - Items keep their own `depends_on`. The epic groups them; it doesn't replace dependencies.
+- An epic can start when one of its open items can. **Can start** and `next` leave out an epic
+  whose open items are all under way, waiting on unfinished work or not in a startable status,
+  whatever its own `depends_on` says. One with no open item left can start: its own acceptance
+  remains.
 - People set an epic's status, and the board never changes it. It only points out a mismatch:
   an epic marked done while items in it are open is a problem, and every item done while the
   epic isn't gets a suggestion.

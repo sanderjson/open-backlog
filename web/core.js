@@ -333,6 +333,13 @@ function link(s) {
     const ready = !hasStatus || s.startable.includes(item.fields.status);
     item.startable = item.open && ready && !item.invalidDependencies && item.blockers.length === 0;
   }
+  // An epic can start when one of its open items can. One whose open items are all under way,
+  // waiting on unfinished work or not in a startable status has nothing to start with, however
+  // little its own depends_on holds. One with no open item left can: its own acceptance remains.
+  for (const epic of s.items.filter(isEpic)) {
+    const open = members(s, epic).filter((item) => item.open);
+    if (open.length && !open.some((item) => item.startable)) epic.startable = false;
+  }
 }
 
 // Where a weight sorts: positive whole numbers by size, anything else after them.
@@ -375,9 +382,9 @@ function tagCounts(items) {
 }
 
 // What doesn't add up: a file the board can't read well, a value backlog.yml doesn't allow, a field
-// a strict list leaves empty, a weight that isn't a positive whole number, a link to no item, a
-// dependency loop, an epic's list or status, and an index that disagrees with the items. A problem
-// with `notice: true` is a suggestion rather than something wrong.
+// a strict list leaves empty, a weight that isn't a positive whole number, a link to no item or to
+// a file that isn't there, a dependency loop, an epic's list or status, and an index that disagrees
+// with the items. A problem with `notice: true` is a suggestion rather than something wrong.
 function problems(s) {
   const out = [];
   const add = (slug, message) => out.push({ slug, message });
@@ -399,6 +406,10 @@ function problems(s) {
         else if (!s.bySlug.has(slug)) add(item.slug, `${name} names ${slug}, which isn't an item`);
       }
     }
+    for (const name of fileLinks(item.body)) {
+      if (s.files[name] == null) add(item.slug, `it links to ${name}, which isn't in ${s.dir}`);
+    }
+    out.push(...suggestions(s, item));
     const loop = dependencyLoop(s, item);
     if (loop) add(item.slug, `its dependencies go round in a loop: ${loop.join(" → ")}`);
     out.push(...epicProblems(s, item));
@@ -408,6 +419,37 @@ function problems(s) {
     if (!s.bySlug.has(row.slug)) add("", `${s.index} lists ${row.slug}.md, which isn't there`);
   }
   return out;
+}
+
+// Suggestions about an item, worth a look rather than wrong: an unfinished prerequisite that
+// comes after the item in work order, `related` repeating `depends_on`, and `type: epic` on an
+// item that lists no items.
+function suggestions(s, item) {
+  const out = [];
+  const add = (message) => out.push({ slug: item.slug, message, notice: true });
+  for (const dep of item.dependsOn) {
+    const other = s.bySlug.get(dep);
+    if (!other || other === item || other.done || weightRank(other.weight) <= weightRank(item.weight)) continue;
+    add(`it depends on ${dep}, which comes after it in work order (${other.weight ? `weight ${other.weight} after ${item.weight}` : "no weight"})`);
+  }
+  for (const slug of item.related) {
+    if (item.dependsOn.includes(slug)) add(`related names ${slug}, which is already in depends_on`);
+  }
+  if ((item.fields.type ?? "").toLowerCase() === "epic" && !isEpic(item)) add("its type is epic, but it lists no items");
+  return out;
+}
+
+// The files in the backlog folder an item's text links to: `[x](name.md)`, with or without `./`,
+// `<>` or an anchor, outside code. A link with a path in it points outside the folder and a
+// scheme points to the web, and only names the host sends (.md and .yml) can be checked.
+function fileLinks(body) {
+  const text = body.replace(/^(`{3,}|~{3,})[^\n]*\n[\s\S]*?\n\1[ \t]*$/gm, "").replace(/`[^`\n]*`/g, "");
+  const names = new Set();
+  for (const m of text.matchAll(/\]\(<?([^)\s<>]+)>?(?:\s+"[^"]*")?\)/g)) {
+    const target = m[1].replace(/^\.\//, "").replace(/#.*$/, "");
+    if (target && !target.includes("/") && !/^[a-z][a-z0-9+.-]*:/i.test(target) && FILE_NAME.test(target)) names.add(target);
+  }
+  return [...names];
 }
 
 // A dependency loop from start back to itself, as the slugs along it, or null. Only the loop's
@@ -547,7 +589,8 @@ function epicProblems(s, epic) {
 // ---- The README's index ------------------------------------------------------------------------
 // Any Markdown table whose rows start with a link to an item's file. Columns whose header names a
 // field (Status, Priority, Weight…) are checked against the items and kept up to date when the
-// board changes them; other columns are left alone.
+// board changes them; other columns are left alone. A table under `<!-- open-backlog:ignore -->`
+// isn't an index table at all: an overview that links items can keep its own cells.
 
 const ROW_LINK_RE = /^\[(?:[^\]\\]|\\.)*\]\(<?(?:\.\/)?([^)\s/<>]+)\.md(?:#[^)]*)?>?\)/;
 
@@ -558,11 +601,12 @@ function readIndex(s) {
   const names = ["weight", ...s.fields.map((f) => f.name)];
   const tables = [];
   const lines = s.indexLines;
-  let group = null;
+  let group = null, ignore = false;
   for (let i = 0; i + 1 < lines.length; i++) {
-    const annotation = /^<!-- open-backlog:group area=(.*?) -->\r?$/.exec(lines[i]);
-    if (annotation) {
-      try { group = decodeURIComponent(annotation[1]); } catch { group = null; }
+    const annotation = /^<!-- open-backlog:(group area=(.*?)|ignore) -->\r?$/.exec(lines[i]);
+    if (annotation?.[1] === "ignore") ignore = true;
+    else if (annotation) {
+      try { group = decodeURIComponent(annotation[2]); } catch { group = null; }
     }
     const header = cells(lines[i]), sep = cells(lines[i + 1]);
     if (!header || !sep || sep.length !== header.length || !sep.every((c) => /^:?-+:?$/.test(c))) continue;
@@ -574,8 +618,9 @@ function readIndex(s) {
       const m = ROW_LINK_RE.exec(row[0]);
       if (m) table.rows.push({ line: j, slug: m[1], cells: row, title: /^\[((?:[^\]\\]|\\.)*)\]/.exec(row[0])?.[1].replace(/\\([\[\]|])/g, "$1") });
     }
-    if (table.rows.length) tables.push(table);
+    if (table.rows.length && !ignore) tables.push(table);
     group = null;
+    ignore = false;
     i = j - 1;
   }
   return tables;
