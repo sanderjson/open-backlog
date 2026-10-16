@@ -99,5 +99,10 @@ export async function startServer({ files = example(), versions = true, writable
   });
   await new Promise((done, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', done); });
   return { dir, url: `http://127.0.0.1:${server.address().port}${MOUNT}`, requests,
-    async close() { await new Promise((done) => server.close(done)); await fs.rm(dir, { recursive: true, force: true }); } };
+    // The page is still open and polling, so its keep-alive connection may never go idle: end
+    // every connection, or close() waits until the test times out.
+    async close() {
+      await new Promise((done) => { server.close(done); server.closeAllConnections(); });
+      await fs.rm(dir, { recursive: true, force: true });
+    } };
 }
