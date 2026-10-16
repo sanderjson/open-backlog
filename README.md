@@ -21,6 +21,7 @@ folder. That takes a few lines in any language, so an agent can wire it into any
 | `starter/` | A backlog for a project that has none: `backlog.yml`, a README index, a template and one item. |
 | `PROMPT.md` | Instructions for an agent adding the board to a project. |
 | `test/` | Tests for `core.js`: `node --test test/` (Node 22 or later). |
+| `LICENSE` | MIT: use it, change it, ship it. |
 
 ## The two routes
 
@@ -134,3 +135,7 @@ an index that disagrees with the items. These appear in a panel at the top and o
 Projects keep a copy of `web/` at a tagged version (see PROMPT.md). To update, replace the
 folder with the newer tag's `web/` and change the recorded version. The two routes don't change
 within a major version.
+
+## Licence
+
+MIT, see [LICENSE](LICENSE). Contributions welcome.
