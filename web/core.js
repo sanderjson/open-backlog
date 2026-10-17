@@ -938,6 +938,107 @@ function canListItems(s, target) {
   if (outer) throw new Error(`${target.slug} is in the epic ${outer.slug}, so it can't be an epic itself`);
 }
 
+// ---- The board's view ----------------------------------------------------------------------------
+
+// What the board shows for an address, as pure functions of the backlog and the query string, so
+// Node tests reach them. board.js reads location and calls these.
+
+export function viewDefaults(s) {
+  const names = s?.fields.map((f) => f.name) ?? [];
+  return { view: "board", sort: "weight", group: names.includes("status") ? "status" : names[0] || "" };
+}
+
+// ?epic= filters to an epic's items, unless the backlog has a choice field called epic.
+export function epicFilterOn(s) {
+  return !!s && !s.fields.some((f) => f.name === "epic");
+}
+
+// Only what the board knows: anything else in the address is left out.
+export function viewParams(s, search) {
+  const raw = Object.fromEntries(new URLSearchParams(search));
+  const d = viewDefaults(s);
+  const names = s?.fields.map((f) => f.name) ?? [];
+  const p = {
+    view: ["board", "list"].includes(raw.view) ? raw.view : d.view,
+    group: names.includes(raw.group) ? raw.group : d.group,
+    sort: ["weight", "title", "created", ...names].includes(raw.sort) ? raw.sort : d.sort,
+  };
+  for (const key of ["q", "tag", "item", ...names]) if (raw[key]?.trim()) p[key] = raw[key].trim();
+  for (const key of ["open", "next"]) if (raw[key] === "1") p[key] = "1";
+  if (epicFilterOn(s) && isEpic(s.bySlug.get(raw.epic?.trim()))) p.epic = raw.epic.trim();
+  return p;
+}
+
+// The query string for the address with `changes` applied, "" when it's all defaults. Keys come
+// sorted, and defaults and empty values are left out.
+export function viewQuery(s, search, changes = {}) {
+  const p = { ...viewParams(s, search), ...changes };
+  const d = viewDefaults(s);
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(p).sort()) {
+    if (value != null && value !== "" && d[key] !== value) query.set(key, value);
+  }
+  const q = query.toString();
+  return q ? `?${q}` : "";
+}
+
+export function viewFilters(s) {
+  return ["q", "tag", "epic", "open", "next", ...s.fields.map((f) => f.name)];
+}
+
+export function isFiltering(s, p) {
+  return viewFilters(s).some((k) => p[k]);
+}
+
+// The items the address shows, in its order. The Epic filter puts the epic itself first.
+export function viewItems(s, p) {
+  const q = p.q?.toLowerCase();
+  const epic = epicFilterOn(s) && p.epic ? s.bySlug.get(p.epic) : null;
+  const items = s.items.filter((item) =>
+    s.fields.every((f) => !p[f.name] || (item.fields[f.name] ?? "") === (p[f.name] === "none" ? "" : p[f.name])) &&
+    (!epic || item === epic || epic.items.includes(item.slug)) &&
+    (!p.tag || item.tags.includes(p.tag)) &&
+    (!p.open || item.open) &&
+    (!p.next || item.startable) &&
+    (!q || [item.title, item.slug, item.summary, item.body, ...item.tags].some((t) => t?.toLowerCase().includes(q))));
+  const sorted = sortItems(s, items, p.sort);
+  return epic && sorted.includes(epic) ? [epic, ...sorted.filter((item) => item !== epic)] : sorted;
+}
+
+// The board's columns: one for each value of the grouping field, then one for items without a
+// value and one for values the field doesn't list.
+export function viewColumns(s, items, group) {
+  const f = field(s, group);
+  const columns = f.values.map((value) => ({ value, title: label(value), drop: true, items: items.filter((i) => i.fields[group] === value) }));
+  const none = items.filter((i) => !i.fields[group]);
+  const other = items.filter((i) => i.fields[group] && !f.values.includes(i.fields[group]));
+  if (none.length) columns.push({ value: "", title: `No ${group}`, drop: false, items: none });
+  if (other.length) columns.push({ value: "other", title: "Other", drop: false, items: other });
+  return columns;
+}
+
+// The colour a value gets when backlog.yml doesn't give one.
+const STATUS_TONES = {
+  idea: "gray", backlog: "gray", todo: "gray", new: "gray", open: "gray", ready: "teal", planned: "teal",
+  "in-progress": "blue", doing: "blue", active: "blue", started: "blue", wip: "blue", review: "violet",
+  "in-review": "violet", blocked: "red", parked: "amber", done: "green", closed: "green", complete: "green",
+  completed: "green", shipped: "green", resolved: "green", cancelled: "gray", canceled: "gray",
+  wontfix: "gray", archived: "gray",
+};
+const CYCLE = ["violet", "orange", "teal", "blue", "pink", "green", "indigo", "amber"];
+
+// A value's tone: backlog.yml's colour, else a well-known status's, else the priority ladder (red,
+// amber, gray), else a cycle through the field's values. "none" for no value.
+export function tone(s, name, value) {
+  const f = field(s, name);
+  if (!value) return "none";
+  if (f.colors[value]) return f.colors[value];
+  const i = f.values.indexOf(value);
+  if (name === "status") return STATUS_TONES[value] ?? (i >= 0 ? CYCLE[i % CYCLE.length] : "gray");
+  if (name === "priority") return i === 0 ? "red" : i === 1 && f.values.length > 2 ? "amber" : "gray";
+  return i >= 0 ? CYCLE[i % CYCLE.length] : "gray";
+}
+
 // ---- Prompts -----------------------------------------------------------------------------------
 
 // Paths in prompts are relative to the project, so a prompt works in any session there.
