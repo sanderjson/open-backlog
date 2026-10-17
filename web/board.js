@@ -106,14 +106,21 @@ class Board {
     this.polling = true;
     if (document.visibilityState !== "hidden" && !this.pendingWrites) {
       const version = this.version;
+      let reached = false;
       try {
         const body = await this.fetchFiles();
+        reached = true;
         this.setLive(true);
         if (version !== this.version || this.pendingWrites) this.etag = "";
         else if (body != null && body !== this.body) this.apply(body);
       } catch (e) {
-        this.setLive(false);
-        if (!this.snap) this.renderError(e);
+        // Only a failed fetch means the host is down. The host answered if reached is set, so
+        // the trouble is in what it sent: say so, and wait for the next change.
+        if (reached) this.toast(`Couldn't read the backlog: ${e.message}`, "error");
+        else {
+          this.setLive(false);
+          if (!this.snap) this.renderError(e);
+        }
       }
     }
     this.polling = false;
@@ -122,8 +129,9 @@ class Board {
 
   apply(body) {
     this.body = body;
-    this.payload = JSON.parse(body);
-    this.snap = core.parseBacklog(this.payload);
+    const payload = JSON.parse(body);
+    this.snap = core.parseBacklog(payload);
+    this.payload = payload;
     this.version++;
     this.render();
   }
@@ -694,7 +702,19 @@ class Board {
       <p>${esc(e.message)} for <code>${esc(new URL("files", this.api).pathname)}</code>. The board tries again every few seconds.</p></div>`;
   }
 
+  // A render that throws is the board's fault, not the host's: report it where the user sees it,
+  // and let the next change or navigation draw the sheet from scratch.
   render() {
+    try {
+      this.draw();
+    } catch (e) {
+      this.sheetKey = "";
+      console.error(e);
+      this.toast(`Couldn't show the backlog: ${e.message}`, "error");
+    }
+  }
+
+  draw() {
     if (!this.snap) return;
     const s = this.snap;
     const p = this.params();
@@ -1125,7 +1145,15 @@ depends_on: []
         continue;
       }
       if (href.startsWith("#")) continue;
-      const path = decodeURI(href.replace(/[?#].*$/, ""));
+      let path;
+      try {
+        path = decodeURI(href.replace(/[?#].*$/, ""));
+      } catch {
+        // Badly percent-encoded: it can't name a file, so it shows like a link to an unknown one.
+        a.removeAttribute("href");
+        a.title = href;
+        continue;
+      }
       const slug = path.replace(/^\.\//, "").replace(/\.md$/, "");
       if (path.endsWith(".md") && !slug.includes("/") && s.bySlug.has(slug)) {
         a.href = this.href({ item: slug });

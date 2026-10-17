@@ -27,7 +27,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 
 | Item | Weight | Status | Priority | Type |
 | --- | --- | --- | --- | --- |
-| [A bad link in an item can't break the sheet or report the host down](bad-link-breaks-the-sheet.md) | 5 | ready | high | build |
+| [A bad link in an item can't break the sheet or report the host down](bad-link-breaks-the-sheet.md) | 5 | done | high | build |
 | [Epics an agent can make and a person can find](epics-agents-make-and-people-find.md) | 6 | ready | high | epic |
 | [Search finds items by tag, field value and kind](search-matches-tags.md) | 7 | ready | high | build |
 | [Epic cards look unmistakably different](epic-cards-stand-out.md) | 8 | ready | mid | build |

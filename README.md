@@ -420,6 +420,7 @@ both with file versions and with only the two routes. It covers:
 - edits, dragging, creation and clipboard prompts;
 - rapid changes and external edits;
 - conflicts and partial saves;
+- malformed links and render failures, which never show as the host being down;
 - epic membership and creation;
 - keyboard and focus behaviour.
 
