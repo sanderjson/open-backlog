@@ -21,6 +21,11 @@ const MOUNT = '/dev/backlog/';
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
 export const version = (text) => createHash('sha256').update(text).digest('hex');
 
+// A page on another site can point its own name at this machine (DNS rebinding) and then send the
+// header without a preflight, but its name is still in Host. So both routes answer only to these.
+const DEV_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+const devHost = (host = '') => DEV_HOSTS.has(host.toLowerCase().replace(/:\d*$/, ''));
+
 const fail = (res, status, error) => res.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error }));
 
 async function readText(path) {
@@ -94,6 +99,8 @@ export async function startServer({ files = example(), versions = true, writable
     try {
       const url = new URL(req.url, 'http://localhost');
       if (temp) requests.push([req.method, url.pathname, req.headers['if-match'] ?? (req.method === 'PUT' ? req.headers['if-none-match'] : undefined)]);
+      const route = url.pathname === `${MOUNT}files` || url.pathname.startsWith(`${MOUNT}files/`);
+      if (route && !devHost(req.headers.host)) return fail(res, 403, `${req.headers.host} isn't a development host`);
       if (await intercept?.(req, res, dir)) return;
       if (req.method === 'GET' && url.pathname === `${MOUNT}files`) return await get(req, res);
       if (req.method === 'PUT' && url.pathname.startsWith(`${MOUNT}files/`)) return await put(req, res, decodeURIComponent(url.pathname.slice(`${MOUNT}files/`.length)));

@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'node:fs/promises';
 import { join } from 'node:path';
 import { startServer, example } from '../test/server.mjs';
+import { VERSION } from '../web/core.js';
 
 const puts = (server) => server.requests.filter(([method]) => method === 'PUT');
 
@@ -135,6 +136,101 @@ test('a partial save is reported and immediately refreshed', async ({ page }) =>
   } finally { await server.close(); }
 });
 
+const refresh = async (page) => {
+  const answered = page.waitForResponse((response) => response.url().endsWith('/files') && response.request().method() === 'GET');
+  await page.evaluate(() => window.dispatchEvent(new Event('open-backlog:refresh')));
+  await answered;
+};
+
+test('a malformed link renders plainly and the board stays live', async ({ page }) => {
+  const files = example();
+  files['a.md'] = files['a.md'].replace('First task.', 'First task, see [bad](foo%E0%A4%A.md) and [Beta](b.md).');
+  const server = await startServer({ files });
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  try {
+    await page.goto(server.url);
+    await page.locator('.bb-card[data-item="a"]').click();
+    const prose = page.locator('.bb-panel .bb-prose');
+    await expect(prose.getByText('bad', { exact: true })).not.toHaveAttribute('href');
+    await expect(prose.locator('a[data-item="b"]')).toHaveText('Beta');
+    await expect(page.locator('.bb-panel')).toBeFocused();
+    await fs.appendFile(join(server.dir, 'a.md'), '\nMore context.\n');
+    await refresh(page);
+    await expect(prose).toContainText('More context.');
+    await expect(page.locator('.bb-live')).toHaveClass(/is-live/);
+    expect(errors).toEqual([]);
+  } finally { await server.close(); }
+});
+
+test('a render failure is reported as one, not as the host, and the next change renders', async ({ page }) => {
+  const server = await startServer();
+  try {
+    await page.goto(server.url);
+    await page.locator('.bb-card[data-item="a"]').click();
+    await expect(page.locator('.bb-panel')).toBeFocused();
+    // The next re-render of the open sheet refocuses its panel: make that throw, once.
+    await page.evaluate(() => {
+      const focus = HTMLElement.prototype.focus;
+      HTMLElement.prototype.focus = function (...args) {
+        HTMLElement.prototype.focus = focus;
+        throw new Error('render broke');
+      };
+    });
+    await fs.appendFile(join(server.dir, 'a.md'), '\nFirst change.\n');
+    await refresh(page);
+    await expect(page.getByRole('alert')).toContainText("Couldn't show the backlog: render broke");
+    await expect(page.locator('.bb-live')).toHaveClass(/is-live/);
+    await fs.appendFile(join(server.dir, 'a.md'), '\nSecond change.\n');
+    await refresh(page);
+    await expect(page.locator('.bb-panel .bb-prose')).toContainText('Second change.');
+    await expect(page.locator('.bb-live')).toHaveClass(/is-live/);
+  } finally { await server.close(); }
+});
+
+for (const dismiss of ['Close', 'Escape']) {
+  test(`an early render failure still lets ${dismiss} dismiss the sheet`, async ({ page }) => {
+    const server = await startServer();
+    const errors = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    try {
+      await page.goto(server.url);
+      await page.locator('.bb-card[data-item="a"]').click();
+      const panel = page.locator('.bb-panel');
+      await expect(panel).toBeFocused();
+      const close = panel.getByRole('button', { name: 'Close', exact: true });
+      // Keep focus in place during dismissal, so a deferred focusout redraw can't hide the bug.
+      if (dismiss === 'Close') await close.focus();
+      await page.evaluate(() => {
+        const title = document.querySelector('[data-el="title"]');
+        Object.defineProperty(title, 'textContent', {
+          configurable: true,
+          set() {
+            delete title.textContent;
+            throw new Error('early render broke');
+          },
+        });
+      });
+      await fs.appendFile(join(server.dir, 'a.md'), '\nExternal change.\n');
+      await refresh(page);
+      await expect(page.getByRole('alert')).toContainText("Couldn't show the backlog: early render broke");
+      await expect(page.locator('.bb-live')).toHaveClass(/is-live/);
+      if (dismiss === 'Escape') await page.keyboard.press('Escape');
+      else await close.click();
+      await expect(panel).toHaveCount(0);
+      await expect(page).not.toHaveURL(/[?&]item=/);
+      await expect(page.locator('html')).not.toHaveClass(/bb-locked/);
+      for (const selector of ['.bb-header', '.bb-toolbar', '.bb-main']) {
+        await expect(page.locator(selector)).toHaveJSProperty('inert', false);
+      }
+      await expect(page.locator('.bb-card[data-item="a"]')).toBeFocused();
+      await page.locator('.bb-card[data-item="b"]').click();
+      await expect(page.locator('.bb-item-title')).toHaveText('Beta');
+      expect(errors).toEqual([]);
+    } finally { await server.close(); }
+  });
+}
+
 test('epic creation, membership and prompts use checked saves', async ({ page, context }) => {
   const files = example();
   files['launch.md'] = '---\ntitle: Launch\nstatus: ready\npriority: high\narea: one\nitems: [a]\n---\n\n# Launch\n\nShip the two tasks.\n';
@@ -162,5 +258,183 @@ test('epic creation, membership and prompts use checked saves', async ({ page, c
     expect(puts(server)).toHaveLength(5);
     expect(puts(server).every(([, , precondition]) => precondition)).toBe(true);
     expect(await fs.readFile(join(server.dir, 'README.md'), 'utf8')).toContain('[Gamma](gamma.md)');
+  } finally { await server.close(); }
+});
+
+// Three items whose title order differs from their work order: Alpha (10), Beta (20), Aardvark (30).
+const three = () => {
+  const files = example();
+  files['c.md'] = '---\ntitle: Aardvark notes\nstatus: idea\npriority: low\narea: one\nweight: 30\n---\n\n# Aardvark notes\n\nThird task.\n';
+  files['README.md'] += '| [Aardvark notes](c.md) | low | idea |\n';
+  return files;
+};
+const rows = (page) => page.locator('.bb-table tbody tr').evaluateAll((trs) => trs.map((tr) => tr.dataset.row));
+const query = (page) => new URL(page.url()).search;
+
+test('a list header click sorts by that column and keeps it in the address', async ({ page }) => {
+  const server = await startServer({ files: three() });
+  try {
+    await page.goto(server.url + '?view=list');
+    await expect.poll(() => rows(page)).toEqual(['a', 'b', 'c']);
+    await page.locator('.bb-table thead').getByRole('button', { name: 'Item', exact: true }).click();
+    await expect.poll(() => rows(page)).toEqual(['c', 'a', 'b']);
+    expect(query(page)).toBe('?sort=title&view=list');
+    await expect(page.locator('th[aria-sort="ascending"]')).toHaveText('Item');
+    // Again, it turns around; only the sorted header has aria-sort, the others a neutral marker.
+    await page.locator('.bb-table thead').getByRole('button', { name: 'Item', exact: true }).click();
+    await expect.poll(() => rows(page)).toEqual(['b', 'a', 'c']);
+    expect(query(page)).toBe('?dir=desc&sort=title&view=list');
+    await expect(page.locator('th[aria-sort]')).toHaveCount(1);
+    await expect(page.locator('th[aria-sort="descending"]')).toHaveText('Item');
+    await expect(page.locator('th:not([aria-sort]) .bb-sort-idle').first()).toBeAttached();
+    await expect(page.locator('th[aria-sort] .bb-sort-idle')).toHaveCount(0);
+    // Another column starts in its own direction: Created, newest first.
+    await page.locator('.bb-table thead').getByRole('button', { name: 'Created', exact: true }).click();
+    await expect(page.locator('th[aria-sort="descending"]')).toHaveText('Created');
+    expect(query(page)).toBe('?sort=created&view=list');
+  } finally { await server.close(); }
+});
+
+test('the search box and a field filter narrow the board and the address', async ({ page }) => {
+  const server = await startServer({ files: three() });
+  try {
+    await page.goto(server.url);
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    await page.getByRole('searchbox').fill('beta');
+    await expect(page.locator('.bb-card')).toHaveCount(1);
+    await expect(page.locator('.bb-card[data-item="b"]')).toBeVisible();
+    await expect.poll(() => query(page)).toBe('?q=beta');
+    await page.getByRole('searchbox').fill('');
+    await page.getByRole('combobox', { name: 'Priority', exact: true }).selectOption('high');
+    await expect(page.locator('.bb-card')).toHaveCount(1);
+    await expect(page.locator('.bb-card[data-item="a"]')).toBeVisible();
+    await expect.poll(() => query(page)).toBe('?priority=high');
+  } finally { await server.close(); }
+});
+
+test('the j, k, b, l and / keys move through items, switch views and focus search', async ({ page }) => {
+  const server = await startServer({ files: three() });
+  try {
+    await page.goto(server.url);
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    await page.keyboard.press('l');
+    await expect(page.locator('.bb-table')).toBeVisible();
+    expect(query(page)).toBe('?view=list');
+    await page.keyboard.press('b');
+    await expect(page.locator('.bb-board')).toBeVisible();
+    // j opens the first item in work order, then steps through the board's columns in order.
+    await page.keyboard.press('j');
+    await expect(page.locator('.bb-item-title')).toHaveText('Alpha');
+    await page.keyboard.press('j');
+    await expect(page.locator('.bb-item-title')).toHaveText('Beta');
+    await page.keyboard.press('k');
+    await expect(page.locator('.bb-item-title')).toHaveText('Alpha');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.bb-panel')).toHaveCount(0);
+    await page.keyboard.press('/');
+    await expect(page.getByRole('searchbox')).toBeFocused();
+  } finally { await server.close(); }
+});
+
+test('a qualifier in the search shows as a chip that agrees with the address', async ({ page }) => {
+  const server = await startServer({ files: three() });
+  try {
+    await page.goto(server.url + '?q=status%3Aready+alpha');
+    await expect(page.getByRole('searchbox')).toHaveValue('status:ready alpha');
+    await expect(page.locator('.bb-card')).toHaveCount(1);
+    await page.getByRole('searchbox').fill('status:idea');
+    await expect(page.locator('.bb-card')).toHaveCount(1);
+    await expect(page.locator('.bb-card[data-item="c"]')).toBeVisible();
+    await expect.poll(() => query(page)).toBe('?q=status%3Aidea');
+    await page.getByRole('button', { name: 'Remove the filter Status: Idea' }).click();
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    await expect(page.getByRole('searchbox')).toHaveValue('');
+    await expect(page.getByRole('searchbox')).toBeFocused();
+    await expect(page.locator('.bb-query-chip')).toHaveCount(0);
+    expect(query(page)).toBe('');
+    await page.getByRole('searchbox').fill('#nothing "status:ready"');
+    await expect(page.locator('.bb-query-chip')).toHaveText(['#nothing']);
+    await expect(page.locator('.bb-card')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Clear', exact: true }).click();
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    await expect(page.locator('.bb-query-chip')).toHaveCount(0);
+  } finally { await server.close(); }
+});
+
+test('an epic is marked as one on its card, its list row and its sheet', async ({ page }) => {
+  const files = example();
+  files['launch.md'] = '---\ntitle: Launch\nstatus: ready\npriority: high\narea: one\nitems: [a, b]\n---\n\n# Launch\n\nShip the two tasks.\n';
+  files['README.md'] += '| [Launch](launch.md) | high | ready |\n';
+  const server = await startServer({ files });
+  try {
+    await page.goto(server.url);
+    await expect(page.locator('.bb-card[data-item="launch"] .bb-epic-badge')).toHaveText('Epic');
+    await expect(page.locator('.bb-card .bb-epic-badge')).toHaveCount(1);
+    await page.locator('.bb-card[data-item="launch"]').click();
+    await expect(page.getByRole('dialog', { name: 'Epic Launch' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.goto(server.url + '?view=list');
+    await expect(page.locator('tr[data-row="launch"] .bb-epic-badge')).toBeVisible();
+    await expect(page.locator('tr[data-row="a"] .bb-epic-badge')).toHaveCount(0);
+  } finally { await server.close(); }
+});
+
+// A host's own page with the board mounted in it, beside a control of the host's.
+const embedded = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Host page</title>
+  <link rel="stylesheet" href="board.css"><script type="module" src="board.js"></script></head>
+  <body><button id="host">Host control</button><div data-open-backlog data-api="/dev/backlog"></div></body></html>`;
+
+test('mounted in a host page, keys stay inside the board and the title stays the host\'s', async ({ page }) => {
+  const server = await startServer({ files: three() });
+  try {
+    await page.route('**/dev/backlog/embed.html', (route) => route.fulfill({ contentType: 'text/html', body: embedded }));
+    await page.goto(server.url + 'embed.html');
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    await page.locator('#host').focus();
+    await page.keyboard.press('n');
+    await page.keyboard.press('l');
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+    await expect(page.locator('.bb-board')).toBeVisible();
+    // Clicking a blank part of the board gives it focus, so its keys work there.
+    await page.locator('.bb-column-head').first().click();
+    await page.keyboard.press('n');
+    await expect(page.locator('dialog[open]')).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    await page.locator('.bb-card[data-item="a"]').click();
+    await expect(page.locator('.bb-item-title')).toHaveText('Alpha');
+    expect(await page.title()).toBe('Host page');
+  } finally { await server.close(); }
+});
+
+test('single-key shortcuts can be turned off, and the choice is remembered', async ({ page }) => {
+  const server = await startServer({ files: three() });
+  try {
+    await page.goto(server.url);
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    await page.locator('.bb-card[data-item="a"]').click();
+    expect(await page.title()).toContain('Alpha');
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
+    await expect(page.locator('dialog[open]')).toContainText(`open-backlog v${VERSION}`);
+    await page.getByRole('checkbox', { name: 'Single-key shortcuts' }).uncheck();
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.reload();
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    for (const key of ['n', 'l', 'j', '/', '?']) await page.keyboard.press(key);
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+    await expect(page.locator('.bb-panel')).toHaveCount(0);
+    await expect(page.locator('.bb-board')).toBeVisible();
+    // Esc and the buttons still work.
+    await page.locator('.bb-card[data-item="b"]').focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.bb-item-title')).toHaveText('Beta');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.bb-panel')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
+    await expect(page.getByRole('checkbox', { name: 'Single-key shortcuts' })).not.toBeChecked();
+    await page.getByRole('checkbox', { name: 'Single-key shortcuts' }).check();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('n');
+    await expect(page.locator('dialog[open]')).toHaveCount(1);
   } finally { await server.close(); }
 });

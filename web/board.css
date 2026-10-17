@@ -217,6 +217,14 @@ html.bb-locked { overflow: hidden; }
 .bb-search input::placeholder { color: var(--faint); }
 .bb-search input::-webkit-search-cancel-button { display: none; }
 .bb-search:focus-within kbd { opacity: 0; }
+.bb-query-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.bb-query-chips:empty { display: none; }
+.bb-query-chip {
+  display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 6px 0 11px; border: 0; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent); font-size: 12.5px; font-weight: 600; white-space: nowrap; transition: all 0.15s;
+}
+.bb-query-chip .bb-i { width: 14px; height: 14px; opacity: 0.7; }
+.bb-query-chip:hover .bb-i { opacity: 1; }
 .bb-count { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bb-group { display: flex; align-items: center; gap: 2px; }
 .bb-group-label { margin-right: 4px; color: var(--faint); font-size: 12px; font-weight: 600; }
@@ -269,6 +277,8 @@ html.bb-locked { overflow: hidden; }
 .bb-table th button { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font-weight: 600; }
 .bb-table th button:hover, .bb-table th button.is-on { color: var(--ink); }
 .bb-table th .bb-i { width: 13px; height: 13px; }
+.bb-table th .bb-sort-idle { opacity: 0.45; }
+.bb-table th button:hover .bb-sort-idle { opacity: 0.8; }
 .bb-table td { padding: 10px 14px; border-top: 1px solid var(--line); vertical-align: middle; }
 .bb-table tbody tr:first-child td { border-top: 0; }
 .bb-table tbody tr { cursor: pointer; transition: background 0.12s; }
@@ -277,7 +287,7 @@ html.bb-locked { overflow: hidden; }
 .bb-table tbody tr.is-closed .bb-td-item { opacity: 0.6; }
 .bb-td-item { max-width: 460px; }
 .bb-td-item a { display: block; font-weight: 650; text-decoration: none; }
-.bb-td-item span { display: block; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.bb-td-item > span { display: block; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .bb-num { color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* Empty, loading, error */
@@ -393,6 +403,14 @@ a.bb-path:hover { background: var(--sunken); color: var(--ink); }
 .bb-help dl { display: grid; grid-template-columns: auto 1fr; gap: 10px 16px; align-items: center; margin: 0 0 8px; }
 .bb-help dt { justify-self: start; }
 .bb-help dd { margin: 0; color: var(--muted); }
+.bb-switch { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-weight: 600; }
+.bb-switch input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.bb-help-note { margin: 4px 0 8px 24px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.bb-help-version { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+.bb-no-keys .bb-help dl { opacity: 0.5; }
+.bb-no-keys .bb-search kbd { display: none; }
+/* Mounted in a host's page, the board takes focus so its keys work; it isn't a stop for Tab. */
+.bb[tabindex="-1"]:focus { outline: none; }
 
 /* Toasts */
 .bb-toasts { position: fixed; bottom: 20px; left: 50%; z-index: 60; display: flex; flex-direction: column; align-items: center; gap: 8px; transform: translateX(-50%); pointer-events: none; }
@@ -407,13 +425,24 @@ a.bb-path:hover { background: var(--sunken); color: var(--ink); }
 .bb-toast.is-leaving { opacity: 0; transform: translateY(6px); transition: all 0.25s; }
 @keyframes bb-rise { from { opacity: 0; transform: translateY(10px); } }
 
-/* Epics: a card with a stack of cards behind it, and a bar with a segment per item. */
+/* Epics: an Epic badge, a violet border and a stack of cards behind it, and a bar with a segment
+   per item. The badge is the same on the card, the list row and the sheet. */
 .bb-card.is-epic {
   --stack: 0 4px 0 -2px var(--surface), 0 4px 0 -1px var(--line-strong), 0 8px 0 -4px var(--surface), 0 8px 0 -3px var(--line);
-  margin-bottom: 8px; box-shadow: var(--stack), var(--shadow-card);
+  margin-bottom: 8px; padding: 11px 11px 9px; border: 2px solid color-mix(in srgb, var(--violet) 60%, var(--line));
+  box-shadow: var(--stack), var(--shadow-card);
 }
-.bb-card.is-epic:hover { box-shadow: var(--stack), var(--shadow-lift); }
-.bb-card.is-epic.is-selected { box-shadow: var(--stack), 0 0 0 3px var(--accent-soft); }
+.bb-card.is-epic:hover { border-color: var(--violet); box-shadow: var(--stack), var(--shadow-lift); }
+.bb-card.is-epic.is-selected { border-color: var(--accent); box-shadow: var(--stack), 0 0 0 3px var(--accent-soft); }
+.bb-epic-badge {
+  display: inline-flex; flex: none; align-items: center; gap: 4px; padding: 1px 7px 1px 5px; border-radius: 6px;
+  background: var(--violet-soft); color: var(--violet-ink); font-size: 11px; font-weight: 700; line-height: 1.5;
+  letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; vertical-align: 1px;
+}
+.bb-epic-badge .bb-i { width: 12px; height: 12px; }
+.bb-card-top .bb-epic-badge { margin-top: 1px; }
+.bb-td-item .bb-epic-badge { margin-right: 7px; }
+.bb-item-kind { margin: 0 0 6px; }
 /* Positioned, so its hidden text stays inside the board's and the list's scrolling. */
 .bb-progress { position: relative; display: flex; min-width: 0; align-items: center; gap: 8px; color: var(--faint); }
 .bb-progress > .bb-i { width: 14px; height: 14px; }

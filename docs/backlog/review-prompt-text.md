@@ -4,7 +4,7 @@ status: ready
 priority: mid
 type: build
 area: core
-weight: 13
+weight: 15
 tags: [prompt, agent]
 created: 2026-10-17
 depends_on: []

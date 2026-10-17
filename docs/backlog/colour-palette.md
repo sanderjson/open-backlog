@@ -4,7 +4,7 @@ status: ready
 priority: mid
 type: discuss
 area: board
-weight: 12
+weight: 14
 tags: [ui]
 created: 2026-10-17
 depends_on: []
