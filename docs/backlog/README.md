@@ -15,6 +15,10 @@ with an `items` list, a status change goes in the front matter and the index row
 `node bin/open-backlog.mjs check docs/backlog` says what doesn't add up. Screenshots and other
 attachments live in [../backlog-assets/](../backlog-assets/).
 
+This repository is public, so this backlog is too. Nothing here should be more sensitive than the
+code beside it: a security finding against the kit that could hurt the projects using it goes to a
+GitHub security advisory first, and gets an item here once a fix is ready.
+
 <!-- open-backlog:index start -->
 
 ### Board
