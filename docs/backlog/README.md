@@ -28,7 +28,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | Item | Weight | Status | Priority | Type |
 | --- | --- | --- | --- | --- |
 | [A bad link in an item can't break the sheet or report the host down](bad-link-breaks-the-sheet.md) | 5 | done | high | build |
-| [Epics an agent can make and a person can find](epics-agents-make-and-people-find.md) | 6 | in-progress | high | epic |
+| [Epics an agent can make and a person can find](epics-agents-make-and-people-find.md) | 6 | done | high | epic |
 | [Test the board's view logic without a browser](test-the-board-view-logic.md) | 6 | done | mid | build |
 | [Search finds items by tag, field value and kind](search-matches-tags.md) | 7 | done | high | build |
 | [Epic cards look unmistakably different](epic-cards-stand-out.md) | 8 | done | mid | build |
@@ -68,7 +68,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 
 | Item | Weight | Status | Priority | Type |
 | --- | --- | --- | --- | --- |
-| [The CLI creates items and epics](cli-creates-items-and-epics.md) | 14 | in-progress | mid | build |
+| [The CLI creates items and epics](cli-creates-items-and-epics.md) | 14 | done | mid | build |
 | [Sync with GitHub Issues, or not](github-issues-sync.md) | 20 | ready | low | discuss |
 
 ### Repo

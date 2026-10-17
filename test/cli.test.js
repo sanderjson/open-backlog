@@ -63,3 +63,75 @@ test("CLI next lists what the board's Can start shows, in the same order", async
   assert.deepEqual(board, ['epic', 'b', 'a', 'e']);
   assert.deepEqual(JSON.parse(run('next', dir, '--json').stdout).map((item) => item.slug), board);
 });
+
+// A backlog with an ordinary index table, a template, two items and an epic over one of them.
+const creatable = async (t) => {
+  const dir = await fs.mkdtemp(join(tmpdir(), 'backlog-new-'));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const files = {
+    'backlog.yml': 'fields:\n  status: [idea, ready, done]\n  priority: [high, low]\n  epic: []\n',
+    '_template.md': '# {{title}}\n\n## Why\n\n## Acceptance\n',
+    'a.md': '---\ntitle: A\nstatus: ready\npriority: high\n---\n\n# A\n',
+    'b.md': '---\ntitle: B\nstatus: idea\npriority: low\n---\n\n# B\n',
+    'launch.md': '---\ntitle: Launch\nstatus: idea\npriority: high\nitems: [a]\n---\n\n# Launch\n',
+    'README.md': '| Item | Priority | Status |\n| --- | --- | --- |\n| [A](a.md) | high | ready |\n| [B](b.md) | low | idea |\n| [Launch](launch.md) | high | idea |\n',
+  };
+  for (const [name, text] of Object.entries(files)) await fs.writeFile(join(dir, name), text);
+  const snapshot = async () => Object.fromEntries(await Promise.all((await fs.readdir(dir)).sort().map(async (name) => [name, await fs.readFile(join(dir, name), 'utf8')])));
+  return { dir, snapshot };
+};
+
+test('CLI new writes an item, an epic or an item in an epic, and prints what it wrote', async (t) => {
+  const { dir } = await creatable(t);
+  let result = run('new', 'Export to CSV', dir, '--field', 'status=idea', '--field=priority=low', '--tags', 'export, csv', '--tags', 'data', '--weight', '4', '--field', 'epic=q4');
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, `Created export-to-csv\n  ${join(dir, 'export-to-csv.md')}\n  ${join(dir, 'README.md')}\n`);
+  const item = await fs.readFile(join(dir, 'export-to-csv.md'), 'utf8');
+  assert.match(item, /^---\ntitle: Export to CSV\nstatus: idea\npriority: low\nepic: q4\nweight: 4\ntags: \["export", "csv", "data"\]\n/);
+  assert.match(item, /\n# Export to CSV\n\n## Why\n\n## Acceptance\n$/);
+  assert.match(await fs.readFile(join(dir, 'README.md'), 'utf8'), /^\| \[Export to CSV\]\(export-to-csv\.md\) \| low \| idea \|$/m);
+
+  result = run('new', 'Q4 release', dir, '--items', 'b,export-to-csv', '--field', 'status=idea', '--field', 'priority=high');
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(await fs.readFile(join(dir, 'q4-release.md'), 'utf8'), /^items: \[b, export-to-csv\]$/m);
+
+  result = run('new', 'Press kit', dir, '--epic', 'launch', '--field', 'status=idea', '--field', 'priority=low');
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /launch\.md\n/);
+  assert.match(await fs.readFile(join(dir, 'launch.md'), 'utf8'), /^items: \[a, press-kit\]$/m);
+  assert.equal(run('check', dir).status, 0, run('check', dir).stdout);
+});
+
+test('CLI new refuses anything wrong before writing, on stderr with exit 2', async (t) => {
+  const { dir, snapshot } = await creatable(t);
+  const before = await snapshot();
+  for (const [args, message] of [
+    [['X', dir, '--colour', 'red'], /new doesn't take --colour/],
+    [['X', dir, '--field', 'status=bogus'], /bogus/],
+    [['X', dir, '--field', 'kind=ops'], /there's no field called kind; the fields are status, priority, epic/],
+    [['X', dir, '--field', 'status=idea', '--field', 'status=ready'], /--field status is given twice, as idea and ready/],
+    [['X', dir, '--field', 'status'], /--field takes name=value/],
+    [['X', dir, '--weight'], /--weight needs a value/],
+    [['X', dir, '--weight', 'soon'], /weight/],
+    [['X', dir, '--epic', 'launch', '--epic', 'launch'], /--epic is given twice/],
+    [['X', dir, '--items', 'a', '--epic', 'launch'], /--items and --epic can't go together/],
+    [['X', dir, '--items', ' , '], /--items needs at least one item slug/],
+    [['X', dir, '--items', 'a,ghost'], /there's no item called ghost/],
+    [['X', dir, '--items', 'b,b'], /b is listed twice/],
+    [['X', dir, '--items', 'launch'], /launch is an epic, and epics can't contain epics/],
+    [['X', dir, '--epic', 'a'], /a is in the epic launch/],
+    [['X', join(dir, 'missing')], /ENOENT/],
+    [['--field', 'status=idea'], /new needs a title/],
+    [['X', dir, 'extra'], /new takes a title and a directory, not extra/],
+  ]) {
+    const result = run('new', ...args);
+    assert.equal(result.status, 2, `${args.join(' ')}: ${result.stdout}${result.stderr}`);
+    assert.match(result.stderr, message, args.join(' '));
+    assert.equal(result.stdout, '');
+  }
+  assert.deepEqual(await snapshot(), before);
+  const help = run('new', '--help');
+  assert.equal(help.status, 0);
+  assert.match(help.stdout, /new "<title>" \[directory\] \[--field name=value\]/);
+  assert.match(help.stdout, /--items cart-rules,payment-retry,receipt-email/);
+});

@@ -262,13 +262,24 @@ node bin/open-backlog.mjs check docs/backlog --json
 node bin/open-backlog.mjs next docs/backlog --json
 node bin/open-backlog.mjs prompt item-slug docs/backlog
 node bin/open-backlog.mjs index docs/backlog --check
+node bin/open-backlog.mjs new "Export to CSV" docs/backlog --field status=idea --tags export
+node bin/open-backlog.mjs new "Checkout v2" docs/backlog --items cart-rules,payment-retry
 ```
 
 The directory defaults to `docs/backlog`. `check` uses the same parser as the board and exits 1
 for errors; informational notices do not fail it. `next` lists only startable work in work
 order, and `prompt` prints the board's agent brief. Usage/filesystem failures exit 2. These
-commands are read-only except an explicit `index --write`, which writes a file only if it hasn't
-changed since the command read it.
+commands are read-only except an explicit `index --write` and `new`, which write a file only if it
+hasn't changed since the command read it.
+
+`new "<title>"` creates an item the way the board's New item does, through `planCreate`: its file
+from `_template.md`, its index row or the regenerated managed region, and an epic's list. It takes
+`--field name=value` for any choice field (once per field), `--weight <n>`, `--tags a,b`,
+`--items a,b,c`, which makes the new item an epic over those items in work order, and
+`--epic <slug>`, which adds it to an existing epic. It validates the whole command first: a bad
+value, a missing or nested member, or `--items` with `--epic` exits 2 with the reason on stderr
+and writes nothing. It prints the slug and each file written. Writing several files isn't a
+transaction, so if a later write fails it names the files already written and exits 1.
 
 ### Guidance for agents
 
