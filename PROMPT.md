@@ -63,8 +63,9 @@ the same.
 
 - The kit at the chosen tag: `git clone --depth 1 --branch <tag>
   https://github.com/sanderjson/open-backlog`. Its README describes the routes, the item format,
-  `backlog.yml` and the README index. Its `starter/` folder is a backlog to start from, and
-  `.claude/skills/open-backlog/SKILL.md` is the guidance agents in the project will work from.
+  `backlog.yml` and the README index. Its `starter/` folder is a backlog to start from,
+  `docs/backlog-guidance/working-the-backlog.md` is the guide for people and agents working one,
+  and `.claude/skills/open-backlog/` is the skill that gets a coding agent to read it.
 - This project's web server, router and dev-only configuration: how it serves files, how it
   limits routes to development, and where it keeps vendored code.
 - A dev menu or dev tools page, if the project has one, to link the board from.
@@ -87,13 +88,15 @@ the same.
    limits other dev tools.
 3. **Start a backlog if there's none.** If `docs/backlog/` doesn't exist, copy `starter/` there.
    If it exists, add a `backlog.yml` only when the items' values need an order or a strict
-   list, which the board can't guess (e.g. a status no item uses yet).
+   list, which the board can't guess (e.g. a status no item uses yet). Either way, if the project
+   has no `docs/backlog-guidance/`, create it with the kit's `working-the-backlog.md`: it's
+   Markdown only, and the project's own conventions go beside it. Attachments that belong to items
+   go in `docs/backlog-assets/`, created when first needed.
 4. **Point agents at it.** Copy the kit's `.claude/skills/open-backlog/` into the project's
-   `.claude/skills/` (or wherever the project's agent tooling keeps skills; it's plain Markdown,
-   so any agent can read it as a guide). Add a few lines to the project's agent instructions
-   (`CLAUDE.md`, `AGENTS.md` or the like): where the backlog folder is, that its README says how
-   it's worked, that an epic is an item with an `items` list, and that a status change goes in the
-   item's front matter and its index row.
+   `.claude/skills/` (or wherever the project's agent tooling keeps skills). Add a few lines to
+   the project's agent instructions (`CLAUDE.md`, `AGENTS.md` or the like): where the backlog
+   folder is, to read `docs/backlog-guidance/` before changing it, that an epic is an item with an
+   `items` list, and that a status change goes in the item's front matter and its index row.
 5. **Test the routes** with the project's own test tools:
    - `GET files` returns the folder's `.md`/`.yml` files, `_template.md` included, and nothing
      else (no hidden files, no other kinds), and `writable` is true;

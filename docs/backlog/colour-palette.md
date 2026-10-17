@@ -33,4 +33,4 @@ statuses, priorities, areas and epics at the same time.
 ## Acceptance
 - The agreed palette in [web/board.css](../../web/board.css), with the ten tone names unchanged so
   `colors:` in every backlog.yml keeps working, and the README's colour list still true.
-- A light and a dark screenshot of the starter backlog in `docs/backlog-guidance/`, for the record.
+- A light and a dark screenshot of the starter backlog in `docs/backlog-assets/`, for the record.

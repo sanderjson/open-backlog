@@ -9,11 +9,11 @@ Areas: `board` is the page (web/board.js, web/board.css), `core` the logic (web/
 the contract hosts implement (README's routes, PROMPT.md, test/server.mjs), `cli` the command
 line, and `repo` everything around them (releases, CI, docs, dependencies).
 
-How to work it, for people and agents: [the skill](../../.claude/skills/open-backlog/SKILL.md),
+How to work it, for people and agents: [../backlog-guidance/working-the-backlog.md](../backlog-guidance/working-the-backlog.md),
 which is also what projects install with the board. In short: one file per item, an epic is an item
 with an `items` list, a status change goes in the front matter and the index row, and
 `node bin/open-backlog.mjs check docs/backlog` says what doesn't add up. Screenshots and other
-attachments live in [../backlog-guidance/](../backlog-guidance/).
+attachments live in [../backlog-assets/](../backlog-assets/).
 
 <!-- open-backlog:index start -->
 

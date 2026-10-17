@@ -61,9 +61,11 @@ you're an agent working from inside one host project.
 | `web/core.js` | Reading, checking and planning edits to the backlog, with no page. |
 | `web/vendor/` | [marked](https://github.com/markedjs/marked) 18.0.13 and [js-yaml](https://github.com/nodeca/js-yaml) 5.4.2, with their MIT licences. |
 | `starter/` | A backlog for a project that has none: `backlog.yml`, a README index, a template, and an epic with two items. |
-| `docs/backlog/` | The kit's own backlog, kept with the board it's built with: `npm run dev` serves it (see [Development checks](#development-checks)). Its screenshots are in `docs/backlog-guidance/`. |
+| `docs/backlog/` | The kit's own backlog, kept with the board it's built with: `npm run dev` serves it (see [Development checks](#development-checks)). |
+| `docs/backlog-guidance/` | Text for people and agents working a backlog: `working-the-backlog.md`, which PROMPT.md installs in projects, and a project's own conventions. Markdown only. |
+| `docs/backlog-assets/` | What isn't text: screenshots and other files that belong to items, linked from them. |
 | `PROMPT.md` | Instructions for an agent adding the board to a project. |
-| `.claude/skills/open-backlog/` | A skill for coding agents working a project's backlog: items, epics, statuses, the index, attachments and the CLI. PROMPT.md installs it; it's plain Markdown, so any agent can read it as a guide. |
+| `.claude/skills/open-backlog/` | A skill that gets a coding agent to read `docs/backlog-guidance/` when backlog work comes up, and holds the essentials. PROMPT.md installs it. |
 | `test/` | Core, CLI and contract tests, with the throwaway host they run against: `npm test` (Node 22 or later). |
 | `bin/open-backlog.mjs` | An optional command line for agents and CI (Node 22 or later): checks, work that can start, prompts and managed indexes. |
 | `browser/` | Headless Chromium tests of the real board over throwaway backlogs. |
@@ -171,8 +173,9 @@ One palette drives every screen.
 - Files starting with `_` or `.` aren't items. `_template.md` is the body for new items, with
   `{{title}}` replaced.
 - The folder holds only `.md` and `.yml`. Screenshots and other files an item needs go beside it,
-  in `docs/backlog-guidance/` say, linked from the item as `[the screenshot](../backlog-guidance/name.png)`:
-  the board opens such links in your editor, and the checks leave them alone.
+  in `docs/backlog-assets/`, linked from the item as `[the screenshot](../backlog-assets/name.png)`:
+  the board opens such links in your editor, and the checks leave them alone. Text about how the
+  backlog is worked goes in `docs/backlog-guidance/` (see [Guidance for agents](#guidance-for-agents)).
 
 ### backlog.yml
 
@@ -233,12 +236,18 @@ changed since the command read it.
 ### Guidance for agents
 
 Agents in a project meet the backlog as files, not as the board, so the conventions have to be where
-they look. `.claude/skills/open-backlog/SKILL.md` is a skill (plain Markdown with a name and a
-description, the Agent Skills format) that says how to create an item, roll items up into an epic,
-keep a status current in the front matter and the index row, regenerate a managed index, where
-attachments go, and how to run the checks. PROMPT.md installs it in the project and asks for a
-pointer in the project's agent instructions. A new backlog's own README (from `starter/`) carries
-the short version, for agents without it.
+they look. Three places, each with one job:
+
+- `docs/backlog-guidance/` holds the text: `working-the-backlog.md`, the guide to items, epics,
+  statuses, the index, attachments and the checks, plus whatever conventions the project adds.
+  Markdown only. PROMPT.md installs the guide with the board.
+- `.claude/skills/open-backlog/SKILL.md` is a skill (the Agent Skills format: Markdown with a name
+  and a description) that gets a coding agent to read that folder when backlog work comes up, and
+  holds the essentials in case it can't.
+- `docs/backlog-assets/` holds what isn't text: screenshots and other files a user hands an agent
+  when asking for a work item, linked from the item.
+
+A new backlog's own README (from `starter/`) carries the short version, for agents with none of it.
 
 ### What the board reports
 
