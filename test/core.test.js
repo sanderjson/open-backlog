@@ -345,6 +345,31 @@ test("a new item can go straight into an epic", () => {
   assert.throws(() => core.planCreate(s, { title: "X", epic: "refund-page" }), /refund-page is in the epic checkout/);
 });
 
+test("a new item can be an epic over existing items", () => {
+  const s = load(epicFiles());
+  const { slug, writes } = core.planCreate(s, { title: "Brand refresh", fields: { status: "idea", priority: "high", area: "design" }, items: ["logo", "palette"] }, "2026-10-17");
+  assert.equal(slug, "brand-refresh");
+  assert.deepEqual(Object.keys(writes), ["brand-refresh.md", "README.md"]);
+  assert.match(writes["brand-refresh.md"], /^created: 2026-10-17\nitems: \[logo, palette\]\ndepends_on: \[\]$/m);
+  assert.doesNotMatch(writes["brand-refresh.md"], /^type:/m, "no type is needed to be an epic");
+  assert.match(writes["README.md"], /^\| \[Brand refresh\]\(brand-refresh\.md\) \| high \| idea \|$/m);
+
+  const again = load({ ...epicFiles(), ...writes });
+  const epic = again.bySlug.get("brand-refresh");
+  assert.equal(core.isEpic(epic), true);
+  assert.deepEqual(epic.items, ["logo", "palette"]);
+  assert.deepEqual(core.epicOrder(again, "brand-refresh").order.map((i) => i.slug), ["palette", "logo"], "logo waits on palette");
+  assert.deepEqual(again.problems.filter((p) => !p.notice).map((p) => p.slug), ["backups"]);
+
+  const create = (items, more = {}) => () => core.planCreate(s, { title: "X", items, ...more });
+  assert.throws(create(["logo", "ghost"]), /there's no item called ghost/);
+  assert.throws(create(["logo", "logo"]), /logo is listed twice/);
+  assert.throws(create(["checkout"]), /checkout is an epic, and epics can't contain epics/);
+  assert.throws(create([]), /an epic needs at least one item/);
+  assert.throws(create(["logo"], { epic: "checkout" }), /a new epic can't go into an epic/);
+  assert.equal(core.planCreate(s, { title: "X" }).writes["x.md"].includes("items:"), false);
+});
+
 test("an epic copies as one prompt for an agent", () => {
   const f = epicFiles();
   f["checkout-copy.md"] = f["checkout-copy.md"].replace("status: ready", "status: idea"); // its index row now disagrees

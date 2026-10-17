@@ -68,7 +68,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 
 | Item | Weight | Status | Priority | Type |
 | --- | --- | --- | --- | --- |
-| [The CLI creates items and epics](cli-creates-items-and-epics.md) | 14 | ready | mid | build |
+| [The CLI creates items and epics](cli-creates-items-and-epics.md) | 14 | in-progress | mid | build |
 | [Sync with GitHub Issues, or not](github-issues-sync.md) | 20 | ready | low | discuss |
 
 ### Repo
