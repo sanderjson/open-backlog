@@ -17,6 +17,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm test
       - run: node bin/open-backlog.mjs check starter
+      - run: npm run check
+      - run: node bin/open-backlog.mjs index docs/backlog --check
   browser:
     runs-on: ubuntu-latest
     steps:

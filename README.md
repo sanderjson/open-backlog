@@ -61,7 +61,9 @@ you're an agent working from inside one host project.
 | `web/core.js` | Reading, checking and planning edits to the backlog, with no page. |
 | `web/vendor/` | [marked](https://github.com/markedjs/marked) 18.0.13 and [js-yaml](https://github.com/nodeca/js-yaml) 5.4.2, with their MIT licences. |
 | `starter/` | A backlog for a project that has none: `backlog.yml`, a README index, a template, and an epic with two items. |
+| `docs/backlog/` | The kit's own backlog, kept with the board it's built with: `npm run dev` serves it (see [Development checks](#development-checks)). Its screenshots are in `docs/backlog-guidance/`. |
 | `PROMPT.md` | Instructions for an agent adding the board to a project. |
+| `.claude/skills/open-backlog/` | A skill for coding agents working a project's backlog: items, epics, statuses, the index, attachments and the CLI. PROMPT.md installs it; it's plain Markdown, so any agent can read it as a guide. |
 | `test/` | Core, CLI and contract tests, with the throwaway host they run against: `npm test` (Node 22 or later). |
 | `bin/open-backlog.mjs` | An optional command line for agents and CI (Node 22 or later): checks, work that can start, prompts and managed indexes. |
 | `browser/` | Headless Chromium tests of the real board over throwaway backlogs. |
@@ -168,6 +170,9 @@ One palette drives every screen.
 - `items` makes the item an epic: see [Epics](#epics).
 - Files starting with `_` or `.` aren't items. `_template.md` is the body for new items, with
   `{{title}}` replaced.
+- The folder holds only `.md` and `.yml`. Screenshots and other files an item needs go beside it,
+  in `docs/backlog-guidance/` say, linked from the item as `[the screenshot](../backlog-guidance/name.png)`:
+  the board opens such links in your editor, and the checks leave them alone.
 
 ### backlog.yml
 
@@ -209,7 +214,8 @@ their previous in-place behavior; generation refuses to overwrite them without a
 ### Command-line use
 
 Optional, for agents and CI on machines that have Node 22 or later. The board doesn't need it,
-and no dependencies need installing:
+and no dependencies need installing. A project vendors `bin/open-backlog.mjs` beside `web/` to
+have it (see PROMPT.md):
 
 ```sh
 node bin/open-backlog.mjs check docs/backlog --json
@@ -223,6 +229,16 @@ for errors; informational notices do not fail it. `next` lists only startable wo
 order, and `prompt` prints the board's agent brief. Usage/filesystem failures exit 2. These
 commands are read-only except an explicit `index --write`, which writes a file only if it hasn't
 changed since the command read it.
+
+### Guidance for agents
+
+Agents in a project meet the backlog as files, not as the board, so the conventions have to be where
+they look. `.claude/skills/open-backlog/SKILL.md` is a skill (plain Markdown with a name and a
+description, the Agent Skills format) that says how to create an item, roll items up into an epic,
+keep a status current in the front matter and the index row, regenerate a managed index, where
+attachments go, and how to run the checks. PROMPT.md installs it in the project and asks for a
+pointer in the project's agent instructions. A new backlog's own README (from `starter/`) carries
+the short version, for agents without it.
 
 ### What the board reports
 
@@ -358,8 +374,14 @@ both with file versions and with only the two routes. It covers:
 - epic membership and creation;
 - keyboard and focus behaviour.
 
-CI runs the Node suites on Node 22 and 24, and Chromium headlessly. The kit still has no build
-step and no runtime npm dependency.
+`npm run dev` serves the kit's own backlog, `docs/backlog/`, on the test host at
+http://127.0.0.1:3737/dev/backlog/ (`PORT=4000 npm run dev` for another port). It's for working on
+the kit: projects mount the board in their own dev server (see [PROMPT.md](PROMPT.md)), and the
+test host stays a throwaway. The backlog's index is a managed region, so
+`node bin/open-backlog.mjs index docs/backlog --check` reports drift.
+
+CI runs the Node suites on Node 22 and 24, and Chromium headlessly, and checks `starter/` and
+`docs/backlog/` with the CLI. The kit still has no build step and no runtime npm dependency.
 
 ## Licence
 

@@ -1,0 +1,20 @@
+# The kit's own backlog. starter/backlog.yml explains each setting.
+
+title: open-backlog
+
+fields:
+  status: [idea, ready, in-progress, parked, done]
+  priority: [high, mid, low]
+  type: [build, chore, discuss, spike, epic]
+  area: [board, core, host, cli, repo]
+
+done: [done]
+closed: [done, parked]
+startable: [idea, ready]
+active: [in-progress]
+
+colors:
+  area: {board: violet, core: blue, host: orange, cli: teal, repo: gray}
+
+editor: vscode
+index: README.md
