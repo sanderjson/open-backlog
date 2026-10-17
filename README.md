@@ -61,7 +61,11 @@ you're an agent working from inside one host project.
 | `web/core.js` | Reading, checking and planning edits to the backlog, with no page. |
 | `web/vendor/` | [marked](https://github.com/markedjs/marked) 18.0.13 and [js-yaml](https://github.com/nodeca/js-yaml) 5.4.2, with their MIT licences. |
 | `starter/` | A backlog for a project that has none: `backlog.yml`, a README index, a template, and an epic with two items. |
+| `docs/backlog/` | The kit's own backlog, kept with the board it's built with: `npm run dev` serves it (see [Development checks](#development-checks)). |
+| `docs/backlog-guidance/` | Text for people and agents working a backlog: `working-the-backlog.md`, which PROMPT.md installs in projects, and a project's own conventions. Markdown only. |
+| `docs/backlog-assets/` | What isn't text: screenshots and other files that belong to items, linked from them. |
 | `PROMPT.md` | Instructions for an agent adding the board to a project. |
+| `.claude/skills/open-backlog/` | A skill that gets a coding agent to read `docs/backlog-guidance/` when backlog work comes up, and holds the essentials. PROMPT.md installs it. |
 | `test/` | Core, CLI and contract tests, with the throwaway host they run against: `npm test` (Node 22 or later). |
 | `bin/open-backlog.mjs` | An optional command line for agents and CI (Node 22 or later): checks, work that can start, prompts and managed indexes. |
 | `browser/` | Headless Chromium tests of the real board over throwaway backlogs. |
@@ -168,6 +172,39 @@ One palette drives every screen.
 - `items` makes the item an epic: see [Epics](#epics).
 - Files starting with `_` or `.` aren't items. `_template.md` is the body for new items, with
   `{{title}}` replaced.
+- The folder holds only `.md` and `.yml`. Screenshots and other files an item needs go beside it,
+  in `docs/backlog-assets/`, linked from the item as `[the screenshot](../backlog-assets/name.png)`:
+  the board opens such links in your editor, and the checks leave them alone. Text about how the
+  backlog is worked goes in `docs/backlog-guidance/` (see [Guidance for agents](#guidance-for-agents)).
+
+### As visible as the repository
+
+The backlog is files in the repository, so it's exactly as visible as the code: everyone who can
+read the repository can read it, every clone and fork carries it, and once committed it stays in
+the history. In a public repository that's the world. A private repository isn't private enough
+for everything either: contractors, integrations and former collaborators read it, and it can be
+made public later.
+
+So don't write into an item what shouldn't travel with the code. Unfixed security findings are the
+clearest case: an item that says where the hole is tells everyone before the fix lands. Credentials,
+customer names, personal data, legal and HR matters, and anything under embargo are the others.
+Three ways to keep them out, none of which changes the kit:
+
+- **Point, don't describe.** The item names the work ("Fix the export authorisation check, see the
+  advisory") and links to where the details live: a GitHub security advisory, a private tracker, a
+  document only the right people can open. GitHub's draft security advisories exist for exactly
+  this.
+- **A second backlog outside the repository.** A folder `.gitignore` lists, or a private repository
+  checked out inside the project (a submodule, or a sibling clone the host is pointed at), served by
+  the same host at a second mount. The board takes any folder behind the two routes, so one project
+  can run `/dev/backlog/` for everyday work and `/dev/backlog-private/` for the rest.
+- **Encrypt the folder in the repository.** A tool such as git-crypt stores the files encrypted and
+  decrypts them in the working tree, which is what the host reads, so the board works unchanged while
+  the repository holds ciphertext. Every reader needs the key, CI included.
+
+Write the project's own rule into its backlog README (the starter has a line to fill in) so people
+and agents writing items know where such things go. The guide and the skill tell agents to check
+it before writing anything of the kind.
 
 ### backlog.yml
 
@@ -209,7 +246,8 @@ their previous in-place behavior; generation refuses to overwrite them without a
 ### Command-line use
 
 Optional, for agents and CI on machines that have Node 22 or later. The board doesn't need it,
-and no dependencies need installing:
+and no dependencies need installing. A project vendors `bin/open-backlog.mjs` beside `web/` to
+have it (see PROMPT.md):
 
 ```sh
 node bin/open-backlog.mjs check docs/backlog --json
@@ -223,6 +261,22 @@ for errors; informational notices do not fail it. `next` lists only startable wo
 order, and `prompt` prints the board's agent brief. Usage/filesystem failures exit 2. These
 commands are read-only except an explicit `index --write`, which writes a file only if it hasn't
 changed since the command read it.
+
+### Guidance for agents
+
+Agents in a project meet the backlog as files, not as the board, so the conventions have to be where
+they look. Three places, each with one job:
+
+- `docs/backlog-guidance/` holds the text: `working-the-backlog.md`, the guide to items, epics,
+  statuses, the index, attachments and the checks, plus whatever conventions the project adds.
+  Markdown only. PROMPT.md installs the guide with the board.
+- `.claude/skills/open-backlog/SKILL.md` is a skill (the Agent Skills format: Markdown with a name
+  and a description) that gets a coding agent to read that folder when backlog work comes up, and
+  holds the essentials in case it can't.
+- `docs/backlog-assets/` holds what isn't text: screenshots and other files a user hands an agent
+  when asking for a work item, linked from the item.
+
+A new backlog's own README (from `starter/`) carries the short version, for agents with none of it.
 
 ### What the board reports
 
@@ -358,8 +412,14 @@ both with file versions and with only the two routes. It covers:
 - epic membership and creation;
 - keyboard and focus behaviour.
 
-CI runs the Node suites on Node 22 and 24, and Chromium headlessly. The kit still has no build
-step and no runtime npm dependency.
+`npm run dev` serves the kit's own backlog, `docs/backlog/`, on the test host at
+http://127.0.0.1:3737/dev/backlog/ (`PORT=4000 npm run dev` for another port). It's for working on
+the kit: projects mount the board in their own dev server (see [PROMPT.md](PROMPT.md)), and the
+test host stays a throwaway. The backlog's index is a managed region, so
+`node bin/open-backlog.mjs index docs/backlog --check` reports drift.
+
+CI runs the Node suites on Node 22 and 24, and Chromium headlessly, and checks `starter/` and
+`docs/backlog/` with the CLI. The kit still has no build step and no runtime npm dependency.
 
 ## Licence
 

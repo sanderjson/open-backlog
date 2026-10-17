@@ -1,10 +1,11 @@
 // A throwaway host for the tests: README.md's contract written out here, so the tests depend on
 // no host project. It isn't for projects to run. Each project's own dev server serves the same
-// few routes, in its own language.
+// few routes, in its own language. `npm run dev` (test/dev.mjs) runs it over the kit's own
+// backlog, docs/backlog, for working on the kit.
 import { createServer } from 'node:http';
 import * as fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve, extname } from 'node:path';
+import { join, resolve, relative, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { FILE_NAME } from '../web/core.js';
@@ -26,11 +27,16 @@ async function readText(path) {
   try { return await fs.readFile(path, 'utf8'); } catch (e) { if (e.code === 'ENOENT') return null; throw e; }
 }
 
+// Serves a temporary copy of `files`, deleted by close(), or, given `dir`, that folder as it is.
 // `versions: false` gives a host with only the two required routes. `intercept` can answer a
 // request itself (return true); `after` runs once a GET of the files has been answered.
-export async function startServer({ files = example(), versions = true, writable = true, maxBody = 1 << 20, intercept, after } = {}) {
-  const dir = await fs.mkdtemp(join(tmpdir(), 'open-backlog-test-'));
-  for (const [name, text] of Object.entries(files)) await fs.writeFile(join(dir, name), text);
+export async function startServer({ files = example(), versions = true, writable = true, maxBody = 1 << 20, intercept, after, dir: folder = '', port = 0 } = {}) {
+  const temp = !folder;
+  const dir = temp ? await fs.mkdtemp(join(tmpdir(), 'open-backlog-test-')) : resolve(folder);
+  if (temp) for (const [name, text] of Object.entries(files)) await fs.writeFile(join(dir, name), text);
+  // The folder as the project names it: docs/backlog, not the absolute path.
+  const rel = relative(process.cwd(), dir);
+  const shown = temp || !rel || rel.startsWith('..') ? dir : rel;
   const web = fileURLToPath(new URL('../web/', import.meta.url));
   const requests = [];
   let saving = Promise.resolve(); // one save at a time, so two saves can't pass the same check
@@ -45,7 +51,7 @@ export async function startServer({ files = example(), versions = true, writable
 
   async function get(req, res) {
     const current = await list();
-    const payload = { files: current, dir, path: dir, writable };
+    const payload = { files: current, dir: shown, path: dir, writable };
     if (versions) payload.versions = Object.fromEntries(Object.entries(current).map(([name, text]) => [name, version(text)]));
     const body = JSON.stringify(payload);
     const etag = `"${version(body)}"`;
@@ -87,7 +93,7 @@ export async function startServer({ files = example(), versions = true, writable
   const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url, 'http://localhost');
-      requests.push([req.method, url.pathname, req.headers['if-match'] ?? (req.method === 'PUT' ? req.headers['if-none-match'] : undefined)]);
+      if (temp) requests.push([req.method, url.pathname, req.headers['if-match'] ?? (req.method === 'PUT' ? req.headers['if-none-match'] : undefined)]);
       if (await intercept?.(req, res, dir)) return;
       if (req.method === 'GET' && url.pathname === `${MOUNT}files`) return await get(req, res);
       if (req.method === 'PUT' && url.pathname.startsWith(`${MOUNT}files/`)) return await put(req, res, decodeURIComponent(url.pathname.slice(`${MOUNT}files/`.length)));
@@ -97,12 +103,12 @@ export async function startServer({ files = example(), versions = true, writable
       res.writeHead(200, { 'Content-Type': TYPES[extname(file)] || 'text/plain' }).end(await fs.readFile(file));
     } catch { if (!res.headersSent) res.writeHead(404).end(); else res.destroy(); }
   });
-  await new Promise((done, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', done); });
+  await new Promise((done, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', done); });
   return { dir, url: `http://127.0.0.1:${server.address().port}${MOUNT}`, requests,
     // The page is still open and polling, so its keep-alive connection may never go idle: end
     // every connection, or close() waits until the test times out.
     async close() {
       await new Promise((done) => { server.close(done); server.closeAllConnections(); });
-      await fs.rm(dir, { recursive: true, force: true });
+      if (temp) await fs.rm(dir, { recursive: true, force: true });
     } };
 }
