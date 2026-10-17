@@ -39,6 +39,10 @@ board, says the same at more length; the project's own conventions go in that fo
   first; `related` is for reading alongside.
 - **Attachments**: this folder holds only `.md` and `.yml`. Screenshots and other files go in
   `../backlog-assets/`, linked from the item as `[name](../backlog-assets/name.png)`.
+- **What stays out**: this folder is as visible as the repository, history included. Unfixed
+  security findings, credentials, personal or customer data and legal matters don't go in an item.
+  The item names the work and points to where the details live. *This project keeps them in:*
+  *(fill in: a security advisory, a private tracker, a second backlog outside the repository).*
 - **Check**: where the project has Node 22 or later and the kit's CLI,
   `node bin/open-backlog.mjs check docs/backlog` reports what doesn't add up. The board shows the
   same at the top.

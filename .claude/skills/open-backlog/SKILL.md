@@ -30,6 +30,9 @@ open-backlog repo.
 - Attachments, such as a screenshot the user hands you with a request, go in
   `docs/backlog-assets/`, linked as `../backlog-assets/name.png`. The backlog folder holds `.md`
   and `.yml` only, and the guidance folder holds text only.
+- The backlog is as visible as the repository. Unfixed security findings, credentials, personal or
+  customer data and legal matters don't go in an item's text. Write the item as a pointer to where
+  the project keeps such details (its backlog README says where), and ask if it doesn't say.
 - With Node 22 or later and the kit's CLI: `check`, `next`, `prompt <slug>` and `index --check`,
   each taking the folder as an argument.
 - The board's search covers titles, slugs, text and tags, not field values. Use the Epic filter

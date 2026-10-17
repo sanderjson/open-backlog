@@ -104,6 +104,19 @@ to an item go in `docs/backlog-assets/`, linked from the item as
 `[the screenshot](../backlog-assets/name.png)`. The board opens such links in the editor, and the
 checks leave them alone. This guidance folder stays text.
 
+## What doesn't belong in an item
+
+The backlog is files in the repository, so an item is exactly as visible as the code: everyone who
+can read the repository reads it, clones and forks carry it, and the history keeps it. In a public
+repository that's everyone.
+
+So an unfixed security finding, a credential, personal or customer data, a legal or HR matter, or
+anything under embargo doesn't go into an item's text. Write the item as a pointer instead: it
+names the work ("Fix the export authorisation check, see the advisory") and links to where the
+details live, such as a GitHub security advisory, a private tracker, or a second backlog the
+project keeps outside the repository. The project's backlog README says where; if it doesn't, ask
+before writing, and keep the item a pointer meanwhile.
+
 ## The CLI
 
 With Node 22 or later and the kit's `bin/open-backlog.mjs` (next to its `web/`; adjust the path to

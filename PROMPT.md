@@ -91,7 +91,10 @@ the same.
    list, which the board can't guess (e.g. a status no item uses yet). Either way, if the project
    has no `docs/backlog-guidance/`, create it with the kit's `working-the-backlog.md`: it's
    Markdown only, and the project's own conventions go beside it. Attachments that belong to items
-   go in `docs/backlog-assets/`, created when first needed.
+   go in `docs/backlog-assets/`, created when first needed. The backlog is as visible as the
+   repository, so fill in the starter README's line on what stays out of it (unfixed security
+   findings, credentials, personal data) with where this project keeps such things, and ask if it
+   isn't obvious.
 4. **Point agents at it.** Copy the kit's `.claude/skills/open-backlog/` into the project's
    `.claude/skills/` (or wherever the project's agent tooling keeps skills). Add a few lines to
    the project's agent instructions (`CLAUDE.md`, `AGENTS.md` or the like): where the backlog

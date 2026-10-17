@@ -177,6 +177,35 @@ One palette drives every screen.
   the board opens such links in your editor, and the checks leave them alone. Text about how the
   backlog is worked goes in `docs/backlog-guidance/` (see [Guidance for agents](#guidance-for-agents)).
 
+### As visible as the repository
+
+The backlog is files in the repository, so it's exactly as visible as the code: everyone who can
+read the repository can read it, every clone and fork carries it, and once committed it stays in
+the history. In a public repository that's the world. A private repository isn't private enough
+for everything either: contractors, integrations and former collaborators read it, and it can be
+made public later.
+
+So don't write into an item what shouldn't travel with the code. Unfixed security findings are the
+clearest case: an item that says where the hole is tells everyone before the fix lands. Credentials,
+customer names, personal data, legal and HR matters, and anything under embargo are the others.
+Three ways to keep them out, none of which changes the kit:
+
+- **Point, don't describe.** The item names the work ("Fix the export authorisation check, see the
+  advisory") and links to where the details live: a GitHub security advisory, a private tracker, a
+  document only the right people can open. GitHub's draft security advisories exist for exactly
+  this.
+- **A second backlog outside the repository.** A folder `.gitignore` lists, or a private repository
+  checked out inside the project (a submodule, or a sibling clone the host is pointed at), served by
+  the same host at a second mount. The board takes any folder behind the two routes, so one project
+  can run `/dev/backlog/` for everyday work and `/dev/backlog-private/` for the rest.
+- **Encrypt the folder in the repository.** A tool such as git-crypt stores the files encrypted and
+  decrypts them in the working tree, which is what the host reads, so the board works unchanged while
+  the repository holds ciphertext. Every reader needs the key, CI included.
+
+Write the project's own rule into its backlog README (the starter has a line to fill in) so people
+and agents writing items know where such things go. The guide and the skill tell agents to check
+it before writing anything of the kind.
+
 ### backlog.yml
 
 Optional. It names the choice fields and their values in order, which statuses count as done,
