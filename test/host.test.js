@@ -4,10 +4,18 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
 import { join } from 'node:path';
+import { request as httpRequest } from 'node:http';
 import { startServer, version } from './server.mjs';
 
 const put = (server, name, body, headers = {}) =>
   fetch(server.url + 'files/' + name, { method: 'PUT', headers: { 'X-Open-Backlog': '1', ...headers }, body });
+
+// fetch won't send a Host of our choosing, so this goes through node:http. Resolves to the status.
+const send = (url, method, headers, body) => new Promise((done, reject) => {
+  const req = httpRequest(url, { method, headers }, (res) => { res.resume(); done(res.statusCode); });
+  req.on('error', reject);
+  req.end(body);
+});
 
 test('GET lists the backlog files, with a version for each', async (t) => {
   const server = await startServer({ files: { '_template.md': 'Template', 'a.md': 'A', '.hidden.md': 'hidden', 'run.sh': 'x' } });
@@ -62,4 +70,20 @@ test('a read-only host and an oversized body change nothing', async (t) => {
   t.after(() => small.close());
   assert.equal((await put(small, 'new.md', 'x'.repeat(200))).status, 413);
   await assert.rejects(fs.stat(join(small.dir, 'new.md')), { code: 'ENOENT' });
+});
+
+test('a request for another Host is refused and writes nothing', async (t) => {
+  const server = await startServer({ files: { 'a.md': 'A' } });
+  t.after(() => server.close());
+  for (const host of ['evil.example', 'evil.example:80', 'localhost.evil.example', '127.0.0.1.evil.example']) {
+    const headers = { Host: host, 'X-Open-Backlog': '1' };
+    assert.equal(await send(server.url + 'files', 'GET', headers), 403, host);
+    assert.equal(await send(server.url + 'files/a.md', 'PUT', headers, 'x'), 403, host);
+    assert.equal(await send(server.url + 'files/new.md', 'PUT', headers, 'x'), 403, host);
+  }
+  assert.equal(await fs.readFile(join(server.dir, 'a.md'), 'utf8'), 'A');
+  await assert.rejects(fs.stat(join(server.dir, 'new.md')), { code: 'ENOENT' });
+  for (const host of ['localhost', 'LOCALHOST:3737', '127.0.0.1', '[::1]', '[::1]:8080']) {
+    assert.equal(await send(server.url + 'files', 'GET', { Host: host }), 200, host);
+  }
 });

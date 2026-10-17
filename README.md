@@ -101,6 +101,14 @@ PUT <mount>/files/<name>
   header. A page on another site can't send that header without the browser asking your
   server first, and your server never says yes. That's the board's protection against
   cross-site writes, so the route needs no CSRF token.
+- Both routes answer `403` to a request whose `Host` header isn't a development host:
+  `localhost`, `127.0.0.1`, `[::1]` or the dev host the project configures, with any port. The
+  header alone doesn't cover DNS rebinding, where a page on another site points its own name at
+  your machine: the browser then treats your server as that page's origin and sends the header
+  without asking. The request still carries the page's name in `Host`, so one comparison refuses
+  it. Vite, webpack-dev-server, Django and Rails check `Host` for the same reason. Neither check
+  is authentication: a program running on the machine can still call the routes, as it can
+  already read the files.
 - An `ETag` on `GET` (answering `If-None-Match` with `304`) is optional. It makes the page's
   polling cost next to nothing.
 
@@ -392,7 +400,10 @@ Projects keep a copy of `web/` at a tagged version (see PROMPT.md). To update, r
 folder with the newer tag's `web/` and change the recorded version. The two routes don't change
 within a major version. v0.2.0 (epics) needs nothing new from hosts. The only thing it can break
 is a choice field called `items`, which is now the board's own. v0.3.0 needs nothing new either:
-file versions are optional, and a host with only the two routes works as before.
+file versions are optional, and a host with only the two routes works as before. After v0.3.0
+the contract asks hosts for one more check: refuse requests whose `Host` isn't a development
+host (see [The two routes](#the-two-routes)). The board doesn't depend on it, so a host without
+it keeps working, but add it: it closes the DNS-rebinding gap the header leaves.
 
 ## Development checks
 
