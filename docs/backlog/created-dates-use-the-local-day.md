@@ -1,6 +1,6 @@
 ---
 title: Created dates use the local day
-status: ready
+status: done
 priority: low
 type: build
 area: core

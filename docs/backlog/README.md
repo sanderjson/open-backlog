@@ -54,7 +54,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | [backlog.yaml is sent by hosts but ignored by the board](backlog-yaml-is-ignored.md) | 23 | idea | low | build |
 | [Spell invisible characters in regexes as escapes](regex-literals.md) | 24 | idea | low | chore |
 | [The dependency-loop check is quadratic in chain length](loop-check-speed.md) | 26 | idea | low | build |
-| [Created dates use the local day](created-dates-use-the-local-day.md) | 27 | ready | low | build |
+| [Created dates use the local day](created-dates-use-the-local-day.md) | 27 | done | low | build |
 
 ### Host
 

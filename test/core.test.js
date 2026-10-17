@@ -2,6 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import * as core from "../web/core.js";
 
 // A small backlog: `palette` (high, idea, nothing before it), `logo` (high, idea, waits on
@@ -343,6 +344,19 @@ test("a new item can go straight into an epic", () => {
   assert.deepEqual(again.problems.filter((p) => !p.notice).map((p) => p.slug), ["backups"]);
   assert.throws(() => core.planCreate(s, { title: "X", epic: "ghost" }), /no item called ghost/);
   assert.throws(() => core.planCreate(s, { title: "X", epic: "refund-page" }), /refund-page is in the epic checkout/);
+});
+
+test("a new item is dated by the local day, not the UTC one", () => {
+  // Just after midnight in Berlin is still the evening before in UTC; the evening in Los Angeles
+  // is already tomorrow in UTC.
+  const day = (tz, iso) => spawnSync(process.execPath, ["--input-type=module", "-e",
+    `import { localDay } from ${JSON.stringify(new URL("../web/core.js", import.meta.url).href)}; process.stdout.write(localDay(new Date(${JSON.stringify(iso)})))`],
+  { encoding: "utf8", env: { ...process.env, TZ: tz } }).stdout;
+  assert.equal(day("Europe/Berlin", "2026-10-17T22:39:00Z"), "2026-10-18");
+  assert.equal(day("America/Los_Angeles", "2026-10-18T03:00:00Z"), "2026-10-17");
+  assert.equal(day("UTC", "2026-10-17T22:39:00Z"), "2026-10-17");
+  assert.equal(core.localDay(new Date(2026, 0, 5, 0, 1)), "2026-01-05");
+  assert.match(core.planCreate(load(), { title: "Today" }).writes["today.md"], new RegExp(`^created: ${core.localDay()}$`, "m"));
 });
 
 test("a new item can be an epic over existing items", () => {
