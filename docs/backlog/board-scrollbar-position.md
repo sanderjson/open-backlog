@@ -7,8 +7,8 @@ area: board
 weight: 13
 tags: [ui]
 created: 2026-10-17
-depends_on: []
-related: [header-layout]
+depends_on: [header-layout]
+related: []
 ---
 
 # The board's horizontal scrollbar floats mid-screen when columns are short
@@ -29,13 +29,16 @@ as its rows.
 - When the board is taller than the window, sideways scrolling is still reachable (trackpads and
   Shift+wheel already work; where the bar sits then is secondary).
 - Checked at a few sizes with the starter backlog grouped by a field with six or more values.
-- Inside a host's page, where the board gets a container rather than the window, the same holds
-  for that container: the bar sits at the bottom of the height the host gives the board, and
-  nothing assumes the viewport.
+- Inside a host's page, the board uses whatever height its mount element is given: the bar sits
+  at the bottom of that height, and nothing assumes the viewport. A host that gives the element no
+  height keeps today's behaviour, which is fine there because the host's page scrolls.
+- PROMPT.md says that a host that wants the bar at the bottom of its container gives the mount
+  element a height.
 
 ## Notes
-The simplest route is probably to make `.bb-app` a flex column of at least the viewport's height,
-or of the height a host's container gives it, and let `.bb-main` and `.bb-board` take the
+It comes after [the header layout](header-layout.md), which settles the rows above the board.
+The simplest route is probably to make `.bb-app` a flex column of at least the viewport's height
+when the board owns the page (`data-page`), or of the height a host gives the mount element, and let `.bb-main` and `.bb-board` take the
 remaining height, so the scroller's bottom edge is the container's. A sticky scrollbar proxy is
 the heavier alternative. Styles in [web/board.css](../../web/board.css): `.bb-app`, `.bb-main`,
 `.bb-board`, `.bb-table-wrap`.
