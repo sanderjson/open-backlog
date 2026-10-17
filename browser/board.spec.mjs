@@ -486,3 +486,43 @@ test('the toolbar keeps two rows with fixed roles, and applying a filter moves n
     expect(await page.locator('.bb-seg').boundingBox()).toEqual(view);
   } finally { await server.close(); }
 });
+
+test('a sideways scroller reaches the bottom of the window, or of the height a host gives it', async ({ page }) => {
+  const files = three();
+  files['backlog.yml'] = files['backlog.yml'].replace('area: [one, two]', 'area: [one, two, three, four, five, six]');
+  const server = await startServer({ files });
+  try {
+    await page.setViewportSize({ width: 1000, height: 900 });
+    await page.goto(server.url + '?group=area');
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    const board = page.locator('.bb-board');
+    expect(await board.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+    const bottom = async (locator) => { const b = await locator.boundingBox(); return b.y + b.height; };
+    expect(await bottom(board)).toBeGreaterThan(900 - 40);
+    expect(await bottom(board)).toBeLessThanOrEqual(900);
+    const column = (await page.locator('.bb-column').first().boundingBox());
+    expect(column.y + column.height).toBeLessThan(600); // columns keep their own height, at the top
+
+    // A wide list's box reaches down too; a list that fits keeps its own height.
+    await page.setViewportSize({ width: 800, height: 900 });
+    await page.goto(server.url + '?view=list');
+    const wrap = page.locator('.bb-table-wrap');
+    await expect(wrap).toHaveClass(/is-wide/);
+    expect(await bottom(wrap)).toBeGreaterThan(900 - 40);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await expect(wrap).not.toHaveClass(/is-wide/);
+    expect(await bottom(wrap)).toBeLessThan(500);
+
+    // In a host's page, the height the host gives the mount element is the board's.
+    const host = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Host</title>
+      <link rel="stylesheet" href="board.css"><script type="module" src="board.js"></script></head>
+      <body style="margin:0"><header style="height:80px">Host header</header>
+      <div data-open-backlog data-api="/dev/backlog" style="height:760px"></div></body></html>`;
+    await page.route('**/dev/backlog/host.html?*', (route) => route.fulfill({ contentType: 'text/html', body: host }));
+    await page.setViewportSize({ width: 1000, height: 1000 });
+    await page.goto(server.url + 'host.html?group=area');
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    expect(await bottom(page.locator('.bb-board'))).toBeGreaterThan(80 + 760 - 40);
+    expect(await bottom(page.locator('.bb-board'))).toBeLessThanOrEqual(80 + 760 + 1);
+  } finally { await server.close(); }
+});

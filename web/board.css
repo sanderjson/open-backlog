@@ -35,7 +35,6 @@
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 
   color-scheme: light;
-  min-height: 100vh;
   background: var(--bg);
   color: var(--ink);
   font: 14px/1.5 var(--font);
@@ -163,7 +162,10 @@ html.bb-locked { overflow: hidden; }
 }
 
 /* Header */
-.bb-app { max-width: 1800px; margin: 0 auto; padding: 28px 24px 80px; }
+.bb-app { display: flex; box-sizing: border-box; min-height: 100%; flex-direction: column; max-width: 1800px; margin: 0 auto; padding: 28px 24px 24px; }
+/* The board's space reaches the bottom of the window when it's the page, or of the height a host
+   gives its element, so a sideways scrollbar sits there rather than under short columns. */
+.bb[data-page], .bb[data-page] > .bb-app { min-height: 100vh; min-height: 100dvh; }
 .bb-header {
   display: grid; grid-template-columns: minmax(min(14rem, 100%), 1fr) minmax(0, auto) auto; grid-template-areas: "heading stats actions";
   align-items: end; gap: 16px 24px;
@@ -252,7 +254,8 @@ html.bb-locked { overflow: hidden; }
 .bb-seg button.is-on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-card); }
 
 /* Board */
-.bb-main { margin-top: 20px; }
+.bb-main { display: flex; flex: 1; min-height: 0; flex-direction: column; margin-top: 20px; }
+.bb-main > .bb-board, .bb-main > .bb-table-wrap.is-wide { flex: 1; }
 .bb-board { display: grid; grid-auto-columns: minmax(276px, 1fr); grid-auto-flow: column; gap: 14px; overflow-x: auto; padding-bottom: 12px; align-items: start; }
 .bb-column { display: flex; min-width: 0; flex-direction: column; border: 1px solid transparent; border-radius: 16px; background: var(--sunken); padding: 6px; transition: border-color 0.15s, background 0.15s; }
 .bb-main.is-dragging .bb-column[data-drop] { border-color: var(--line); border-style: dashed; }
@@ -543,7 +546,7 @@ a.bb-path:hover { background: var(--sunken); color: var(--ink); }
 
 /* Small screens */
 @media (max-width: 760px) {
-  .bb-app { padding: 20px 16px 64px; }
+  .bb-app { padding: 20px 16px 20px; }
   .bb-toolbar { margin: 16px -16px 0; padding: 10px 16px; }
   .bb-toolbar { position: static; }
   .bb-header { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "heading actions" "stats stats"; align-items: start; }

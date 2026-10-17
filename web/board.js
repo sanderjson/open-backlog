@@ -454,6 +454,7 @@ class Board {
     this.bindDrag(main);
 
     window.addEventListener("popstate", () => this.render());
+    window.addEventListener("resize", () => this.fitList());
     document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && this.poll());
     window.addEventListener("focus", () => this.poll());
     window.addEventListener("open-backlog:refresh", () => this.poll());
@@ -931,6 +932,15 @@ class Board {
         </table>
         ${visible.length ? "" : `<p class="bb-column-empty">Nothing matches</p>`}
       </div>`;
+    this.fitList();
+  }
+
+  // A list wider than its box scrolls sideways. Then its box reaches down to the bottom of the
+  // board's space, so the scrollbar sits there and not under the last row; a list that fits keeps
+  // its own height.
+  fitList() {
+    const wrap = this.el.main.querySelector(".bb-table-wrap");
+    wrap?.classList.toggle("is-wide", wrap.scrollWidth > wrap.clientWidth + 1);
   }
 
   renderEmpty() {
