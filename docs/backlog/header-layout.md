@@ -1,7 +1,7 @@
 ---
 title: A header and toolbar that lay out the same in every project
 id: 12
-status: ready
+status: done
 priority: mid
 type: build
 area: board

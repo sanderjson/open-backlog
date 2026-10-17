@@ -457,3 +457,32 @@ test('an ID leads the card, the list and the sheet, and the search finds it', as
     await expect.poll(() => rows(page)).toEqual(['c', 'b', 'a']);
   } finally { await server.close(); }
 });
+
+test('the toolbar keeps two rows with fixed roles, and applying a filter moves nothing', async ({ page }) => {
+  const files = {
+    'backlog.yml': 'fields:\n  status: [idea, ready, done]\n  priority: [high, low]\n  type: [build, epic]\n  area: [web, api]\n  team: [north, south]\n  quarter: [q1, q4]\n',
+    'a.md': '---\ntitle: A\nstatus: ready\npriority: high\ntype: build\narea: web\nteam: north\nquarter: q4\ntags: [one]\n---\n\n# A\n',
+    'b.md': '---\ntitle: B\nstatus: idea\npriority: low\ntype: build\narea: api\nteam: south\nquarter: q1\n---\n\n# B\n',
+    'e.md': '---\ntitle: A very long epic title that goes on and on about the checkout rework for every platform\nstatus: ready\npriority: high\ntype: epic\narea: web\nteam: south\nquarter: q4\nitems: [a, b]\n---\n\n# Long\n',
+  };
+  const server = await startServer({ files });
+  try {
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await page.goto(server.url);
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    const middle = async (selector) => { const b = await page.locator(selector).first().boundingBox(); return Math.round(b.y + b.height / 2); };
+    const search = await middle('.bb-search');
+    for (const selector of ['.bb-count', '.bb-group', '.bb-seg']) expect(await middle(selector), selector).toBe(search);
+    expect(await middle('.bb-toolbar-filters select[name="status"]')).toBeGreaterThan(search);
+    const before = await page.locator('.bb-toggle[data-toggle="open"]').boundingBox();
+    const view = await page.locator('.bb-seg').boundingBox();
+    await page.getByRole('combobox', { name: 'Quarter', exact: true }).selectOption('q4');
+    await expect(page.locator('.bb-card')).toHaveCount(2);
+    await expect(page.getByRole('button', { name: 'Clear', exact: true })).toBeVisible();
+    expect(await page.locator('.bb-toggle[data-toggle="open"]').boundingBox()).toEqual(before);
+    expect(await page.locator('.bb-seg').boundingBox()).toEqual(view);
+    await page.getByRole('searchbox').fill('#one is:epic status:ready');
+    await expect(page.locator('.bb-query-chip')).toHaveCount(3);
+    expect(await page.locator('.bb-seg').boundingBox()).toEqual(view);
+  } finally { await server.close(); }
+});

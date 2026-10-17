@@ -328,26 +328,31 @@ class Board {
         <div data-el="problems"></div>
         <div class="bb-toolbar">
           <form class="bb-filters" data-el="filters" role="search">
-            <label class="bb-search">
-              ${icon("search")}
-              <input type="search" name="q" placeholder="Search" autocomplete="off" aria-label="Search: words, #tag, field:value or is:epic" data-el="search"
-                title="Words search titles, text, tags and field values. An ID (W-12), #tag, field:value and is:epic filter. Quotes keep a phrase, or text that looks like a filter, as text.">
-              <kbd>/</kbd>
-            </label>
-            <span class="bb-query-chips" data-el="queryChips"></span>
-            <span class="bb-filter-fields" data-el="fieldFilters"></span>
-            <select name="epic" class="bb-select bb-epic-filter" data-el="epicFilter" aria-label="Epic" title="An epic's items (Shift E)" hidden></select>
-            <select name="tag" class="bb-select" data-el="tagFilter" aria-label="Tag"></select>
-            <button type="button" class="bb-toggle" data-toggle="next" title="Open items with nothing unfinished before them">${icon("play")}<span>Can start</span></button>
-            <button type="button" class="bb-toggle" data-toggle="open" title="Hide closed items">${icon("hide")}<span>Hide closed</span></button>
-            <button type="button" class="bb-link-btn" data-action="clear" data-el="clear" hidden>Clear</button>
-            <span class="bb-spacer"></span>
-            <span class="bb-count" data-el="count"></span>
-            <span class="bb-group" data-el="group"></span>
-            <span class="bb-seg" role="group" aria-label="View">
-              <button type="button" data-view="board" title="Board (b)" aria-label="Board">${icon("board")}</button>
-              <button type="button" data-view="list" title="List (l)" aria-label="List">${icon("list")}</button>
-            </span>
+            <div class="bb-toolbar-row bb-toolbar-main">
+              <label class="bb-search">
+                ${icon("search")}
+                <input type="search" name="q" placeholder="Search" autocomplete="off" aria-label="Search: words, #tag, field:value or is:epic" data-el="search"
+                  title="Words search titles, text, tags and field values. An ID (W-12), #tag, field:value and is:epic filter. Quotes keep a phrase, or text that looks like a filter, as text.">
+                <kbd>/</kbd>
+              </label>
+              <span class="bb-query-chips" data-el="queryChips"></span>
+              <span class="bb-toolbar-end">
+                <span class="bb-count" data-el="count"></span>
+                <span class="bb-group" data-el="group"></span>
+                <span class="bb-seg" role="group" aria-label="View">
+                  <button type="button" data-view="board" title="Board (b)" aria-label="Board">${icon("board")}</button>
+                  <button type="button" data-view="list" title="List (l)" aria-label="List">${icon("list")}</button>
+                </span>
+              </span>
+            </div>
+            <div class="bb-toolbar-row bb-toolbar-filters">
+              <span class="bb-filter-fields" data-el="fieldFilters"></span>
+              <select name="epic" class="bb-select bb-epic-filter" data-el="epicFilter" aria-label="Epic" title="An epic's items (Shift E)" hidden></select>
+              <select name="tag" class="bb-select bb-tag-filter" data-el="tagFilter" aria-label="Tag"></select>
+              <button type="button" class="bb-toggle" data-toggle="next" title="Open items with nothing unfinished before them">${icon("play")}<span>Can start</span></button>
+              <button type="button" class="bb-toggle" data-toggle="open" title="Hide closed items">${icon("hide")}<span>Hide closed</span></button>
+              <button type="button" class="bb-link-btn bb-clear" data-action="clear" data-el="clear" hidden>Clear</button>
+            </div>
           </form>
         </div>
         <main class="bb-main" data-el="main"><div class="bb-loading"><span></span><span></span><span></span></div></main>

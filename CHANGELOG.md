@@ -23,6 +23,13 @@ Added:
   get the highest ID plus one; `check` reports a shared or malformed ID.
 - `ids [directory] --check|--write` in the CLI numbers the items without an ID, oldest first.
 
+Changed:
+
+- The toolbar has two rows with fixed roles in every project: search, its chips, then the count,
+  Group and the view switch on the first; the filters, always in the same order, on the second,
+  which wraps within itself. Clear keeps its place while hidden, so applying a filter moves
+  nothing. The header keeps one order, and on narrow screens stacks as heading, stats, toolbar.
+
 Fixed:
 
 - A new item's `created` date is the local day where the board or the CLI runs. It was the UTC
