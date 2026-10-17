@@ -1,6 +1,6 @@
 ---
 title: A bad link in an item can't break the sheet or report the host down
-status: ready
+status: done
 priority: high
 type: build
 area: board

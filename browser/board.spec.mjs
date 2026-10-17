@@ -135,6 +135,58 @@ test('a partial save is reported and immediately refreshed', async ({ page }) =>
   } finally { await server.close(); }
 });
 
+const refresh = async (page) => {
+  const answered = page.waitForResponse((response) => response.url().endsWith('/files') && response.request().method() === 'GET');
+  await page.evaluate(() => window.dispatchEvent(new Event('open-backlog:refresh')));
+  await answered;
+};
+
+test('a malformed link renders plainly and the board stays live', async ({ page }) => {
+  const files = example();
+  files['a.md'] = files['a.md'].replace('First task.', 'First task, see [bad](foo%E0%A4%A.md) and [Beta](b.md).');
+  const server = await startServer({ files });
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  try {
+    await page.goto(server.url);
+    await page.locator('.bb-card[data-item="a"]').click();
+    const prose = page.locator('.bb-panel .bb-prose');
+    await expect(prose.getByText('bad', { exact: true })).not.toHaveAttribute('href');
+    await expect(prose.locator('a[data-item="b"]')).toHaveText('Beta');
+    await expect(page.locator('.bb-panel')).toBeFocused();
+    await fs.appendFile(join(server.dir, 'a.md'), '\nMore context.\n');
+    await refresh(page);
+    await expect(prose).toContainText('More context.');
+    await expect(page.locator('.bb-live')).toHaveClass(/is-live/);
+    expect(errors).toEqual([]);
+  } finally { await server.close(); }
+});
+
+test('a render failure is reported as one, not as the host, and the next change renders', async ({ page }) => {
+  const server = await startServer();
+  try {
+    await page.goto(server.url);
+    await page.locator('.bb-card[data-item="a"]').click();
+    await expect(page.locator('.bb-panel')).toBeFocused();
+    // The next re-render of the open sheet refocuses its panel: make that throw, once.
+    await page.evaluate(() => {
+      const focus = HTMLElement.prototype.focus;
+      HTMLElement.prototype.focus = function (...args) {
+        HTMLElement.prototype.focus = focus;
+        throw new Error('render broke');
+      };
+    });
+    await fs.appendFile(join(server.dir, 'a.md'), '\nFirst change.\n');
+    await refresh(page);
+    await expect(page.getByRole('alert')).toContainText("Couldn't show the backlog: render broke");
+    await expect(page.locator('.bb-live')).toHaveClass(/is-live/);
+    await fs.appendFile(join(server.dir, 'a.md'), '\nSecond change.\n');
+    await refresh(page);
+    await expect(page.locator('.bb-panel .bb-prose')).toContainText('Second change.');
+    await expect(page.locator('.bb-live')).toHaveClass(/is-live/);
+  } finally { await server.close(); }
+});
+
 test('epic creation, membership and prompts use checked saves', async ({ page, context }) => {
   const files = example();
   files['launch.md'] = '---\ntitle: Launch\nstatus: ready\npriority: high\narea: one\nitems: [a]\n---\n\n# Launch\n\nShip the two tasks.\n';
