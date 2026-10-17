@@ -6,6 +6,13 @@ of the project, when it asks anything. The README's
 [Updating a project's copy](README.md#updating-a-projects-copy) has the short form, and
 [Releasing](README.md#releasing) says how an entry gets here.
 
+## Unreleased
+
+Fixed:
+
+- A new item's `created` date is the local day where the board or the CLI runs. It was the UTC
+  day, so an item made after local midnight ahead of UTC got yesterday's date.
+
 ## v0.5.0 - 2026-10-18
 
 Updating from v0.4.0 asks two things of a project:

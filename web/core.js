@@ -884,9 +884,16 @@ export function slugify(title) {
 
 const DEFAULT_TEMPLATE = "## Why\n\n\n## Acceptance\n\n- \n";
 
+// A moment's calendar day where the board or the CLI runs, as YYYY-MM-DD: an item made after local
+// midnight is dated today, not by the UTC clock.
+export function localDay(at = new Date()) {
+  const two = (n) => String(n).padStart(2, "0");
+  return `${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())}`;
+}
+
 // The writes for a new item, { slug, writes }: its file, with the body from _template.md when the
 // folder has one, then the epic's list when epic names one to add it to, then its row in the index.
-export function planCreate(s, { title = "", weight = "", fields = {}, tags = [], epic = "", items = null }, today = new Date().toISOString().slice(0, 10)) {
+export function planCreate(s, { title = "", weight = "", fields = {}, tags = [], epic = "", items = null }, today = localDay()) {
   title = title.trim();
   weight = String(weight ?? "").trim();
   if (!title) throw new Error("a new item needs a title");
