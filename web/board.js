@@ -11,6 +11,7 @@ import * as core from "./core.js";
 
 const POLL_MS = 2000;
 const THEME_KEY = "open-backlog:theme";
+const KEYS_KEY = "open-backlog:keys";
 
 const ICONS = {
   search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
@@ -71,13 +72,20 @@ class Board {
     this.writes = Promise.resolve();
     this.pendingWrites = 0;
     this.polling = false;
+    // data-page: the board is the page (index.html), so it names the tab and takes keys pressed
+    // on the page itself. Mounted in a host's page, it leaves the title alone and takes keys only
+    // while focus is inside it.
+    this.ownsPage = root.hasAttribute("data-page");
+    this.charKeys = this.stored(KEYS_KEY) !== "off";
   }
 
   start() {
     this.root.classList.add("bb");
+    if (!this.ownsPage && !this.root.hasAttribute("tabindex")) this.root.tabIndex = -1;
     this.applyTheme(this.storedTheme());
     this.root.innerHTML = this.skeleton();
     this.el = Object.fromEntries([...this.root.querySelectorAll("[data-el]")].map((el) => [el.dataset.el, el]));
+    this.setCharKeys(this.charKeys);
     this.bind();
     this.poll();
   }
@@ -361,6 +369,8 @@ class Board {
         <dialog class="bb-dialog bb-help" data-el="helpDialog" aria-labelledby="bb-help-title">
           <h2 id="bb-help-title">Keyboard shortcuts</h2>
           <dl>${SHORTCUTS.map(([k, what]) => `<dt><kbd>${esc(k)}</kbd></dt><dd>${esc(what)}</dd>`).join("")}</dl>
+          <label class="bb-switch"><input type="checkbox" data-el="charKeys"><span>Single-key shortcuts</span></label>
+          <p class="bb-help-note">Turn them off if they get in the way of a screen reader or speech input. Esc, Tab and the buttons keep working, and this browser remembers the choice.</p>
           <div class="bb-dialog-actions"><button type="button" class="bb-btn" data-action="dismiss">Close</button></div>
         </dialog>
         <div class="bb-toasts" data-el="toasts" aria-live="polite"></div>
@@ -411,6 +421,7 @@ class Board {
         this.searchTimer = setTimeout(() => this.setParams({ q: search.value.trim() || null }), 120);
       }
     });
+    this.el.charKeys.addEventListener("change", (e) => this.setCharKeys(e.target.checked, { save: true }));
     filters.addEventListener("change", (e) => {
       if (e.target.matches("select")) this.setParams({ [e.target.name]: e.target.value || null });
     });
@@ -506,6 +517,8 @@ class Board {
 
   key(e) {
     if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+    const onPage = e.target === document.body || e.target === document.documentElement;
+    if (!this.root.contains(e.target) && !(this.ownsPage && onPage)) return;
     const typing = e.target.closest?.("input, textarea, select, [contenteditable]");
     const dialogOpen = this.root.querySelector("dialog[open]");
     const panel = this.el.sheet.querySelector(".bb-panel");
@@ -530,7 +543,7 @@ class Board {
       }
       return;
     }
-    if (typing || dialogOpen || !this.snap) return;
+    if (typing || dialogOpen || !this.snap || !this.charKeys) return;
     const p = this.params();
     const run = {
       "/": () => this.el.search.focus(),
@@ -620,10 +633,30 @@ class Board {
   // ---- Theme -----------------------------------------------------------------------------------
 
   storedTheme() {
+    return this.stored(THEME_KEY) || "auto";
+  }
+
+  stored(key) {
     try {
-      return localStorage.getItem(THEME_KEY) || "auto";
+      return localStorage.getItem(key);
     } catch {
-      return "auto";
+      return null;
+    }
+  }
+
+  // Single-key shortcuts on or off. The choice is kept per browser, or for this page if storage
+  // is blocked.
+  setCharKeys(on, { save = false } = {}) {
+    this.charKeys = on;
+    this.el.charKeys.checked = on;
+    this.root.classList.toggle("bb-no-keys", !on);
+    if (save) {
+      try {
+        if (on) localStorage.removeItem(KEYS_KEY);
+        else localStorage.setItem(KEYS_KEY, "off");
+      } catch {
+        // the choice lasts for this page only
+      }
     }
   }
 
@@ -686,7 +719,7 @@ class Board {
     this.el.title.textContent = s.title;
     this.el.dir.textContent = s.dir;
     this.el.newButton.hidden = !s.writable;
-    document.title = p.item && s.bySlug.get(p.item) ? `${s.bySlug.get(p.item).title} · ${s.title}` : s.title;
+    if (this.ownsPage) document.title = p.item && s.bySlug.get(p.item) ? `${s.bySlug.get(p.item).title} · ${s.title}` : s.title;
     this.applyTheme(this.theme);
 
     const visible = this.visible(p);

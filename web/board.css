@@ -403,6 +403,13 @@ a.bb-path:hover { background: var(--sunken); color: var(--ink); }
 .bb-help dl { display: grid; grid-template-columns: auto 1fr; gap: 10px 16px; align-items: center; margin: 0 0 8px; }
 .bb-help dt { justify-self: start; }
 .bb-help dd { margin: 0; color: var(--muted); }
+.bb-switch { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-weight: 600; }
+.bb-switch input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.bb-help-note { margin: 4px 0 8px 24px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.bb-no-keys .bb-help dl { opacity: 0.5; }
+.bb-no-keys .bb-search kbd { display: none; }
+/* Mounted in a host's page, the board takes focus so its keys work; it isn't a stop for Tab. */
+.bb[tabindex="-1"]:focus { outline: none; }
 
 /* Toasts */
 .bb-toasts { position: fixed; bottom: 20px; left: 50%; z-index: 60; display: flex; flex-direction: column; align-items: center; gap: 8px; transform: translateX(-50%); pointer-events: none; }

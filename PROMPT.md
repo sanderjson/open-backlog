@@ -63,7 +63,9 @@ The page needs nothing else: no CDN, no inline script. Under a content security 
 `script-src 'self'`, `style-src 'self'` and `img-src 'self' data:`. To show the board inside the
 project's own layout instead of `index.html`, load `board.css` and `board.js` (as
 `type="module"`) and add `<div data-open-backlog data-api="/dev/backlog"></div>`. The routes stay
-the same.
+the same. Mounted that way, the board leaves the page's title alone and takes its keyboard
+shortcuts only while focus is inside it; add `data-page` to the element if the board is the whole
+page, as `index.html` does.
 
 ## Sources
 

@@ -56,7 +56,7 @@ you're an agent working from inside one host project.
 | Path | What it is |
 |---|---|
 | `web/` | The board. Serve this folder as it is; don't edit it in your project. |
-| `web/index.html` | The page: mounts the board on `<div data-open-backlog data-api=".">`. |
+| `web/index.html` | The page: mounts the board on `<div data-open-backlog data-api="." data-page>`. |
 | `web/board.js`, `web/board.css` | The page's behaviour and look. Everything is scoped under `.bb`. |
 | `web/core.js` | Reading, checking and planning edits to the backlog, and what the board shows for an address, with no page. |
 | `web/vendor/` | [marked](https://github.com/markedjs/marked) 18.0.13 and [js-yaml](https://github.com/nodeca/js-yaml) 5.4.2, with their MIT licences. |
@@ -411,7 +411,11 @@ Epics are ordinary item files, so they need nothing from the host.
   and add your own instructions. `itemPrompt` in `core.js` builds it. On an epic, the button
   copies the whole epic instead (see [Epics](#epics)).
 - **Keys**: `/` search, `n` new item, `b` board, `l` list, `Shift E` epic filter, `j`/`k` next
-  and previous item, `e` open in editor, `c` copy as prompt, `Esc` close, `?` all of them.
+  and previous item, `e` open in editor, `c` copy as prompt, `Esc` close, `?` all of them. The
+  shortcuts dialog can turn the single-key ones off, per browser, for screen reader and speech
+  input users; Esc, Tab and the buttons keep working. In a host's own page (no `data-page` on the
+  mount), the keys work only while focus is inside the board, and the board leaves the page's
+  title alone.
 - Light and dark follow the system. The theme button overrides it, per browser.
 
 ## Updating a project's copy
