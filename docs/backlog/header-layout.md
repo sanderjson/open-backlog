@@ -2,7 +2,7 @@
 title: A header and toolbar that lay out the same in every project
 status: ready
 priority: mid
-type: discuss
+type: build
 area: board
 weight: 12
 tags: [ui]
@@ -24,17 +24,20 @@ eye has to hunt for the view switch and the count.
 Screenshots: [the first layout](../backlog-assets/header-wrap-1.webp) and
 [the second, at a larger text size](../backlog-assets/header-wrap-2.webp).
 
-## To agree before building
-- The toolbar has the same structure for any backlog: the filters (search, fields, epic, tag, the
-  two toggles, Clear) in one group, and the count, Group and view switch in another that never
-  changes rows.
-- Filters that don't fit don't reflow the other group: they wrap inside their own group, scroll,
-  or fold into a "Filters" menu. Prefer the simplest thing that's predictable.
-- Applying a filter (Clear appearing, the count changing) doesn't shift the controls around it.
-- Six fields and long epic titles don't change the layout; the Epic select stays capped (it's
-  already `max-width: 15rem`).
-- The title row (eyebrow, title, stats, actions) holds together down to about 1100px; below that
-  it stacks in one fixed order.
+## Agreed layout
+Agreed on 2026-10-18: two toolbar rows with fixed roles, no Filters menu and no sideways scroll.
+
+- **Row one never wraps.** The search box on the left; the count, Group and the view switch
+  pinned right. Search chips sit after the search box and take up the space between the two
+  groups first.
+- **Row two holds the filters only:** the field selects, Epic, Tag, Can start, Hide closed and
+  Clear, always in that order. It wraps within itself, so a second line still reads as filters.
+- **Applying a filter moves nothing.** Clear keeps its space when hidden, and the count keeps
+  tabular numerals.
+- **Epic and Tag stay capped** at their current widths, so long epic titles and many tags don't
+  change the layout.
+- **Below the existing narrow breakpoint** the title row stacks: the heading with its actions
+  beside it, then the stats, then the toolbar, with the search full width.
 
 ## Acceptance
 - The agreed layout, checked at 14px and 18px base text, with the starter backlog, this one, and a
