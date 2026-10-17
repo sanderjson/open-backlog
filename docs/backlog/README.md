@@ -37,7 +37,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | [The board's horizontal scrollbar floats mid-screen when columns are short](board-scrollbar-position.md) | 11 | ready | mid | build |
 | [Refresh the colour palette](colour-palette.md) | 12 | ready | mid | discuss |
 | [Filters and sorting, pure and tested](filters-and-sorting-pure-and-tested.md) | 15 | done | mid | epic |
-| [Keyboard shortcuts stay inside the board](scope-keys-to-the-board.md) | 17 | ready | mid | build |
+| [Keyboard shortcuts stay inside the board](scope-keys-to-the-board.md) | 17 | done | mid | build |
 | [Themes beyond light and dark](themes.md) | 19 | idea | low | discuss |
 
 ### Core

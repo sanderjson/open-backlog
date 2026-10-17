@@ -377,3 +377,62 @@ test('an epic is marked as one on its card, its list row and its sheet', async (
     await expect(page.locator('tr[data-row="a"] .bb-epic-badge')).toHaveCount(0);
   } finally { await server.close(); }
 });
+
+// A host's own page with the board mounted in it, beside a control of the host's.
+const embedded = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Host page</title>
+  <link rel="stylesheet" href="board.css"><script type="module" src="board.js"></script></head>
+  <body><button id="host">Host control</button><div data-open-backlog data-api="/dev/backlog"></div></body></html>`;
+
+test('mounted in a host page, keys stay inside the board and the title stays the host\'s', async ({ page }) => {
+  const server = await startServer({ files: three() });
+  try {
+    await page.route('**/dev/backlog/embed.html', (route) => route.fulfill({ contentType: 'text/html', body: embedded }));
+    await page.goto(server.url + 'embed.html');
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    await page.locator('#host').focus();
+    await page.keyboard.press('n');
+    await page.keyboard.press('l');
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+    await expect(page.locator('.bb-board')).toBeVisible();
+    // Clicking a blank part of the board gives it focus, so its keys work there.
+    await page.locator('.bb-column-head').first().click();
+    await page.keyboard.press('n');
+    await expect(page.locator('dialog[open]')).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    await page.locator('.bb-card[data-item="a"]').click();
+    await expect(page.locator('.bb-item-title')).toHaveText('Alpha');
+    expect(await page.title()).toBe('Host page');
+  } finally { await server.close(); }
+});
+
+test('single-key shortcuts can be turned off, and the choice is remembered', async ({ page }) => {
+  const server = await startServer({ files: three() });
+  try {
+    await page.goto(server.url);
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    await page.locator('.bb-card[data-item="a"]').click();
+    expect(await page.title()).toContain('Alpha');
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
+    await page.getByRole('checkbox', { name: 'Single-key shortcuts' }).uncheck();
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.reload();
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    for (const key of ['n', 'l', 'j', '/', '?']) await page.keyboard.press(key);
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+    await expect(page.locator('.bb-panel')).toHaveCount(0);
+    await expect(page.locator('.bb-board')).toBeVisible();
+    // Esc and the buttons still work.
+    await page.locator('.bb-card[data-item="b"]').focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.bb-item-title')).toHaveText('Beta');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.bb-panel')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
+    await expect(page.getByRole('checkbox', { name: 'Single-key shortcuts' })).not.toBeChecked();
+    await page.getByRole('checkbox', { name: 'Single-key shortcuts' }).check();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('n');
+    await expect(page.locator('dialog[open]')).toHaveCount(1);
+  } finally { await server.close(); }
+});

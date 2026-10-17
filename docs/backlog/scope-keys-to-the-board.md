@@ -1,6 +1,6 @@
 ---
 title: Keyboard shortcuts stay inside the board
-status: ready
+status: done
 priority: mid
 type: build
 area: board
