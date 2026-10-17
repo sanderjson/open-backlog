@@ -61,6 +61,10 @@ One palette drives every screen.
 When asked to group items into an epic, make the epic. An epic is an item whose front matter has
 an `items` list. Nothing else makes one, and nothing in `backlog.yml` turns epics on.
 
+Where the project has the CLI (see below), `node bin/open-backlog.mjs new "<title>" docs/backlog
+--items first,second,third` writes the file and its index row (steps 1 and 5) after checking every
+slug; then fill in its text. Without it, write them by hand. The rest holds either way.
+
 1. Create `<epic-slug>.md` like any item, with `items: [first, second, third]` in the order the
    work should go, dependencies permitting. Its text says what the whole is for (`## Why`) and how
    to tell it's finished (`## Acceptance`), end to end. The items keep their own.
@@ -72,8 +76,8 @@ an `items` list. Nothing else makes one, and nothing in `backlog.yml` turns epic
 4. Leave the member items' files alone. Membership lives in the epic's list only. Don't list an
    epic in another epic, the epic itself, or a slug that isn't an item.
 5. Add the epic's index row, run `check`, and tell the user the file name. On the board the epic
-   shows a stack of cards and a progress bar, and its sheet lists its items in work order with
-   "Copy epic as prompt".
+   is marked Epic, with a stack of cards and a progress bar (`is:epic` in the search finds it), and
+   its sheet lists its items in work order with "Copy epic as prompt".
 
 To add an item to an epic later, append its slug to the epic's `items`. To take it out, remove it.
 
@@ -127,7 +131,13 @@ node bin/open-backlog.mjs check docs/backlog            # problems and suggestio
 node bin/open-backlog.mjs next docs/backlog             # what can start now, in work order
 node bin/open-backlog.mjs prompt <slug> docs/backlog    # the brief the board's "Copy as prompt" gives
 node bin/open-backlog.mjs index docs/backlog --check    # does the managed index need regenerating?
+node bin/open-backlog.mjs new "<title>" docs/backlog --field status=idea --field priority=mid
+                                                        # a new item and its index row
 ```
+
+`new` also takes `--weight <n>`, `--tags a,b`, `--items a,b,c` (the new item is an epic over those,
+in work order) and `--epic <slug>` (the new item goes into that epic). It checks everything before
+writing and, if anything is wrong, says why on stderr, exits 2 and writes nothing.
 
 ## What goes wrong, and what the board says
 
@@ -137,5 +147,7 @@ node bin/open-backlog.mjs index docs/backlog --check    # does the managed index
 - `# Heading` not matching `title:`: "its H1 title disagrees with its front matter title".
 - `items`, `depends_on` or `related` naming a title or a path: "names X, which isn't an item".
 - An epic listed inside an epic: "epics can't contain epics". Flatten it instead.
-- The board's search covers titles, slugs, text and tags, not field values. To find an epic, use
-  the Epic filter; to find items by a field, use that field's select.
+- Finding things on the board: words in the search match titles, slugs, text, tags and field
+  values. `#tag` keeps items with that tag, `field:value` (`status:ready`, `status:"in review"`)
+  those with that value, and `is:epic` the epics. They combine with AND, and quotes keep a phrase,
+  or text that looks like a filter, as text. The Epic filter shows one epic and its items.

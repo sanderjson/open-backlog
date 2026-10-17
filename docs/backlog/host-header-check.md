@@ -1,6 +1,6 @@
 ---
 title: Hosts refuse requests for another Host
-status: ready
+status: done
 priority: high
 type: build
 area: host
@@ -26,10 +26,10 @@ while the dev server runs, and the vandalism gets committed with the next change
 webpack-dev-server, Django and Rails all check the Host header for this reason.
 
 ## Acceptance
-- README's "The two routes" and PROMPT.md step 3 say: answer 403 to a request on either route whose
+- README's "The two routes" and PROMPT.md's Context say: answer 403 to a request on either route whose
   `Host` header isn't the development host (localhost, 127.0.0.1, [::1] or the project's configured
   dev host, with any port). That's one comparison in any language, so it fits the ground rules.
-- PROMPT.md step 4's test list gets: a GET and a PUT with `Host: evil.example` are refused and
+- PROMPT.md's route tests (Expectations 5) get: a GET and a PUT with `Host: evil.example` are refused and
   nothing is written.
 - [test/server.mjs](../../test/server.mjs), the first host to update, does the check, and
   [test/host.test.js](../../test/host.test.js) covers it.

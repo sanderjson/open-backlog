@@ -6,6 +6,8 @@ import { Marked } from "./vendor/marked.js";
 
 export const CONFIG_FILE = "backlog.yml";
 export const TEMPLATE_FILE = "_template.md";
+// The kit's version: the tag these files ship in. Bumped when releasing (README, "Releasing").
+export const VERSION = "0.5.0";
 // The files a host reads and writes: Markdown and YAML directly in the backlog folder, including
 // `_template.md`. No hidden files, no "..", no subfolders.
 export const FILE_NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]*\.(md|ya?ml)$/;
@@ -361,17 +363,31 @@ const compare = (a, b) => {
   return 0;
 };
 
-// The items in an order: "weight" (work order: weight, priority, title), "title", "created"
-// (newest first) or a field's own order.
-export function sortItems(s, items, by) {
+// A column's own direction: created newest first, everything else ascending.
+export function sortDirection(by) {
+  return by === "created" ? "desc" : "asc";
+}
+
+// The items in an order: "weight" (work order: weight, priority, title), "title", "created" or a
+// field's own order, "asc" or "desc" (the column's own direction unless given). Only the column
+// turns around: items without a value (or with one the field doesn't list) stay last, and ties
+// keep the same order both ways, ending with the slug.
+export function sortItems(s, items, by, dir = sortDirection(by)) {
   const title = (item) => item.title.toLowerCase();
-  const key = {
-    weight: (item) => [weightRank(item.weight), rank(s, "priority", item.fields.priority), title(item), item.slug],
-    title: (item) => [title(item), item.slug],
-    created: (item) => [item.created || "", title(item)],
-  }[by] ?? ((item) => [rank(s, by, item.fields[by]), rank(s, "priority", item.fields.priority), weightRank(item.weight), title(item)]);
-  const sorted = [...items].sort((a, b) => compare(key(a), key(b)));
-  return by === "created" ? sorted.reverse() : sorted;
+  const priority = (item) => rank(s, "priority", item.fields.priority);
+  const [value, missing, ties] = {
+    weight: [(item) => weightRank(item.weight), (v) => v === UNWEIGHTED, (item) => [priority(item), title(item), item.slug]],
+    title: [title, () => false, (item) => [item.slug]],
+    created: [(item) => item.created || "", (v) => !v, (item) => [title(item), item.slug]],
+  }[by] ?? [(item) => rank(s, by, item.fields[by]), (v) => v === UNRANKED, (item) => [priority(item), weightRank(item.weight), title(item), item.slug]];
+  const sign = dir === "desc" ? -1 : 1;
+  return [...items].sort((a, b) => {
+    const [va, vb] = [value(a), value(b)];
+    const [ma, mb] = [missing(va), missing(vb)];
+    if (ma !== mb) return ma ? 1 : -1;
+    if (!ma && va !== vb) return va < vb ? -sign : sign;
+    return compare(ties(a), ties(b));
+  });
 }
 
 function tagCounts(items) {
@@ -870,7 +886,7 @@ const DEFAULT_TEMPLATE = "## Why\n\n\n## Acceptance\n\n- \n";
 
 // The writes for a new item, { slug, writes }: its file, with the body from _template.md when the
 // folder has one, then the epic's list when epic names one to add it to, then its row in the index.
-export function planCreate(s, { title = "", weight = "", fields = {}, tags = [], epic = "" }, today = new Date().toISOString().slice(0, 10)) {
+export function planCreate(s, { title = "", weight = "", fields = {}, tags = [], epic = "", items = null }, today = new Date().toISOString().slice(0, 10)) {
   title = title.trim();
   weight = String(weight ?? "").trim();
   if (!title) throw new Error("a new item needs a title");
@@ -885,6 +901,15 @@ export function planCreate(s, { title = "", weight = "", fields = {}, tags = [],
   }
   const target = epic ? itemCalled(s, epic) : null;
   if (target) canListItems(s, target);
+  // `items` makes the new item an epic over existing items, in work order.
+  if (items != null) {
+    if (epic) throw new Error("a new epic can't go into an epic: epics can't contain epics");
+    if (!items.length) throw new Error("an epic needs at least one item");
+    items.forEach((slug, i) => {
+      if (isEpic(itemCalled(s, slug))) throw new Error(`${slug} is an epic, and epics can't contain epics`);
+      if (items.indexOf(slug) !== i) throw new Error(`${slug} is listed twice`);
+    });
+  }
 
   const base = slugify(title);
   let slug = base;
@@ -894,7 +919,7 @@ export function planCreate(s, { title = "", weight = "", fields = {}, tags = [],
   for (const f of s.fields) if (values[f.name]) lines.push(`${f.name}: ${scalar(values[f.name])}`);
   if (weight) lines.push(`weight: ${weight}`);
   lines.push(`tags: [${tags.map((t) => t.trim()).filter(Boolean).map((t) => JSON.stringify(t)).join(", ")}]`);
-  lines.push(`created: ${today}`, "depends_on: []", "related: []", "---", "", `# ${title}`, "", "");
+  lines.push(`created: ${today}`, ...(items ? [`items: [${items.join(", ")}]`] : []), "depends_on: []", "related: []", "---", "", `# ${title}`, "", "");
 
   const writes = { [`${slug}.md`]: lines.join("\n") + template(s, title) };
   if (target) writes[target.file] = setFront(s.files[target.file], "items", [...target.items, slug]);
@@ -938,6 +963,152 @@ function canListItems(s, target) {
   if (outer) throw new Error(`${target.slug} is in the epic ${outer.slug}, so it can't be an epic itself`);
 }
 
+// ---- The board's view ----------------------------------------------------------------------------
+
+// What the board shows for an address, as pure functions of the backlog and the query string, so
+// Node tests reach them. board.js reads location and calls these.
+
+export function viewDefaults(s) {
+  const names = s?.fields.map((f) => f.name) ?? [];
+  return { view: "board", sort: "weight", group: names.includes("status") ? "status" : names[0] || "" };
+}
+
+// ?epic= filters to an epic's items, unless the backlog has a choice field called epic.
+export function epicFilterOn(s) {
+  return !!s && !s.fields.some((f) => f.name === "epic");
+}
+
+// Only what the board knows: anything else in the address is left out.
+export function viewParams(s, search) {
+  const raw = Object.fromEntries(new URLSearchParams(search));
+  const d = viewDefaults(s);
+  const names = s?.fields.map((f) => f.name) ?? [];
+  const p = {
+    view: ["board", "list"].includes(raw.view) ? raw.view : d.view,
+    group: names.includes(raw.group) ? raw.group : d.group,
+    sort: ["weight", "title", "created", ...names].includes(raw.sort) ? raw.sort : d.sort,
+  };
+  p.dir = ["asc", "desc"].includes(raw.dir) ? raw.dir : sortDirection(p.sort);
+  for (const key of ["q", "tag", "item", ...names]) if (raw[key]?.trim()) p[key] = raw[key].trim();
+  for (const key of ["open", "next"]) if (raw[key] === "1") p[key] = "1";
+  if (epicFilterOn(s) && isEpic(s.bySlug.get(raw.epic?.trim()))) p.epic = raw.epic.trim();
+  return p;
+}
+
+// The query string for the address with `changes` applied, "" when it's all defaults. Keys come
+// sorted, and defaults and empty values are left out; a sort's direction is left out when it's the
+// column's own.
+export function viewQuery(s, search, changes = {}) {
+  const p = { ...viewParams(s, search), ...changes };
+  const d = { ...viewDefaults(s), dir: sortDirection(p.sort) };
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(p).sort()) {
+    if (value != null && value !== "" && d[key] !== value) query.set(key, value);
+  }
+  const q = query.toString();
+  return q ? `?${q}` : "";
+}
+
+export function viewFilters(s) {
+  return ["q", "tag", "epic", "open", "next", ...s.fields.map((f) => f.name)];
+}
+
+export function isFiltering(s, p) {
+  return viewFilters(s).some((k) => p[k]);
+}
+
+// The items the address shows, in its order. The Epic filter puts the epic itself first.
+export function viewItems(s, p) {
+  const terms = parseQuery(s, p.q);
+  const epic = epicFilterOn(s) && p.epic ? s.bySlug.get(p.epic) : null;
+  const items = s.items.filter((item) =>
+    s.fields.every((f) => !p[f.name] || (item.fields[f.name] ?? "") === (p[f.name] === "none" ? "" : p[f.name])) &&
+    (!epic || item === epic || epic.items.includes(item.slug)) &&
+    (!p.tag || item.tags.includes(p.tag)) &&
+    (!p.open || item.open) &&
+    (!p.next || item.startable) &&
+    matchesQuery(item, terms));
+  const sorted = sortItems(s, items, p.sort, p.dir);
+  return epic && sorted.includes(epic) ? [epic, ...sorted.filter((item) => item !== epic)] : sorted;
+}
+
+// A search query in the qualifier style GitHub uses for issues. Plain words and "quoted phrases"
+// are text; #tag, field:value (field:"two words") and is:epic filter. A quoted term is always text,
+// and a qualifier that isn't one (http:, is: with anything but epic, a name that isn't a field) is
+// text too. Each term keeps its raw text, so the board can take one out of the query.
+export function parseQuery(s, q = "") {
+  const terms = [];
+  const text = (raw, value) => { if (value) terms.push({ raw, kind: "text", value: value.toLowerCase() }); };
+  for (const m of (q ?? "").matchAll(/([^\s"]*)"([^"]*)"?|\S+/g)) {
+    const raw = m[0];
+    const quoted = m[2] !== undefined;
+    const [head, value] = quoted ? [m[1], m[2]] : raw.startsWith("#") ? ["#", raw.slice(1)] : [raw.slice(0, raw.indexOf(":") + 1), raw.slice(raw.indexOf(":") + 1)];
+    if (quoted && !head) text(raw, value);
+    else if (head === "#" && value) terms.push({ raw, kind: "tag", value });
+    else if (head.endsWith(":") && head.length > 1 && value) {
+      const name = head.slice(0, -1).toLowerCase();
+      const f = name === "is" ? null : s?.fields.find((x) => x.name.toLowerCase() === name);
+      if (name === "is" && value.toLowerCase() === "epic") terms.push({ raw, kind: "epic" });
+      else if (f) terms.push({ raw, kind: "field", name: f.name, value });
+      else text(raw, raw.replaceAll('"', ""));
+    } else text(raw, raw.replaceAll('"', ""));
+  }
+  return terms;
+}
+
+// Does the item match every term? Text looks at the title, slug, summary, text, tags and
+// choice-field values; field:none matches an item without that field, as the selects' None does.
+export function matchesQuery(item, terms) {
+  const same = (a, b) => a.toLowerCase() === b.toLowerCase();
+  let hay;
+  return terms.every((t) => {
+    if (t.kind === "tag") return item.tags.some((tag) => same(tag, t.value));
+    if (t.kind === "epic") return isEpic(item);
+    if (t.kind === "field") return same(t.value, "none") ? !item.fields[t.name] : same(item.fields[t.name] ?? "", t.value);
+    hay ??= [item.title, item.slug, item.summary, item.body, ...item.tags, ...Object.values(item.fields)].filter(Boolean).map((x) => x.toLowerCase());
+    return hay.some((x) => x.includes(t.value));
+  });
+}
+
+// The query without its index-th term.
+export function queryWithout(terms, index) {
+  return terms.filter((_, i) => i !== index).map((t) => t.raw).join(" ");
+}
+
+// The board's columns: one for each value of the grouping field, then one for items without a
+// value and one for values the field doesn't list.
+export function viewColumns(s, items, group) {
+  const f = field(s, group);
+  const columns = f.values.map((value) => ({ value, title: label(value), drop: true, items: items.filter((i) => i.fields[group] === value) }));
+  const none = items.filter((i) => !i.fields[group]);
+  const other = items.filter((i) => i.fields[group] && !f.values.includes(i.fields[group]));
+  if (none.length) columns.push({ value: "", title: `No ${group}`, drop: false, items: none });
+  if (other.length) columns.push({ value: "other", title: "Other", drop: false, items: other });
+  return columns;
+}
+
+// The colour a value gets when backlog.yml doesn't give one.
+const STATUS_TONES = {
+  idea: "gray", backlog: "gray", todo: "gray", new: "gray", open: "gray", ready: "teal", planned: "teal",
+  "in-progress": "blue", doing: "blue", active: "blue", started: "blue", wip: "blue", review: "violet",
+  "in-review": "violet", blocked: "red", parked: "amber", done: "green", closed: "green", complete: "green",
+  completed: "green", shipped: "green", resolved: "green", cancelled: "gray", canceled: "gray",
+  wontfix: "gray", archived: "gray",
+};
+const CYCLE = ["violet", "orange", "teal", "blue", "pink", "green", "indigo", "amber"];
+
+// A value's tone: backlog.yml's colour, else a well-known status's, else the priority ladder (red,
+// amber, gray), else a cycle through the field's values. "none" for no value.
+export function tone(s, name, value) {
+  const f = field(s, name);
+  if (!value) return "none";
+  if (f.colors[value]) return f.colors[value];
+  const i = f.values.indexOf(value);
+  if (name === "status") return STATUS_TONES[value] ?? (i >= 0 ? CYCLE[i % CYCLE.length] : "gray");
+  if (name === "priority") return i === 0 ? "red" : i === 1 && f.values.length > 2 ? "amber" : "gray";
+  return i >= 0 ? CYCLE[i % CYCLE.length] : "gray";
+}
+
 // ---- Prompts -----------------------------------------------------------------------------------
 
 // Paths in prompts are relative to the project, so a prompt works in any session there.
@@ -971,6 +1142,12 @@ function statusPlaces(s, items) {
   return `in its front matter and${rows < items.length ? ", where it has one," : ""} its row in ${promptPath(s, s.index)}`;
 }
 
+// A blocked item's warning. It comes before the status change: the agent waits for the go-ahead.
+function blockedLine(what, item) {
+  if (!item.blockers.length) return [];
+  return [`${what} waits on ${item.blockers.length === 1 ? "an unfinished item" : `${item.blockers.length} unfinished items`}. Tell me before you start on it anyway.`, ""];
+}
+
 // An item as a prompt to paste into a coding agent's session in the project: its file, fields,
 // what it waits on, unblocks and relates to, its epics, any problems, and its text.
 export function itemPrompt(s, slug) {
@@ -978,22 +1155,27 @@ export function itemPrompt(s, slug) {
   const fields = promptFields(item);
   const epics = epicsOf(s, item.slug);
   const problems = s.problems.filter((p) => p.slug === item.slug).map((p) => `- ${p.message}`);
-  const keep = [
-    s.active.length && `to ${s.active[0]} when you start`,
-    s.done.length && `to ${s.done[0]} when it's finished`,
-  ].filter(Boolean);
+  const active = s.active[0], done = s.done[0];
+  const places = statusPlaces(s, [item]);
+  const started = s.active.includes(item.fields.status);
+  // The prompt starts with the status change, so an agent makes it before the work instead of
+  // forgetting it at the end.
+  let opening = "";
+  if ("status" in item.fields) {
+    if (active && !started) opening = `${item.blockers.length ? "If you go ahead, start" : "Start"} by setting its status to ${active}, ${places}.${done ? ` Set it to ${done} there when it's finished.` : ""}`;
+    else if (done) opening = `${started ? `It's ${item.fields.status} already. ` : ""}Set its status to ${done}, ${places}, when it's finished.`;
+  }
 
   return [
     `Work on this item from the backlog: ${item.title}`,
     "",
+    ...blockedLine("It", item),
+    ...(opening ? [opening, ""] : []),
     `File: ${promptPath(s, item.file)}`,
     ...(fields.length ? [`Fields: ${fields.join(", ")}`] : []),
     ...(item.tags.length ? [`Tags: ${item.tags.join(", ")}`] : []),
     ...(item.branches.length ? [`Branches: ${item.branches.join(", ")}`] : []),
     "",
-    ...(item.blockers.length
-      ? [`It waits on ${item.blockers.length === 1 ? "an unfinished item" : `${item.blockers.length} unfinished items`}. Tell me before you start on it anyway.`, ""]
-      : []),
     ...promptList(s, "Depends on", item.dependsOn),
     ...promptList(s, "Unblocks", item.dependents),
     ...promptList(s, "Related", item.related),
@@ -1002,9 +1184,7 @@ export function itemPrompt(s, slug) {
     `The item (its links are relative to ${s.dir}):`,
     "",
     ...fenced(item.body),
-    ...(keep.length && "status" in item.fields
-      ? ["", `Keep it current as you work: set status ${keep.join(" and ")}, ${statusPlaces(s, [item])}.`]
-      : []),
+    ...(opening && done ? ["", `When it's finished, set its status to ${done}.`] : []),
   ].join("\n") + "\n";
 }
 
@@ -1057,11 +1237,13 @@ export function epicPrompt(s, slug) {
   const active = s.active[0], done = s.done[0];
   const setAside = s.closed.filter((status) => !s.done.includes(status));
   const keep = [active && `to ${active} when you start it`, done && `to ${done} when it's finished`].filter(Boolean);
+  const opening = active && (s.active.includes(epic.fields.status)
+    ? `The epic is ${epic.fields.status} already. Move each item to ${active} as you start it.`
+    : `${epic.blockers.length ? "If you go ahead, start" : "Start"} by setting the epic's status to ${active}, ${statusPlaces(s, [epic])}, and move each item to ${active} as you start it.`);
   const work = [
     "Read each item's file before you start it. This brief points to the files rather than repeating them.",
     "Follow the work order unless an item's file says otherwise.",
     keep.length && `Keep each item's status current: set it ${keep.join(" and ")}, ${statusPlaces(s, order)}.`,
-    active && !s.active.includes(epic.fields.status) && `Set the epic's status to ${active} when you start, ${statusPlaces(s, [epic])}.`,
     done && `Set the epic to ${done} only when every item in it is ${done}${setAside.length ? ` (or ${setAside.join(" or ")})` : ""} and the epic's own acceptance holds.`,
     "If an item lists open questions, stop and ask me before you decide any of them.",
   ].filter(Boolean);
@@ -1069,6 +1251,8 @@ export function epicPrompt(s, slug) {
   return [
     `Work through this epic from the backlog: ${epic.title}`,
     "",
+    ...blockedLine("The epic itself", epic),
+    ...(opening ? [opening, ""] : []),
     "An epic groups items that belong together, to be worked through as one. Its text below says what the whole of it is for and how to tell it's finished; each item's file says what that item needs.",
     "",
     `Epic: ${promptPath(s, epic.file)}`,
@@ -1077,9 +1261,6 @@ export function epicPrompt(s, slug) {
     ...(epic.branches.length ? [`Branches: ${epic.branches.join(", ")}`] : []),
     `Progress: ${progress.done} of ${progress.total} ${progress.total === 1 ? "item" : "items"} done${counts.length ? `, ${counts.join(", ")}` : ""}`,
     "",
-    ...(epic.blockers.length
-      ? [`The epic itself waits on ${epic.blockers.length === 1 ? "an unfinished item" : `${epic.blockers.length} unfinished items`}. Tell me before you start on it anyway.`, ""]
-      : []),
     ...promptList(s, "Depends on", epic.dependsOn),
     ...promptList(s, "Unblocks", epic.dependents),
     ...promptList(s, "Related", epic.related),

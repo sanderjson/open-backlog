@@ -1,6 +1,6 @@
 ---
 title: Prompts open with the status change
-status: ready
+status: done
 priority: high
 type: build
 area: core

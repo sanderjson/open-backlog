@@ -1,6 +1,6 @@
 ---
 title: Epic cards look unmistakably different
-status: ready
+status: done
 priority: mid
 type: build
 area: board
@@ -25,8 +25,8 @@ board. An epic should read as an epic at a glance, without reading the card.
 - The list view marks epics the same way. Its Epic column already shows the bar; the row's title
   gets the label.
 - The sheet's title shows that the item is an epic before the Epic section further down.
-- Works with the refreshed palette (see the related item) and in both themes, checked with the
-  starter backlog and this one.
+- Works with today's palette and in both themes, checked with the starter backlog and this one.
+  The palette refresh (see the related item) is background, not a prerequisite.
 
 ## Notes
 `card()`, `progress()` and `renderSheet()` in [web/board.js](../../web/board.js);

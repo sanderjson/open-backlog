@@ -128,20 +128,32 @@ test("hosts send the template, and it's not an item", () => {
 test("an item copies as a prompt for an agent", () => {
   const s = load();
   const logo = core.itemPrompt(s, "logo");
-  assert.match(logo, /^Work on this item from the backlog: Logo build\n/);
+  assert.match(logo, /^Work on this item from the backlog: Logo build\n\nIt waits on an unfinished item\. Tell me before you start on it anyway\.\n\nIf you go ahead, start by setting its status to in-progress, in its front matter and its row in docs\/backlog\/README\.md\. Set it to done there when it's finished\.\n\nFile: /);
   assert.match(logo, /^File: docs\/backlog\/logo\.md$/m);
   assert.match(logo, /^Fields: priority: high, status: idea, area: design, weight: 2$/m);
   assert.match(logo, /^Tags: brand$/m);
   assert.match(logo, /^It waits on an unfinished item\. Tell me before you start on it anyway\.$/m);
   assert.match(logo, /^Depends on:\n- Brand palette \(docs\/backlog\/palette\.md, status: idea\)$/m);
   assert.match(logo, /\n```markdown\nThe logo, drawn from the palette\.\n```\n/);
-  assert.match(logo, /set status to in-progress when you start and to done when it's finished, in its front matter and its row in docs\/backlog\/README\.md\.\n$/);
+  assert.match(logo, /\n```\n\nWhen it's finished, set its status to done\.\n$/);
 
   const palette = core.itemPrompt(s, "palette");
+  assert.match(palette, /^Work on this item from the backlog: Brand palette\n\nStart by setting its status to in-progress, in its front matter and its row in docs\/backlog\/README\.md\. Set it to done there when it's finished\.\n\nFile: /);
   assert.doesNotMatch(palette, /waits on/);
   assert.match(palette, /^Unblocks:\n- Logo build \(docs\/backlog\/logo\.md, status: idea\)$/m);
   assert.match(palette, /^Related:\n- Logo build/m);
   assert.match(core.itemPrompt(s, "backups"), /^Problems the board found in it:\n- README\.md's index says/m);
+
+  // The opening follows the item's status and the backlog's own statuses, and is left out without one.
+  const started = core.itemPrompt(load(withFront(files(), "palette", "status", "in-progress")), "palette");
+  assert.match(started, /^Work on this item from the backlog: Brand palette\n\nIt's in-progress already\. Set its status to done, in its front matter and its row in docs\/backlog\/README\.md, when it's finished\.\n\nFile: /);
+  const own = { ...files(), "backlog.yml": "fields:\n  status: [idea, doing, shipped]\nactive: [doing]\ndone: [shipped]\n" };
+  const custom = core.itemPrompt(load(own), "palette");
+  assert.match(custom, /^Start by setting its status to doing, in its front matter and its row in docs\/backlog\/README\.md\. Set it to shipped there when it's finished\.$/m);
+  assert.match(custom, /\n\nWhen it's finished, set its status to shipped\.\n$/);
+  const untracked = core.itemPrompt(load(withFront(files(), "palette", "status", "")), "palette");
+  assert.match(untracked, /^Work on this item from the backlog: Brand palette\n\nFile: /);
+  assert.doesNotMatch(untracked, /its status/);
 
   // A code block in the item can't close the prompt's own fence.
   const fenced = load({ ...files(), "logo.md": files()["logo.md"] + "\n```sh\nmake logo\n```\n" });
@@ -333,12 +345,37 @@ test("a new item can go straight into an epic", () => {
   assert.throws(() => core.planCreate(s, { title: "X", epic: "refund-page" }), /refund-page is in the epic checkout/);
 });
 
+test("a new item can be an epic over existing items", () => {
+  const s = load(epicFiles());
+  const { slug, writes } = core.planCreate(s, { title: "Brand refresh", fields: { status: "idea", priority: "high", area: "design" }, items: ["logo", "palette"] }, "2026-10-17");
+  assert.equal(slug, "brand-refresh");
+  assert.deepEqual(Object.keys(writes), ["brand-refresh.md", "README.md"]);
+  assert.match(writes["brand-refresh.md"], /^created: 2026-10-17\nitems: \[logo, palette\]\ndepends_on: \[\]$/m);
+  assert.doesNotMatch(writes["brand-refresh.md"], /^type:/m, "no type is needed to be an epic");
+  assert.match(writes["README.md"], /^\| \[Brand refresh\]\(brand-refresh\.md\) \| high \| idea \|$/m);
+
+  const again = load({ ...epicFiles(), ...writes });
+  const epic = again.bySlug.get("brand-refresh");
+  assert.equal(core.isEpic(epic), true);
+  assert.deepEqual(epic.items, ["logo", "palette"]);
+  assert.deepEqual(core.epicOrder(again, "brand-refresh").order.map((i) => i.slug), ["palette", "logo"], "logo waits on palette");
+  assert.deepEqual(again.problems.filter((p) => !p.notice).map((p) => p.slug), ["backups"]);
+
+  const create = (items, more = {}) => () => core.planCreate(s, { title: "X", items, ...more });
+  assert.throws(create(["logo", "ghost"]), /there's no item called ghost/);
+  assert.throws(create(["logo", "logo"]), /logo is listed twice/);
+  assert.throws(create(["checkout"]), /checkout is an epic, and epics can't contain epics/);
+  assert.throws(create([]), /an epic needs at least one item/);
+  assert.throws(create(["logo"], { epic: "checkout" }), /a new epic can't go into an epic/);
+  assert.equal(core.planCreate(s, { title: "X" }).writes["x.md"].includes("items:"), false);
+});
+
 test("an epic copies as one prompt for an agent", () => {
   const f = epicFiles();
   f["checkout-copy.md"] = f["checkout-copy.md"].replace("status: ready", "status: idea"); // its index row now disagrees
   const s = load(f);
   const prompt = core.epicPrompt(s, "checkout");
-  assert.match(prompt, /^Work through this epic from the backlog: Checkout v2\n/);
+  assert.match(prompt, /^Work through this epic from the backlog: Checkout v2\n\nThe epic is in-progress already\. Move each item to in-progress as you start it\.\n\nAn epic groups /);
   assert.match(prompt, /^Epic: docs\/backlog\/checkout\.md$/m);
   assert.match(prompt, /^Progress: 1 of 6 items done, 1 in progress, 1 can start, 2 waiting, 1 set aside$/m);
   assert.match(prompt, /\n```markdown\n## Why\nOne checkout for web and app\.\n\n## Acceptance\n- A customer pays, a failed payment retries, and a receipt arrives\.\n```\n/);
@@ -364,8 +401,11 @@ test("an epic copies as one prompt for an agent", () => {
   assert.match(prompt, /^- If an item lists open questions, stop and ask me before you decide any of them\.\n$/m);
   assert.doesNotMatch(prompt, /Plain text or HTML/, "items' text stays in their files");
 
-  const idea = core.epicPrompt(load(withFront(epicFiles(), "checkout", "status", "idea")), "checkout");
-  assert.match(idea, /^- Set the epic's status to in-progress when you start, in its front matter and its row in docs\/backlog\/README\.md\.$/m);
+  const ideaFiles = withFront(epicFiles(), "checkout", "status", "idea");
+  const idea = core.epicPrompt(load(ideaFiles), "checkout");
+  assert.match(idea, /^Work through this epic from the backlog: Checkout v2\n\nStart by setting the epic's status to in-progress, in its front matter and its row in docs\/backlog\/README\.md, and move each item to in-progress as you start it\.\n\nAn epic groups /);
+  const blocked = core.epicPrompt(load(withFront(ideaFiles, "checkout", "depends_on", ["palette"])), "checkout");
+  assert.match(blocked, /^Work through this epic from the backlog: Checkout v2\n\nThe epic itself waits on an unfinished item\. Tell me before you start on it anyway\.\n\nIf you go ahead, start by setting the epic's status to in-progress, /);
   assert.match(core.itemPrompt(s, "refund-page"), /^In the epic:\n- Checkout v2 \(docs\/backlog\/checkout\.md, status: in-progress\)$/m);
   assert.throws(() => core.epicPrompt(s, "refund-page"), /refund-page isn't an epic/);
   assert.throws(() => core.epicPrompt(s, "nope"), /no item called nope/);

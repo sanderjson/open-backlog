@@ -56,15 +56,16 @@ you're an agent working from inside one host project.
 | Path | What it is |
 |---|---|
 | `web/` | The board. Serve this folder as it is; don't edit it in your project. |
-| `web/index.html` | The page: mounts the board on `<div data-open-backlog data-api=".">`. |
+| `web/index.html` | The page: mounts the board on `<div data-open-backlog data-api="." data-page>`. |
 | `web/board.js`, `web/board.css` | The page's behaviour and look. Everything is scoped under `.bb`. |
-| `web/core.js` | Reading, checking and planning edits to the backlog, with no page. |
+| `web/core.js` | Reading, checking and planning edits to the backlog, and what the board shows for an address, with no page. |
 | `web/vendor/` | [marked](https://github.com/markedjs/marked) 18.0.13 and [js-yaml](https://github.com/nodeca/js-yaml) 5.4.2, with their MIT licences. |
 | `starter/` | A backlog for a project that has none: `backlog.yml`, a README index, a template, and an epic with two items. |
 | `docs/backlog/` | The kit's own backlog, kept with the board it's built with: `npm run dev` serves it (see [Development checks](#development-checks)). |
 | `docs/backlog-guidance/` | Text for people and agents working a backlog: `working-the-backlog.md`, which PROMPT.md installs in projects, and a project's own conventions. Markdown only. |
 | `docs/backlog-assets/` | What isn't text: screenshots and other files that belong to items, linked from them. |
 | `PROMPT.md` | Instructions for an agent adding the board to a project. |
+| `CHANGELOG.md` | What changed at each tag, newest first, opening with what the update asks of a project. |
 | `.claude/skills/open-backlog/` | A skill that gets a coding agent to read `docs/backlog-guidance/` when backlog work comes up, and holds the essentials. PROMPT.md installs it. |
 | `test/` | Core, CLI and contract tests, with the throwaway host they run against: `npm test` (Node 22 or later). |
 | `bin/open-backlog.mjs` | An optional command line for agents and CI (Node 22 or later): checks, work that can start, prompts and managed indexes. |
@@ -101,6 +102,14 @@ PUT <mount>/files/<name>
   header. A page on another site can't send that header without the browser asking your
   server first, and your server never says yes. That's the board's protection against
   cross-site writes, so the route needs no CSRF token.
+- Both routes answer `403` to a request whose `Host` header isn't a development host:
+  `localhost`, `127.0.0.1`, `[::1]` or the dev host the project configures, with any port. The
+  header alone doesn't cover DNS rebinding, where a page on another site points its own name at
+  your machine: the browser then treats your server as that page's origin and sends the header
+  without asking. The request still carries the page's name in `Host`, so one comparison refuses
+  it. Vite, webpack-dev-server, Django and Rails check `Host` for the same reason. Neither check
+  is authentication: a program running on the machine can still call the routes, as it can
+  already read the files.
 - An `ETag` on `GET` (answering `If-None-Match` with `304`) is optional. It makes the page's
   polling cost next to nothing.
 
@@ -254,13 +263,24 @@ node bin/open-backlog.mjs check docs/backlog --json
 node bin/open-backlog.mjs next docs/backlog --json
 node bin/open-backlog.mjs prompt item-slug docs/backlog
 node bin/open-backlog.mjs index docs/backlog --check
+node bin/open-backlog.mjs new "Export to CSV" docs/backlog --field status=idea --tags export
+node bin/open-backlog.mjs new "Checkout v2" docs/backlog --items cart-rules,payment-retry
 ```
 
 The directory defaults to `docs/backlog`. `check` uses the same parser as the board and exits 1
 for errors; informational notices do not fail it. `next` lists only startable work in work
 order, and `prompt` prints the board's agent brief. Usage/filesystem failures exit 2. These
-commands are read-only except an explicit `index --write`, which writes a file only if it hasn't
-changed since the command read it.
+commands are read-only except an explicit `index --write` and `new`, which write a file only if it
+hasn't changed since the command read it.
+
+`new "<title>"` creates an item the way the board's New item does, through `planCreate`: its file
+from `_template.md`, its index row or the regenerated managed region, and an epic's list. It takes
+`--field name=value` for any choice field (once per field), `--weight <n>`, `--tags a,b`,
+`--items a,b,c`, which makes the new item an epic over those items in work order, and
+`--epic <slug>`, which adds it to an existing epic. It validates the whole command first: a bad
+value, a missing or nested member, or `--items` with `--epic` exits 2 with the reason on stderr
+and writes nothing. It prints the slug and each file written. Writing several files isn't a
+transaction, so if a later write fails it names the files already written and exits 1.
 
 ### Guidance for agents
 
@@ -336,8 +356,9 @@ the order.
 
 **On the board**
 
-- An epic's card sits in its status column like any item, with a stack of cards behind it and a
-  bar with a segment for each item, coloured by its status, then how many are done.
+- An epic's card sits in its status column like any item, marked **Epic** with a violet border
+  and a stack of cards behind it, and a bar with a segment for each item, coloured by its status,
+  then how many are done. Its list row and its sheet's title carry the same Epic mark.
 - An epic's sheet shows its progress, **Next up** (the first item that can start now), its items
   in work order with their status and what each waits on, and the unfinished items outside the
   epic that hold it up. It has **New item in this epic** and **Show on the board**.
@@ -349,16 +370,17 @@ the order.
 - Sorting and the index's tables treat an epic as an ordinary item: it's a row like any other.
 
 **Copy epic as prompt.** On an epic, **Copy epic as prompt** (or `c`) copies one brief for a
-coding agent working in the project. It holds:
+coding agent working in the project. It opens by telling the agent to set the epic in progress
+now and each item as it starts it. Then it holds:
 
 - the epic's file and its whole text, which is where its goal and end-to-end acceptance live;
 - its items in work order, each with its file, status, priority, weight, what it waits on
   (marking what's outside the epic) and any problems;
 - what holds the epic up from outside;
 - how to work: read each item's file before starting it, follow the work order unless an item
-  says otherwise, keep each item's status current in its front matter and its index row, set
-  the epic in progress when starting, mark it done only when every item is done and its own
-  acceptance holds, and stop to ask about any open question an item lists.
+  says otherwise, keep each item's status current in its front matter and its index row, mark
+  the epic done only when every item is done and its own acceptance holds, and stop to ask about
+  any open question an item lists.
 
 It points to the items' files rather than pasting them, so the brief stays short and the agent
 reads each file when it gets there. `epicPrompt` in `core.js` builds it, and `epicOrder`,
@@ -368,31 +390,51 @@ Epics are ordinary item files, so they need nothing from the host.
 
 ## Using the board
 
-- **Board or list**: group the board by any choice field; sort the list by any column.
-- **Filters**: search (titles, text, tags), each field, an epic, a tag, "Can start" and "Hide
-  closed". The stats at the top are filters too. Everything you pick is in the address, so a
-  view can be bookmarked.
+- **Board or list**: group the board by any choice field; sort the list by any column, and click
+  it again to turn it around. Items without a value stay last either way.
+- **Filters**: search, each field, an epic, a tag, "Can start" and "Hide closed". The stats at
+  the top are filters too. Everything you pick is in the address, so a view can be bookmarked.
+- **Search**: words match titles, slugs, text, tags and field values; every word has to match.
+  Qualifiers filter, in the style of GitHub's issue search: `#tag`, `field:value` for any choice
+  field (`status:ready`, `status:"in review"`, `area:none`) and `is:epic` for every epic,
+  whatever its type. Quotes keep a phrase together, and make text that looks like a filter
+  (`"#chore"`) plain text. Each filter in force shows as a chip by the search box, and its ×
+  takes it out. `parseQuery` and `matchesQuery` in `core.js` do the work.
 - **Edit**: change an item's weight and fields in its sheet, drag a card to another column, or
   add a **New item**. Each edit rewrites that line of front matter and the item's index row,
   nothing else.
 - **Links**: links to other items open them on the board, links to other files open in your
   editor, and links to the web open in a new tab.
 - **Copy as prompt**: the button in an item's sheet copies the item for a coding agent's
-  session in the project: its file, fields, what it waits on, unblocks and relates to, its
-  epics, any problems, its text, and how to keep its status current. Paste it into the agent
+  session in the project. It opens with the status change (set it in progress now, done when
+  finished; a blocked item asks for the go-ahead first), then gives its file, fields, what it
+  waits on, unblocks and relates to, its epics, any problems and its text. Paste it into the agent
   and add your own instructions. `itemPrompt` in `core.js` builds it. On an epic, the button
   copies the whole epic instead (see [Epics](#epics)).
 - **Keys**: `/` search, `n` new item, `b` board, `l` list, `Shift E` epic filter, `j`/`k` next
-  and previous item, `e` open in editor, `c` copy as prompt, `Esc` close, `?` all of them.
+  and previous item, `e` open in editor, `c` copy as prompt, `Esc` close, `?` all of them. The
+  shortcuts dialog can turn the single-key ones off, per browser, for screen reader and speech
+  input users; Esc, Tab and the buttons keep working. It also says which version the board is.
+  In a host's own page (no `data-page` on the mount), the keys work only while focus is inside
+  the board, and the board leaves the page's title alone.
 - Light and dark follow the system. The theme button overrides it, per browser.
 
 ## Updating a project's copy
 
 Projects keep a copy of `web/` at a tagged version (see PROMPT.md). To update, replace the
-folder with the newer tag's `web/` and change the recorded version. The two routes don't change
-within a major version. v0.2.0 (epics) needs nothing new from hosts. The only thing it can break
-is a choice field called `items`, which is now the board's own. v0.3.0 needs nothing new either:
-file versions are optional, and a host with only the two routes works as before.
+folder with the newer tag's `web/` (and `bin/open-backlog.mjs`, if the project has it) and change
+the recorded version. [CHANGELOG.md](CHANGELOG.md) says what changed at each tag, opening with
+what the update asks of the project, if anything. The two routes don't change within a major
+version. What an update has asked so far:
+
+- v0.2.0 made `items` the board's own key, so a choice field called `items` stops being one.
+- v0.5.0 asks hosts to refuse requests whose `Host` isn't a development host (see
+  [The two routes](#the-two-routes)). The board doesn't depend on it, so a host without the check
+  keeps working, but add it: it closes the DNS-rebinding gap the header leaves. v0.5.0 also needs
+  `data-page` on the mount element when the board is the whole page, as `web/index.html` has;
+  without it the board behaves as it does inside a host's own page.
+
+The board says which version it is in its shortcuts dialog (`?`), and the CLI in `--help`.
 
 ## Development checks
 
@@ -409,8 +451,13 @@ both with file versions and with only the two routes. It covers:
 - edits, dragging, creation and clipboard prompts;
 - rapid changes and external edits;
 - conflicts and partial saves;
+- malformed links and render failures, which never show as the host being down;
 - epic membership and creation;
-- keyboard and focus behaviour.
+- search, field filters and list sorting;
+- keyboard navigation and focus behaviour.
+
+The Node suite covers the view itself (filters, search, sorting, columns and the address) without
+a browser.
 
 `npm run dev` serves the kit's own backlog, `docs/backlog/`, on the test host at
 http://127.0.0.1:3737/dev/backlog/ (`PORT=4000 npm run dev` for another port). It's for working on
@@ -420,6 +467,23 @@ test host stays a throwaway. The backlog's index is a managed region, so
 
 CI runs the Node suites on Node 22 and 24, and Chromium headlessly, and checks `starter/` and
 `docs/backlog/` with the CLI. The kit still has no build step and no runtime npm dependency.
+
+## Releasing
+
+A release is a tag: projects pin it and copy `web/`. To cut one:
+
+1. Set `VERSION` in `web/core.js` and the example tag in `PROMPT.md` to the new version, and add
+   its entry at the top of [CHANGELOG.md](CHANGELOG.md), opening with what the update asks of a
+   project when it asks anything. `test/version.test.js` fails until the three agree and `--help`
+   prints it.
+2. Run the checks above, merge to `main`, and tag the merge with an annotated tag whose message
+   starts with the version (`git tag -a v0.5.0 -m "v0.5.0: …"`), then push the tag.
+3. If the release asks something of hosts, say so where projects will see it: the changelog entry
+   is the record, and a GitHub release pointing at it is the announcement.
+
+Within a major version the two routes don't change. A minor version may add to what the kit asks
+of a project (a key the board owns, a check hosts should add) and says so at the top of its
+changelog entry; a patch version asks nothing.
 
 ## Licence
 

@@ -11,6 +11,7 @@ import * as core from "./core.js";
 
 const POLL_MS = 2000;
 const THEME_KEY = "open-backlog:theme";
+const KEYS_KEY = "open-backlog:keys";
 
 const ICONS = {
   search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
@@ -30,6 +31,7 @@ const ICONS = {
   warning: '<path d="M12 3.5L2.5 20h19L12 3.5z"/><path d="M12 10v4.5M12 17.5h.01"/>',
   down: '<path d="M6 9l6 6 6-6"/>',
   up: '<path d="M6 15l6-6 6 6"/>',
+  sort: '<path d="M8 9.5l4-4 4 4M8 14.5l4 4 4-4"/>',
   keys: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
   copy: '<rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5v-3a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
@@ -40,16 +42,8 @@ const ICONS = {
 const icon = (name, cls = "") => `<svg class="bb-i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
 const esc = core.escapeHTML;
 const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
-
-// The colour a value gets when backlog.yml doesn't give one.
-const STATUS_TONES = {
-  idea: "gray", backlog: "gray", todo: "gray", new: "gray", open: "gray", ready: "teal", planned: "teal",
-  "in-progress": "blue", doing: "blue", active: "blue", started: "blue", wip: "blue", review: "violet",
-  "in-review": "violet", blocked: "red", parked: "amber", done: "green", closed: "green", complete: "green",
-  completed: "green", shipped: "green", resolved: "green", cancelled: "gray", canceled: "gray",
-  wontfix: "gray", archived: "gray",
-};
-const CYCLE = ["violet", "orange", "teal", "blue", "pink", "green", "indigo", "amber"];
+// The same mark on an epic's card, its list row and its sheet, so it reads as one before its bar.
+const epicBadge = (id = "") => `<span class="bb-epic-badge" ${id ? `id="${id}"` : ""}>${icon("epic")}<span>Epic</span></span>`;
 
 // The order an epic's progress bar shows its items in (see core.stage).
 const STAGES = ["done", "setAside", "active", "ready", "blocked", "other"];
@@ -78,13 +72,20 @@ class Board {
     this.writes = Promise.resolve();
     this.pendingWrites = 0;
     this.polling = false;
+    // data-page: the board is the page (index.html), so it names the tab and takes keys pressed
+    // on the page itself. Mounted in a host's page, it leaves the title alone and takes keys only
+    // while focus is inside it.
+    this.ownsPage = root.hasAttribute("data-page");
+    this.charKeys = this.stored(KEYS_KEY) !== "off";
   }
 
   start() {
     this.root.classList.add("bb");
+    if (!this.ownsPage && !this.root.hasAttribute("tabindex")) this.root.tabIndex = -1;
     this.applyTheme(this.storedTheme());
     this.root.innerHTML = this.skeleton();
     this.el = Object.fromEntries([...this.root.querySelectorAll("[data-el]")].map((el) => [el.dataset.el, el]));
+    this.setCharKeys(this.charKeys);
     this.bind();
     this.poll();
   }
@@ -106,14 +107,21 @@ class Board {
     this.polling = true;
     if (document.visibilityState !== "hidden" && !this.pendingWrites) {
       const version = this.version;
+      let reached = false;
       try {
         const body = await this.fetchFiles();
+        reached = true;
         this.setLive(true);
         if (version !== this.version || this.pendingWrites) this.etag = "";
         else if (body != null && body !== this.body) this.apply(body);
       } catch (e) {
-        this.setLive(false);
-        if (!this.snap) this.renderError(e);
+        // Only a failed fetch means the host is down. The host answered if reached is set, so
+        // the trouble is in what it sent: say so, and wait for the next change.
+        if (reached) this.toast(`Couldn't read the backlog: ${e.message}`, "error");
+        else {
+          this.setLive(false);
+          if (!this.snap) this.renderError(e);
+        }
       }
     }
     this.polling = false;
@@ -122,8 +130,9 @@ class Board {
 
   apply(body) {
     this.body = body;
-    this.payload = JSON.parse(body);
-    this.snap = core.parseBacklog(this.payload);
+    const payload = JSON.parse(body);
+    this.snap = core.parseBacklog(payload);
+    this.payload = payload;
     this.version++;
     this.render();
   }
@@ -241,29 +250,15 @@ class Board {
   // ---- The address -----------------------------------------------------------------------------
 
   defaults() {
-    const names = this.snap?.fields.map((f) => f.name) ?? [];
-    return { view: "board", sort: "weight", group: names.includes("status") ? "status" : names[0] || "" };
+    return core.viewDefaults(this.snap);
   }
 
-  // Only what the board knows: anything else in the address is left out.
   params() {
-    const raw = Object.fromEntries(new URLSearchParams(location.search));
-    const d = this.defaults();
-    const names = this.snap?.fields.map((f) => f.name) ?? [];
-    const p = {
-      view: ["board", "list"].includes(raw.view) ? raw.view : d.view,
-      group: names.includes(raw.group) ? raw.group : d.group,
-      sort: ["weight", "title", "created", ...names].includes(raw.sort) ? raw.sort : d.sort,
-    };
-    for (const key of ["q", "tag", "item", ...names]) if (raw[key]?.trim()) p[key] = raw[key].trim();
-    for (const key of ["open", "next"]) if (raw[key] === "1") p[key] = "1";
-    if (this.epicFilterOn() && core.isEpic(this.snap.bySlug.get(raw.epic?.trim()))) p.epic = raw.epic.trim();
-    return p;
+    return core.viewParams(this.snap, location.search);
   }
 
-  // ?epic= filters to an epic's items, unless the backlog has a choice field called epic.
   epicFilterOn() {
-    return !!this.snap && !this.snap.fields.some((f) => f.name === "epic");
+    return core.epicFilterOn(this.snap);
   }
 
   epics() {
@@ -271,14 +266,7 @@ class Board {
   }
 
   href(changes = {}) {
-    const p = { ...this.params(), ...changes };
-    const d = this.defaults();
-    const query = new URLSearchParams();
-    for (const [key, value] of Object.entries(p).sort()) {
-      if (value != null && value !== "" && d[key] !== value) query.set(key, value);
-    }
-    const q = query.toString();
-    return location.pathname + (q ? `?${q}` : "");
+    return location.pathname + core.viewQuery(this.snap, location.search, changes);
   }
 
   setParams(changes, { push = false } = {}) {
@@ -288,39 +276,21 @@ class Board {
   }
 
   filters() {
-    return ["q", "tag", "epic", "open", "next", ...this.snap.fields.map((f) => f.name)];
+    return core.viewFilters(this.snap);
   }
 
   filtering(p) {
-    return this.filters().some((k) => p[k]);
+    return core.isFiltering(this.snap, p);
   }
 
   visible(p) {
-    const s = this.snap;
-    const q = p.q?.toLowerCase();
-    const epic = this.epicFilterOn() && p.epic ? s.bySlug.get(p.epic) : null;
-    const items = s.items.filter((item) =>
-      s.fields.every((f) => !p[f.name] || (item.fields[f.name] ?? "") === (p[f.name] === "none" ? "" : p[f.name])) &&
-      (!epic || item === epic || epic.items.includes(item.slug)) &&
-      (!p.tag || item.tags.includes(p.tag)) &&
-      (!p.open || item.open) &&
-      (!p.next || item.startable) &&
-      (!q || [item.title, item.slug, item.summary, item.body, ...item.tags].some((t) => t?.toLowerCase().includes(q))));
-    const sorted = core.sortItems(s, items, p.sort);
-    // An epic's items come with the epic itself, first.
-    return epic && sorted.includes(epic) ? [epic, ...sorted.filter((item) => item !== epic)] : sorted;
+    return core.viewItems(this.snap, p);
   }
 
   // ---- Colours ---------------------------------------------------------------------------------
 
   tone(name, value) {
-    const f = core.field(this.snap, name);
-    if (!value) return "none";
-    if (f.colors[value]) return f.colors[value];
-    const i = f.values.indexOf(value);
-    if (name === "status") return STATUS_TONES[value] ?? (i >= 0 ? CYCLE[i % CYCLE.length] : "gray");
-    if (name === "priority") return i === 0 ? "red" : i === 1 && f.values.length > 2 ? "amber" : "gray";
-    return i >= 0 ? CYCLE[i % CYCLE.length] : "gray";
+    return core.tone(this.snap, name, value);
   }
 
   chip(name, value) {
@@ -360,9 +330,11 @@ class Board {
           <form class="bb-filters" data-el="filters" role="search">
             <label class="bb-search">
               ${icon("search")}
-              <input type="search" name="q" placeholder="Search" autocomplete="off" aria-label="Search titles, text and tags" data-el="search">
+              <input type="search" name="q" placeholder="Search" autocomplete="off" aria-label="Search: words, #tag, field:value or is:epic" data-el="search"
+                title="Words search titles, text, tags and field values. #tag, field:value and is:epic filter. Quotes keep a phrase, or text that looks like a filter, as text.">
               <kbd>/</kbd>
             </label>
+            <span class="bb-query-chips" data-el="queryChips"></span>
             <span class="bb-filter-fields" data-el="fieldFilters"></span>
             <select name="epic" class="bb-select bb-epic-filter" data-el="epicFilter" aria-label="Epic" title="An epic's items (Shift E)" hidden></select>
             <select name="tag" class="bb-select" data-el="tagFilter" aria-label="Tag"></select>
@@ -397,6 +369,9 @@ class Board {
         <dialog class="bb-dialog bb-help" data-el="helpDialog" aria-labelledby="bb-help-title">
           <h2 id="bb-help-title">Keyboard shortcuts</h2>
           <dl>${SHORTCUTS.map(([k, what]) => `<dt><kbd>${esc(k)}</kbd></dt><dd>${esc(what)}</dd>`).join("")}</dl>
+          <label class="bb-switch"><input type="checkbox" data-el="charKeys"><span>Single-key shortcuts</span></label>
+          <p class="bb-help-note">Turn them off if they get in the way of a screen reader or speech input. Esc, Tab and the buttons keep working, and this browser remembers the choice.</p>
+          <p class="bb-help-version">open-backlog v${core.VERSION}</p>
           <div class="bb-dialog-actions"><button type="button" class="bb-btn" data-action="dismiss">Close</button></div>
         </dialog>
         <div class="bb-toasts" data-el="toasts" aria-live="polite"></div>
@@ -407,7 +382,7 @@ class Board {
     const { filters, main, sheet, newForm, search } = this.el;
 
     this.root.addEventListener("click", (e) => {
-      const target = e.target.closest("[data-action],[data-toggle],[data-view],[data-group],[data-sort],[data-stat],[data-tag],a[data-item],[data-row]");
+      const target = e.target.closest("[data-action],[data-toggle],[data-view],[data-group],[data-sort],[data-stat],[data-tag],[data-term],a[data-item],[data-row]");
       if (!target || !this.root.contains(target)) return;
       if (target.matches("a[data-item]")) {
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
@@ -423,11 +398,18 @@ class Board {
       } else if (target.dataset.group) {
         this.setParams({ group: target.dataset.group });
       } else if (target.dataset.sort) {
-        this.setParams({ sort: target.dataset.sort });
+        // The sorted column turns around; another one starts in its own direction.
+        const { sort, dir } = this.params();
+        const by = target.dataset.sort;
+        this.setParams(by === sort ? { dir: dir === "desc" ? "asc" : "desc" } : { sort: by, dir: null });
       } else if (target.dataset.stat) {
         this.setParams(JSON.parse(target.dataset.stat));
       } else if (target.dataset.tag) {
         this.setParams({ tag: target.dataset.tag, item: null });
+      } else if (target.dataset.term) {
+        const terms = core.parseQuery(this.snap, this.params().q);
+        this.setParams({ q: core.queryWithout(terms, Number(target.dataset.term)) || null });
+        this.el.search.focus();
       } else {
         this.action(target.dataset.action, target);
       }
@@ -440,6 +422,7 @@ class Board {
         this.searchTimer = setTimeout(() => this.setParams({ q: search.value.trim() || null }), 120);
       }
     });
+    this.el.charKeys.addEventListener("change", (e) => this.setCharKeys(e.target.checked, { save: true }));
     filters.addEventListener("change", (e) => {
       if (e.target.matches("select")) this.setParams({ [e.target.name]: e.target.value || null });
     });
@@ -535,6 +518,8 @@ class Board {
 
   key(e) {
     if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+    const onPage = e.target === document.body || e.target === document.documentElement;
+    if (!this.root.contains(e.target) && !(this.ownsPage && onPage)) return;
     const typing = e.target.closest?.("input, textarea, select, [contenteditable]");
     const dialogOpen = this.root.querySelector("dialog[open]");
     const panel = this.el.sheet.querySelector(".bb-panel");
@@ -559,7 +544,7 @@ class Board {
       }
       return;
     }
-    if (typing || dialogOpen || !this.snap) return;
+    if (typing || dialogOpen || !this.snap || !this.charKeys) return;
     const p = this.params();
     const run = {
       "/": () => this.el.search.focus(),
@@ -649,10 +634,30 @@ class Board {
   // ---- Theme -----------------------------------------------------------------------------------
 
   storedTheme() {
+    return this.stored(THEME_KEY) || "auto";
+  }
+
+  stored(key) {
     try {
-      return localStorage.getItem(THEME_KEY) || "auto";
+      return localStorage.getItem(key);
     } catch {
-      return "auto";
+      return null;
+    }
+  }
+
+  // Single-key shortcuts on or off. The choice is kept per browser, or for this page if storage
+  // is blocked.
+  setCharKeys(on, { save = false } = {}) {
+    this.charKeys = on;
+    this.el.charKeys.checked = on;
+    this.root.classList.toggle("bb-no-keys", !on);
+    if (save) {
+      try {
+        if (on) localStorage.removeItem(KEYS_KEY);
+        else localStorage.setItem(KEYS_KEY, "off");
+      } catch {
+        // the choice lasts for this page only
+      }
     }
   }
 
@@ -694,7 +699,20 @@ class Board {
       <p>${esc(e.message)} for <code>${esc(new URL("files", this.api).pathname)}</code>. The board tries again every few seconds.</p></div>`;
   }
 
+  // A render that throws is the board's fault, not the host's: report it where the user sees it,
+  // and let the next change or navigation draw the sheet from scratch.
   render() {
+    try {
+      this.draw();
+    } catch (e) {
+      // Empty means closed; an invalid key must still let closing clear the sheet and page lock.
+      this.sheetKey = "invalid";
+      console.error(e);
+      this.toast(`Couldn't show the backlog: ${e.message}`, "error");
+    }
+  }
+
+  draw() {
     if (!this.snap) return;
     const s = this.snap;
     const p = this.params();
@@ -702,7 +720,7 @@ class Board {
     this.el.title.textContent = s.title;
     this.el.dir.textContent = s.dir;
     this.el.newButton.hidden = !s.writable;
-    document.title = p.item && s.bySlug.get(p.item) ? `${s.bySlug.get(p.item).title} · ${s.title}` : s.title;
+    if (this.ownsPage) document.title = p.item && s.bySlug.get(p.item) ? `${s.bySlug.get(p.item).title} · ${s.title}` : s.title;
     this.applyTheme(this.theme);
 
     const visible = this.visible(p);
@@ -788,6 +806,13 @@ class Board {
       button.classList.toggle("is-on", on);
       button.setAttribute("aria-pressed", on);
     }
+    const chips = core.parseQuery(s, p.q).map((t, i) => {
+      if (t.kind === "text") return "";
+      const what = t.kind === "tag" ? `#${t.value}` : t.kind === "epic" ? "Epics"
+        : t.value.toLowerCase() === "none" ? `No ${t.name}` : `${core.field(s, t.name).label}: ${core.label(t.value)}`;
+      return `<button type="button" class="bb-query-chip" data-term="${i}" title="Remove ${esc(t.raw)} from the search" aria-label="Remove the filter ${esc(what)}">${esc(what)}${icon("x")}</button>`;
+    }).join("");
+    if (this.el.queryChips.innerHTML !== chips) this.el.queryChips.innerHTML = chips;
     this.el.clear.hidden = !this.filtering(p);
     this.el.count.textContent = this.filtering(p) ? `${visible.length} of ${s.items.length}` : plural(s.items.length, "item");
     this.el.group.innerHTML = p.view === "board" && s.fields.length > 1
@@ -796,16 +821,8 @@ class Board {
       : "";
   }
 
-  // The board's columns: one for each value of the grouping field, then one for items without a
-  // value and one for values the field doesn't list.
   columns(items, group) {
-    const f = core.field(this.snap, group);
-    const columns = f.values.map((value) => ({ value, title: core.label(value), drop: true, items: items.filter((i) => i.fields[group] === value) }));
-    const none = items.filter((i) => !i.fields[group]);
-    const other = items.filter((i) => i.fields[group] && !f.values.includes(i.fields[group]));
-    if (none.length) columns.push({ value: "", title: `No ${group}`, drop: false, items: none });
-    if (other.length) columns.push({ value: "other", title: "Other", drop: false, items: other });
-    return columns;
+    return core.viewColumns(this.snap, items, group);
   }
 
   renderBoard(p, visible) {
@@ -840,7 +857,7 @@ class Board {
     return `
       <a class="bb-card ${epic ? "is-epic" : ""} ${p.item === item.slug ? "is-selected" : ""} ${item.open ? "" : "is-closed"}" id="bb-card-${esc(item.slug)}"
          href="${esc(this.href({ item: item.slug }))}" data-item="${esc(item.slug)}" ${s.writable ? 'draggable="true"' : ""}>
-        <span class="bb-card-top"><span class="bb-card-title">${esc(item.title)}</span>${this.priority(item.fields.priority)}</span>
+        <span class="bb-card-top">${epic ? epicBadge() : ""}<span class="bb-card-title">${esc(item.title)}</span>${this.priority(item.fields.priority)}</span>
         ${item.summary ? `<span class="bb-card-summary">${esc(item.summary)}</span>` : ""}
         ${epic ? this.progress(item) : ""}
         <span class="bb-card-meta">
@@ -885,11 +902,13 @@ class Board {
       <div class="bb-table-wrap">
         <table class="bb-table">
           <thead><tr>${cols.map(([name, sort]) => sort
-            ? `<th aria-sort="${p.sort === sort ? (sort === "created" ? "descending" : "ascending") : "none"}"><button type="button" data-sort="${esc(sort)}" class="${p.sort === sort ? "is-on" : ""}">${esc(name)}${p.sort === sort ? icon(sort === "created" ? "down" : "up") : ""}</button></th>`
+            ? (p.sort === sort
+              ? `<th aria-sort="${p.dir === "desc" ? "descending" : "ascending"}"><button type="button" data-sort="${esc(sort)}" class="is-on">${esc(name)}${icon(p.dir === "desc" ? "down" : "up")}</button></th>`
+              : `<th><button type="button" data-sort="${esc(sort)}">${esc(name)}${icon("sort", "bb-sort-idle")}</button></th>`)
             : `<th>${esc(name)}</th>`).join("")}</tr></thead>
           <tbody>${visible.map((item) => `
             <tr class="${p.item === item.slug ? "is-selected" : ""} ${item.open ? "" : "is-closed"}" data-row="${esc(item.slug)}">
-              <td class="bb-td-item"><a href="${esc(this.href({ item: item.slug }))}" data-item="${esc(item.slug)}">${esc(item.title)}</a><span>${esc(item.summary)}</span></td>
+              <td class="bb-td-item"><a href="${esc(this.href({ item: item.slug }))}" data-item="${esc(item.slug)}">${core.isEpic(item) ? epicBadge() : ""}${esc(item.title)}</a><span>${esc(item.summary)}</span></td>
               <td class="bb-num">${esc(item.weight || "—")}</td>
               ${s.fields.map((f) => `<td>${f.name === "priority" ? this.priority(item.fields.priority, { text: true }) : item.fields[f.name] ? this.chip(f.name, item.fields[f.name]) : '<span class="bb-faint">—</span>'}</td>`).join("")}
               ${epics ? `<td class="bb-td-epic">${this.epicCell(item)}</td>` : ""}
@@ -1008,7 +1027,7 @@ depends_on: []
     this.el.sheet.innerHTML = `
       <div class="bb-sheet">
         <div class="bb-scrim" data-action="close"></div>
-        <aside class="bb-panel" role="dialog" aria-modal="true" aria-labelledby="bb-item-title" tabindex="-1">
+        <aside class="bb-panel ${epic ? "is-epic" : ""}" role="dialog" aria-modal="true" aria-labelledby="${epic ? "bb-item-kind " : ""}bb-item-title" tabindex="-1">
           <div class="bb-panel-bar">
             ${editor
               ? `<a class="bb-path" href="${esc(editor)}" data-el-open title="Open in your editor (e)">${icon("edit")}<span>${esc(s.dir)}/${esc(item.file)}</span></a>`
@@ -1020,6 +1039,7 @@ depends_on: []
             <button type="button" class="bb-icon-btn" data-action="close" title="Close (Esc)" aria-label="Close">${icon("x")}</button>
           </div>
           <div class="bb-panel-body">
+            ${epic ? `<p class="bb-item-kind">${epicBadge("bb-item-kind")}</p>` : ""}
             <h2 id="bb-item-title" class="bb-item-title">${esc(item.title)}</h2>
             ${fields}
             ${notes(found.filter((x) => !x.notice), "warning")}
@@ -1125,7 +1145,15 @@ depends_on: []
         continue;
       }
       if (href.startsWith("#")) continue;
-      const path = decodeURI(href.replace(/[?#].*$/, ""));
+      let path;
+      try {
+        path = decodeURI(href.replace(/[?#].*$/, ""));
+      } catch {
+        // Badly percent-encoded: it can't name a file, so it shows like a link to an unknown one.
+        a.removeAttribute("href");
+        a.title = href;
+        continue;
+      }
       const slug = path.replace(/^\.\//, "").replace(/\.md$/, "");
       if (path.endsWith(".md") && !slug.includes("/") && s.bySlug.has(slug)) {
         a.href = this.href({ item: slug });

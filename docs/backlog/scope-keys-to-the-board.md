@@ -1,6 +1,6 @@
 ---
 title: Keyboard shortcuts stay inside the board
-status: idea
+status: done
 priority: mid
 type: build
 area: board
@@ -23,8 +23,14 @@ focus is. With focus on an element outside the board, pressing `n` opened the Ne
 
 ## Acceptance
 - Shortcuts fire only when focus is inside the board, or on the page body when the board is the
-  page. The standalone `index.html` works exactly as now: give the root `tabindex="-1"` and focus
-  on mount, or check `this.root.contains(e.target)` in `key()`.
+  page. The standalone `index.html` works exactly as now. Typing in an input, a select, a text
+  area or an editable element never triggers one, as today.
 - `document.title` changes only when the board owns the page, or the host opts in.
+- Character shortcuts can be turned off: a switch in the Keyboard shortcuts dialog (the toolbar's
+  keys button opens it too), remembered per browser in `localStorage` and on by default. If storage
+  is blocked the switch still works for the visit. With it off, no single-character key does
+  anything; Escape, Tab and buttons activated with Enter or Space keep working. This follows
+  WCAG 2.2's character key shortcuts criterion.
 - A browser test mounts the board beside a focusable element, presses `n` with focus there and sees
-  no dialog, then presses `n` with focus on the board and sees one.
+  no dialog, then presses `n` with focus on the board and sees one; with shortcuts off, `n` opens
+  nothing and Escape still closes the sheet.
