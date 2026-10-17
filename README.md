@@ -478,8 +478,17 @@ A release is a tag: projects pin it and copy `web/`. To cut one:
    prints it.
 2. Run the checks above, merge to `main`, and tag the merge with an annotated tag whose message
    starts with the version (`git tag -a v0.5.0 -m "v0.5.0: …"`), then push the tag.
-3. If the release asks something of hosts, say so where projects will see it: the changelog entry
-   is the record, and a GitHub release pointing at it is the announcement.
+3. Publish a GitHub release for the tag, with its changelog entry as the notes. The changelog is
+   the record, but only a release notifies the repository's watchers, which matters most when an
+   update asks something of hosts:
+
+   ```sh
+   v=v0.5.0 prev=v0.4.0
+   awk "/^## $v/{p=1;next} /^## $prev/{p=0} p" CHANGELOG.md | gh release create "$v" --title "$v" --notes-file -
+   ```
+
+   Releases start at v0.5.0. The tags before it have changelog entries but no releases, and get
+   none: publishing them now would only send watchers old news.
 
 Within a major version the two routes don't change. A minor version may add to what the kit asks
 of a project (a key the board owns, a check hosts should add) and says so at the top of its
