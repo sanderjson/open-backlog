@@ -708,7 +708,8 @@ class Board {
     try {
       this.draw();
     } catch (e) {
-      this.sheetKey = "";
+      // Empty means closed; an invalid key must still let closing clear the sheet and page lock.
+      this.sheetKey = "invalid";
       console.error(e);
       this.toast(`Couldn't show the backlog: ${e.message}`, "error");
     }

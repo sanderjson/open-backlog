@@ -187,6 +187,49 @@ test('a render failure is reported as one, not as the host, and the next change 
   } finally { await server.close(); }
 });
 
+for (const dismiss of ['Close', 'Escape']) {
+  test(`an early render failure still lets ${dismiss} dismiss the sheet`, async ({ page }) => {
+    const server = await startServer();
+    const errors = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    try {
+      await page.goto(server.url);
+      await page.locator('.bb-card[data-item="a"]').click();
+      const panel = page.locator('.bb-panel');
+      await expect(panel).toBeFocused();
+      const close = panel.getByRole('button', { name: 'Close', exact: true });
+      // Keep focus in place during dismissal, so a deferred focusout redraw can't hide the bug.
+      if (dismiss === 'Close') await close.focus();
+      await page.evaluate(() => {
+        const title = document.querySelector('[data-el="title"]');
+        Object.defineProperty(title, 'textContent', {
+          configurable: true,
+          set() {
+            delete title.textContent;
+            throw new Error('early render broke');
+          },
+        });
+      });
+      await fs.appendFile(join(server.dir, 'a.md'), '\nExternal change.\n');
+      await refresh(page);
+      await expect(page.getByRole('alert')).toContainText("Couldn't show the backlog: early render broke");
+      await expect(page.locator('.bb-live')).toHaveClass(/is-live/);
+      if (dismiss === 'Escape') await page.keyboard.press('Escape');
+      else await close.click();
+      await expect(panel).toHaveCount(0);
+      await expect(page).not.toHaveURL(/[?&]item=/);
+      await expect(page.locator('html')).not.toHaveClass(/bb-locked/);
+      for (const selector of ['.bb-header', '.bb-toolbar', '.bb-main']) {
+        await expect(page.locator(selector)).toHaveJSProperty('inert', false);
+      }
+      await expect(page.locator('.bb-card[data-item="a"]')).toBeFocused();
+      await page.locator('.bb-card[data-item="b"]').click();
+      await expect(page.locator('.bb-item-title')).toHaveText('Beta');
+      expect(errors).toEqual([]);
+    } finally { await server.close(); }
+  });
+}
+
 test('epic creation, membership and prompts use checked saves', async ({ page, context }) => {
   const files = example();
   files['launch.md'] = '---\ntitle: Launch\nstatus: ready\npriority: high\narea: one\nitems: [a]\n---\n\n# Launch\n\nShip the two tasks.\n';
