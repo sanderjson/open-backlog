@@ -8,9 +8,12 @@ of the project, when it asks anything. The README's
 
 ## Unreleased
 
-This will be v0.6.0. Updating asks one thing of a project, and offers one:
+This will be v0.6.0. Updating asks two things of a project, and offers one:
 
 - **`id` is now the board's own key.** A choice field called `id` stops being one.
+- **A board in a host's own page is as tall as its content** unless its element has a height; it
+  no longer takes at least the window's height. Give the element a height for the board to fill
+  it, with a short board's sideways scrollbar at the bottom of that space.
 - **Number the items** with `node bin/open-backlog.mjs ids docs/backlog --write` (or add `id: n` by
   hand). Until a backlog has IDs nothing changes; once it has, new items are numbered and an item
   without one gets a suggestion.
@@ -29,6 +32,9 @@ Changed:
   Group and the view switch on the first; the filters, always in the same order, on the second,
   which wraps within itself. Clear keeps its place while hidden, so applying a filter moves
   nothing. The header keeps one order, and on narrow screens stacks as heading, stats, toolbar.
+- With more columns than fit and only a few cards, the board's sideways scrollbar sits at the
+  bottom of the window (or of the height a host gives the board), not under the cards; a list
+  wider than the window does the same.
 
 Fixed:
 

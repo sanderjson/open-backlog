@@ -1,7 +1,7 @@
 ---
 title: The board fits a host page
 id: 29
-status: in-progress
+status: done
 priority: mid
 type: epic
 area: board
