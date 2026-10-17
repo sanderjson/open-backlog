@@ -344,8 +344,9 @@ the order.
 
 **On the board**
 
-- An epic's card sits in its status column like any item, with a stack of cards behind it and a
-  bar with a segment for each item, coloured by its status, then how many are done.
+- An epic's card sits in its status column like any item, marked **Epic** with a violet border
+  and a stack of cards behind it, and a bar with a segment for each item, coloured by its status,
+  then how many are done. Its list row and its sheet's title carry the same Epic mark.
 - An epic's sheet shows its progress, **Next up** (the first item that can start now), its items
   in work order with their status and what each waits on, and the unfinished items outside the
   epic that hold it up. It has **New item in this epic** and **Show on the board**.

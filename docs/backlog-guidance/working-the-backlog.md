@@ -72,8 +72,8 @@ an `items` list. Nothing else makes one, and nothing in `backlog.yml` turns epic
 4. Leave the member items' files alone. Membership lives in the epic's list only. Don't list an
    epic in another epic, the epic itself, or a slug that isn't an item.
 5. Add the epic's index row, run `check`, and tell the user the file name. On the board the epic
-   shows a stack of cards and a progress bar, and its sheet lists its items in work order with
-   "Copy epic as prompt".
+   is marked Epic, with a stack of cards and a progress bar (`is:epic` in the search finds it), and
+   its sheet lists its items in work order with "Copy epic as prompt".
 
 To add an item to an epic later, append its slug to the epic's `items`. To take it out, remove it.
 

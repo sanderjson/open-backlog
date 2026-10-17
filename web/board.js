@@ -41,6 +41,8 @@ const ICONS = {
 const icon = (name, cls = "") => `<svg class="bb-i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
 const esc = core.escapeHTML;
 const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+// The same mark on an epic's card, its list row and its sheet, so it reads as one before its bar.
+const epicBadge = (id = "") => `<span class="bb-epic-badge" ${id ? `id="${id}"` : ""}>${icon("epic")}<span>Epic</span></span>`;
 
 // The order an epic's progress bar shows its items in (see core.stage).
 const STAGES = ["done", "setAside", "active", "ready", "blocked", "other"];
@@ -821,7 +823,7 @@ class Board {
     return `
       <a class="bb-card ${epic ? "is-epic" : ""} ${p.item === item.slug ? "is-selected" : ""} ${item.open ? "" : "is-closed"}" id="bb-card-${esc(item.slug)}"
          href="${esc(this.href({ item: item.slug }))}" data-item="${esc(item.slug)}" ${s.writable ? 'draggable="true"' : ""}>
-        <span class="bb-card-top"><span class="bb-card-title">${esc(item.title)}</span>${this.priority(item.fields.priority)}</span>
+        <span class="bb-card-top">${epic ? epicBadge() : ""}<span class="bb-card-title">${esc(item.title)}</span>${this.priority(item.fields.priority)}</span>
         ${item.summary ? `<span class="bb-card-summary">${esc(item.summary)}</span>` : ""}
         ${epic ? this.progress(item) : ""}
         <span class="bb-card-meta">
@@ -872,7 +874,7 @@ class Board {
             : `<th>${esc(name)}</th>`).join("")}</tr></thead>
           <tbody>${visible.map((item) => `
             <tr class="${p.item === item.slug ? "is-selected" : ""} ${item.open ? "" : "is-closed"}" data-row="${esc(item.slug)}">
-              <td class="bb-td-item"><a href="${esc(this.href({ item: item.slug }))}" data-item="${esc(item.slug)}">${esc(item.title)}</a><span>${esc(item.summary)}</span></td>
+              <td class="bb-td-item"><a href="${esc(this.href({ item: item.slug }))}" data-item="${esc(item.slug)}">${core.isEpic(item) ? epicBadge() : ""}${esc(item.title)}</a><span>${esc(item.summary)}</span></td>
               <td class="bb-num">${esc(item.weight || "—")}</td>
               ${s.fields.map((f) => `<td>${f.name === "priority" ? this.priority(item.fields.priority, { text: true }) : item.fields[f.name] ? this.chip(f.name, item.fields[f.name]) : '<span class="bb-faint">—</span>'}</td>`).join("")}
               ${epics ? `<td class="bb-td-epic">${this.epicCell(item)}</td>` : ""}
@@ -991,7 +993,7 @@ depends_on: []
     this.el.sheet.innerHTML = `
       <div class="bb-sheet">
         <div class="bb-scrim" data-action="close"></div>
-        <aside class="bb-panel" role="dialog" aria-modal="true" aria-labelledby="bb-item-title" tabindex="-1">
+        <aside class="bb-panel ${epic ? "is-epic" : ""}" role="dialog" aria-modal="true" aria-labelledby="${epic ? "bb-item-kind " : ""}bb-item-title" tabindex="-1">
           <div class="bb-panel-bar">
             ${editor
               ? `<a class="bb-path" href="${esc(editor)}" data-el-open title="Open in your editor (e)">${icon("edit")}<span>${esc(s.dir)}/${esc(item.file)}</span></a>`
@@ -1003,6 +1005,7 @@ depends_on: []
             <button type="button" class="bb-icon-btn" data-action="close" title="Close (Esc)" aria-label="Close">${icon("x")}</button>
           </div>
           <div class="bb-panel-body">
+            ${epic ? `<p class="bb-item-kind">${epicBadge("bb-item-kind")}</p>` : ""}
             <h2 id="bb-item-title" class="bb-item-title">${esc(item.title)}</h2>
             ${fields}
             ${notes(found.filter((x) => !x.notice), "warning")}

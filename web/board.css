@@ -287,7 +287,7 @@ html.bb-locked { overflow: hidden; }
 .bb-table tbody tr.is-closed .bb-td-item { opacity: 0.6; }
 .bb-td-item { max-width: 460px; }
 .bb-td-item a { display: block; font-weight: 650; text-decoration: none; }
-.bb-td-item span { display: block; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.bb-td-item > span { display: block; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .bb-num { color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* Empty, loading, error */
@@ -417,13 +417,24 @@ a.bb-path:hover { background: var(--sunken); color: var(--ink); }
 .bb-toast.is-leaving { opacity: 0; transform: translateY(6px); transition: all 0.25s; }
 @keyframes bb-rise { from { opacity: 0; transform: translateY(10px); } }
 
-/* Epics: a card with a stack of cards behind it, and a bar with a segment per item. */
+/* Epics: an Epic badge, a violet border and a stack of cards behind it, and a bar with a segment
+   per item. The badge is the same on the card, the list row and the sheet. */
 .bb-card.is-epic {
   --stack: 0 4px 0 -2px var(--surface), 0 4px 0 -1px var(--line-strong), 0 8px 0 -4px var(--surface), 0 8px 0 -3px var(--line);
-  margin-bottom: 8px; box-shadow: var(--stack), var(--shadow-card);
+  margin-bottom: 8px; padding: 11px 11px 9px; border: 2px solid color-mix(in srgb, var(--violet) 60%, var(--line));
+  box-shadow: var(--stack), var(--shadow-card);
 }
-.bb-card.is-epic:hover { box-shadow: var(--stack), var(--shadow-lift); }
-.bb-card.is-epic.is-selected { box-shadow: var(--stack), 0 0 0 3px var(--accent-soft); }
+.bb-card.is-epic:hover { border-color: var(--violet); box-shadow: var(--stack), var(--shadow-lift); }
+.bb-card.is-epic.is-selected { border-color: var(--accent); box-shadow: var(--stack), 0 0 0 3px var(--accent-soft); }
+.bb-epic-badge {
+  display: inline-flex; flex: none; align-items: center; gap: 4px; padding: 1px 7px 1px 5px; border-radius: 6px;
+  background: var(--violet-soft); color: var(--violet-ink); font-size: 11px; font-weight: 700; line-height: 1.5;
+  letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; vertical-align: 1px;
+}
+.bb-epic-badge .bb-i { width: 12px; height: 12px; }
+.bb-card-top .bb-epic-badge { margin-top: 1px; }
+.bb-td-item .bb-epic-badge { margin-right: 7px; }
+.bb-item-kind { margin: 0 0 6px; }
 /* Positioned, so its hidden text stays inside the board's and the list's scrolling. */
 .bb-progress { position: relative; display: flex; min-width: 0; align-items: center; gap: 8px; color: var(--faint); }
 .bb-progress > .bb-i { width: 14px; height: 14px; }
