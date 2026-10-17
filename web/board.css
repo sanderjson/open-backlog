@@ -164,14 +164,17 @@ html.bb-locked { overflow: hidden; }
 
 /* Header */
 .bb-app { max-width: 1800px; margin: 0 auto; padding: 28px 24px 80px; }
-.bb-header { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 24px; }
-.bb-heading { margin-right: auto; }
+.bb-header {
+  display: grid; grid-template-columns: minmax(min(14rem, 100%), 1fr) minmax(0, auto) auto; grid-template-areas: "heading stats actions";
+  align-items: end; gap: 16px 24px;
+}
+.bb-heading { grid-area: heading; min-width: 0; overflow-wrap: anywhere; }
 .bb-eyebrow { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--muted); font: 600 12px/1.4 var(--mono); }
 .bb h1 { margin: 2px 0 0; font-size: 30px; line-height: 1.15; font-weight: 750; letter-spacing: -0.025em; }
 .bb-live { width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); transition: background 0.3s; }
 .bb-live.is-live { background: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
 .bb-live.is-down { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-soft); }
-.bb-stats { display: flex; flex-wrap: wrap; gap: 8px; }
+.bb-stats { grid-area: stats; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .bb-stat {
   display: flex; min-width: 92px; flex-direction: column; align-items: flex-start; padding: 8px 14px 9px;
   border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-card);
@@ -181,7 +184,7 @@ html.bb-locked { overflow: hidden; }
 .bb-stat.is-on { border-color: var(--ink); }
 .bb-stat-name { color: var(--muted); font-size: 12px; font-weight: 600; }
 .bb-stat-count { font-size: 24px; line-height: 1.15; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-.bb-actions { display: flex; align-items: center; gap: 4px; }
+.bb-actions { grid-area: actions; display: flex; align-items: center; gap: 4px; }
 
 /* Problems */
 .bb-problems { margin-top: 20px; border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent); border-radius: 14px; background: var(--amber-soft); }
@@ -207,7 +210,19 @@ html.bb-locked { overflow: hidden; }
   border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 86%, transparent);
   backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
 }
-.bb-filters, .bb-filter-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* Two rows with fixed roles. The first never wraps: search and its chips, then the count, Group and
+   the view switch pinned right. The second holds the filters only, always in the same order, and
+   wraps within itself. */
+.bb-filters { display: flex; flex-direction: column; gap: 10px; }
+.bb-toolbar-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bb-toolbar-main > .bb-search { flex: none; }
+.bb-toolbar-main > .bb-query-chips { flex: 0 1 auto; min-width: 0; }
+.bb-toolbar-end { display: flex; flex: none; align-items: center; gap: 8px; margin-left: auto; }
+.bb-toolbar-filters { flex-wrap: wrap; }
+.bb-filter-fields { display: contents; }
+.bb-select.bb-tag-filter { max-width: 12rem; text-overflow: ellipsis; }
+/* Clear keeps its place while hidden, so applying a filter moves nothing. */
+.bb-clear[hidden] { display: inline-block; visibility: hidden; }
 .bb-search {
   position: relative; display: flex; align-items: center; width: 240px; height: 34px; padding: 0 8px 0 11px;
   border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--faint); transition: border-color 0.15s, box-shadow 0.15s;
@@ -531,9 +546,11 @@ a.bb-path:hover { background: var(--sunken); color: var(--ink); }
   .bb-app { padding: 20px 16px 64px; }
   .bb-toolbar { margin: 16px -16px 0; padding: 10px 16px; }
   .bb-toolbar { position: static; }
-  .bb-search { width: 100%; }
+  .bb-header { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "heading actions" "stats stats"; align-items: start; }
+  .bb-stats { justify-content: flex-start; }
+  .bb-toolbar-main { flex-wrap: wrap; }
+  .bb-toolbar-main > .bb-search { width: 100%; }
   .bb-search kbd { display: none; }
-  .bb-spacer { display: none; }
   .bb-prompt-btn { margin-left: auto; padding: 0 10px; }
   .bb-prompt-btn span { display: none; }
   .bb-board { grid-auto-columns: 84vw; scroll-snap-type: x mandatory; }

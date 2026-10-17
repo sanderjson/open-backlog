@@ -33,8 +33,8 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | W-8 | [Search finds items by tag, field value and kind](search-matches-tags.md) | 7 | done | high | build |
 | W-9 | [Epic cards look unmistakably different](epic-cards-stand-out.md) | 8 | done | mid | build |
 | W-10 | [List columns sort both ways](list-sorts-both-ways.md) | 9 | done | mid | build |
-| W-29 | [The board fits a host page](the-board-fits-a-host-page.md) | 11 | ready | mid | epic |
-| W-12 | [A header and toolbar that lay out the same in every project](header-layout.md) | 12 | ready | mid | build |
+| W-29 | [The board fits a host page](the-board-fits-a-host-page.md) | 11 | in-progress | mid | epic |
+| W-12 | [A header and toolbar that lay out the same in every project](header-layout.md) | 12 | done | mid | build |
 | W-13 | [The board's horizontal scrollbar floats mid-screen when columns are short](board-scrollbar-position.md) | 13 | ready | mid | build |
 | W-14 | [Refresh the colour palette](colour-palette.md) | 14 | ready | mid | discuss |
 | W-16 | [Filters and sorting, pure and tested](filters-and-sorting-pure-and-tested.md) | 15 | done | mid | epic |
