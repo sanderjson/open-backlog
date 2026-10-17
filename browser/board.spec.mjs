@@ -279,6 +279,18 @@ test('a list header click sorts by that column and keeps it in the address', asy
     await expect.poll(() => rows(page)).toEqual(['c', 'a', 'b']);
     expect(query(page)).toBe('?sort=title&view=list');
     await expect(page.locator('th[aria-sort="ascending"]')).toHaveText('Item');
+    // Again, it turns around; only the sorted header has aria-sort, the others a neutral marker.
+    await page.locator('.bb-table thead').getByRole('button', { name: 'Item', exact: true }).click();
+    await expect.poll(() => rows(page)).toEqual(['b', 'a', 'c']);
+    expect(query(page)).toBe('?dir=desc&sort=title&view=list');
+    await expect(page.locator('th[aria-sort]')).toHaveCount(1);
+    await expect(page.locator('th[aria-sort="descending"]')).toHaveText('Item');
+    await expect(page.locator('th:not([aria-sort]) .bb-sort-idle').first()).toBeAttached();
+    await expect(page.locator('th[aria-sort] .bb-sort-idle')).toHaveCount(0);
+    // Another column starts in its own direction: Created, newest first.
+    await page.locator('.bb-table thead').getByRole('button', { name: 'Created', exact: true }).click();
+    await expect(page.locator('th[aria-sort="descending"]')).toHaveText('Created');
+    expect(query(page)).toBe('?sort=created&view=list');
   } finally { await server.close(); }
 });
 

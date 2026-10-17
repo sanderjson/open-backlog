@@ -361,17 +361,31 @@ const compare = (a, b) => {
   return 0;
 };
 
-// The items in an order: "weight" (work order: weight, priority, title), "title", "created"
-// (newest first) or a field's own order.
-export function sortItems(s, items, by) {
+// A column's own direction: created newest first, everything else ascending.
+export function sortDirection(by) {
+  return by === "created" ? "desc" : "asc";
+}
+
+// The items in an order: "weight" (work order: weight, priority, title), "title", "created" or a
+// field's own order, "asc" or "desc" (the column's own direction unless given). Only the column
+// turns around: items without a value (or with one the field doesn't list) stay last, and ties
+// keep the same order both ways, ending with the slug.
+export function sortItems(s, items, by, dir = sortDirection(by)) {
   const title = (item) => item.title.toLowerCase();
-  const key = {
-    weight: (item) => [weightRank(item.weight), rank(s, "priority", item.fields.priority), title(item), item.slug],
-    title: (item) => [title(item), item.slug],
-    created: (item) => [item.created || "", title(item)],
-  }[by] ?? ((item) => [rank(s, by, item.fields[by]), rank(s, "priority", item.fields.priority), weightRank(item.weight), title(item)]);
-  const sorted = [...items].sort((a, b) => compare(key(a), key(b)));
-  return by === "created" ? sorted.reverse() : sorted;
+  const priority = (item) => rank(s, "priority", item.fields.priority);
+  const [value, missing, ties] = {
+    weight: [(item) => weightRank(item.weight), (v) => v === UNWEIGHTED, (item) => [priority(item), title(item), item.slug]],
+    title: [title, () => false, (item) => [item.slug]],
+    created: [(item) => item.created || "", (v) => !v, (item) => [title(item), item.slug]],
+  }[by] ?? [(item) => rank(s, by, item.fields[by]), (v) => v === UNRANKED, (item) => [priority(item), weightRank(item.weight), title(item), item.slug]];
+  const sign = dir === "desc" ? -1 : 1;
+  return [...items].sort((a, b) => {
+    const [va, vb] = [value(a), value(b)];
+    const [ma, mb] = [missing(va), missing(vb)];
+    if (ma !== mb) return ma ? 1 : -1;
+    if (!ma && va !== vb) return va < vb ? -sign : sign;
+    return compare(ties(a), ties(b));
+  });
 }
 
 function tagCounts(items) {
@@ -963,6 +977,7 @@ export function viewParams(s, search) {
     group: names.includes(raw.group) ? raw.group : d.group,
     sort: ["weight", "title", "created", ...names].includes(raw.sort) ? raw.sort : d.sort,
   };
+  p.dir = ["asc", "desc"].includes(raw.dir) ? raw.dir : sortDirection(p.sort);
   for (const key of ["q", "tag", "item", ...names]) if (raw[key]?.trim()) p[key] = raw[key].trim();
   for (const key of ["open", "next"]) if (raw[key] === "1") p[key] = "1";
   if (epicFilterOn(s) && isEpic(s.bySlug.get(raw.epic?.trim()))) p.epic = raw.epic.trim();
@@ -970,10 +985,11 @@ export function viewParams(s, search) {
 }
 
 // The query string for the address with `changes` applied, "" when it's all defaults. Keys come
-// sorted, and defaults and empty values are left out.
+// sorted, and defaults and empty values are left out; a sort's direction is left out when it's the
+// column's own.
 export function viewQuery(s, search, changes = {}) {
   const p = { ...viewParams(s, search), ...changes };
-  const d = viewDefaults(s);
+  const d = { ...viewDefaults(s), dir: sortDirection(p.sort) };
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(p).sort()) {
     if (value != null && value !== "" && d[key] !== value) query.set(key, value);
@@ -1001,7 +1017,7 @@ export function viewItems(s, p) {
     (!p.open || item.open) &&
     (!p.next || item.startable) &&
     matchesQuery(item, terms));
-  const sorted = sortItems(s, items, p.sort);
+  const sorted = sortItems(s, items, p.sort, p.dir);
   return epic && sorted.includes(epic) ? [epic, ...sorted.filter((item) => item !== epic)] : sorted;
 }
 

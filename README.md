@@ -377,7 +377,8 @@ Epics are ordinary item files, so they need nothing from the host.
 
 ## Using the board
 
-- **Board or list**: group the board by any choice field; sort the list by any column.
+- **Board or list**: group the board by any choice field; sort the list by any column, and click
+  it again to turn it around. Items without a value stay last either way.
 - **Filters**: search, each field, an epic, a tag, "Can start" and "Hide closed". The stats at
   the top are filters too. Everything you pick is in the address, so a view can be bookmarked.
 - **Search**: words match titles, slugs, text, tags and field values; every word has to match.

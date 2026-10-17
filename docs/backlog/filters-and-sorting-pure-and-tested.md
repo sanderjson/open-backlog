@@ -1,6 +1,6 @@
 ---
 title: Filters and sorting, pure and tested
-status: in-progress
+status: done
 priority: mid
 type: epic
 area: board

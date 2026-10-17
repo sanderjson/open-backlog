@@ -1,6 +1,6 @@
 ---
 title: List columns sort both ways
-status: ready
+status: done
 priority: mid
 type: build
 area: board
