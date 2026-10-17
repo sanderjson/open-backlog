@@ -22,8 +22,8 @@ the backlog board shows them as a board or a list (see `backlog.yml` for its set
 
 ## Working the backlog
 
-For people and agents alike. The skill the board was installed with
-(`.claude/skills/open-backlog/SKILL.md`) says the same at more length.
+For people and agents alike. `../backlog-guidance/working-the-backlog.md`, installed with the
+board, says the same at more length; the project's own conventions go in that folder too.
 
 - **New item**: copy `_template.md` to `<slug>.md` (the slug comes from the title: "Brand
   palette" is `brand-palette`), fill the front matter with values from the table above, and add a
@@ -38,7 +38,7 @@ For people and agents alike. The skill the board was installed with
 - **Order**: `weight` is the work order, smallest first. `depends_on` names what must be finished
   first; `related` is for reading alongside.
 - **Attachments**: this folder holds only `.md` and `.yml`. Screenshots and other files go in
-  `../backlog-guidance/`, linked from the item as `[name](../backlog-guidance/name.png)`.
+  `../backlog-assets/`, linked from the item as `[name](../backlog-assets/name.png)`.
 - **Check**: where the project has Node 22 or later and the kit's CLI,
   `node bin/open-backlog.mjs check docs/backlog` reports what doesn't add up. The board shows the
   same at the top.

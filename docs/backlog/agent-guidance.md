@@ -21,15 +21,20 @@ conventions were in the kit's README, which an agent in a host project never see
 be where agents look: a skill that triggers on backlog work, and the backlog's own README.
 
 ## What was done
-- A skill, [.claude/skills/open-backlog/SKILL.md](../../.claude/skills/open-backlog/SKILL.md): the
-  file format, creating an item, rolling items up into an epic step by step, statuses in both
+- A guide, [docs/backlog-guidance/working-the-backlog.md](../backlog-guidance/working-the-backlog.md):
+  the file format, creating an item, rolling items up into an epic step by step, statuses in both
   places, the index (managed or not), attachments, the CLI, and the usual mistakes with what the
-  board says about each. Plain Markdown, so any agent can read it as a guide. Active in this repo.
-- [PROMPT.md](../../PROMPT.md) installs it in a project, asks for a pointer in the project's agent
+  board says about each. Plain Markdown in a folder that holds text only, for any agent, and for
+  the project's own conventions beside it.
+- A skill, [.claude/skills/open-backlog/SKILL.md](../../.claude/skills/open-backlog/SKILL.md), that
+  gets a coding agent to read that folder when backlog work comes up and holds the essentials.
+  Active in this repo.
+- [PROMPT.md](../../PROMPT.md) installs both in a project, asks for a pointer in the project's agent
   instructions (CLAUDE.md, AGENTS.md), and vendors the CLI beside `web/` where the project has Node.
 - [starter/README.md](../../starter/README.md) has a "Working the backlog" section with the short
-  version, so every new backlog carries it even without the skill.
-- The kit's README documents attachments beside the folder (`docs/backlog-guidance/`).
+  version, so every new backlog carries it.
+- Files that belong to items, such as the screenshots a user hands an agent, live beside the folder
+  in `docs/backlog-assets/`, documented in the kit's README.
 
 ## Acceptance
 - An agent in a project with the skill installed, asked to roll items into an epic, creates the

@@ -21,8 +21,8 @@ drop to a second line. At a larger text size the same row breaks after Epic, so 
 Hide closed and Clear start the second line instead. Every project's board looks different, and the
 eye has to hunt for the view switch and the count.
 
-Screenshots: [the first layout](../backlog-guidance/header-wrap-1.webp) and
-[the second, at a larger text size](../backlog-guidance/header-wrap-2.webp).
+Screenshots: [the first layout](../backlog-assets/header-wrap-1.webp) and
+[the second, at a larger text size](../backlog-assets/header-wrap-2.webp).
 
 ## To agree before building
 - The toolbar has the same structure for any backlog: the filters (search, fields, epic, tag, the

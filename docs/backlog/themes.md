@@ -28,5 +28,5 @@ accent, or a named theme that matches the project's other dev tools. Today that 
 
 ## Acceptance
 - The agreed mechanism, documented in the README's backlog.yml section and in PROMPT.md's notes for
-  hosts, with the shipped themes shown in `docs/backlog-guidance/`.
+  hosts, with the shipped themes shown in `docs/backlog-assets/`.
 - Nothing in it needs a host feature beyond serving static files.
