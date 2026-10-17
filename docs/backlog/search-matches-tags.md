@@ -1,5 +1,6 @@
 ---
 title: Search finds items by tag, field value and kind
+id: 8
 status: done
 priority: high
 type: build

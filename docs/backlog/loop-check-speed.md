@@ -1,5 +1,6 @@
 ---
 title: The dependency-loop check is quadratic in chain length
+id: 27
 status: idea
 priority: low
 type: build

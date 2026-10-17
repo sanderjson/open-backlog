@@ -1,5 +1,6 @@
 ---
 title: Publish a GitHub release for each tag
+id: 28
 status: done
 priority: high
 type: chore

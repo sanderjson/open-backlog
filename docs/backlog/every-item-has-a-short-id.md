@@ -1,6 +1,7 @@
 ---
 title: Every item has a short ID
-status: ready
+id: 11
+status: done
 priority: mid
 type: build
 area: core
@@ -32,10 +33,12 @@ are weights, the work order, which changes as plans change, so they can't serve 
 - Search: `W-456`, `w456` and `W456` (any case, hyphen optional) show only that item, and the
   toolbar shows it as a chip, like the other qualifiers. A bare `456` stays text search.
 - Creating an item (the board's New item, and the CLI's `new` through `planCreate`) gives it the
-  highest ID in the folder plus one, done and parked items included. Nothing else keeps a counter:
-  there's none in backlog.yml.
-- `check` reports two items with the same ID as a problem and an item without one as a
-  suggestion. `node bin/open-backlog.mjs ids docs/backlog --write` gives every item without an ID
+  highest ID in the folder plus one, done and parked items included, in a backlog that numbers its
+  items or has none yet. One that doesn't number yet starts with `ids --write`, not with whichever
+  item happens to be made next. Nothing else keeps a counter: there's none in backlog.yml.
+- `check` reports two items with the same ID, or one that isn't a positive whole number, as a
+  problem, and, once the backlog has IDs, an item without one as a suggestion (a backlog that
+  doesn't number its items isn't told about each of them). `node bin/open-backlog.mjs ids docs/backlog --write` gives every item without an ID
   the next free numbers, oldest `created` first, then by weight, and changes nothing else.
 - The guide says what "never reused" rests on: the kit reads the folder, not git history, so
   deleting the highest-numbered item frees its number for the next one. Keeping done and parked

@@ -14,7 +14,7 @@ export const FILE_NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]*\.(md|ya?ml)$/;
 export const COLORS = ["gray", "blue", "teal", "green", "amber", "orange", "red", "pink", "violet", "indigo"];
 
 // The front matter keys the board reads itself, so they can't be choice fields.
-const RESERVED = ["title", "weight", "created", "tags", "branches", "depends_on", "related", "items"];
+const RESERVED = ["title", "id", "weight", "created", "tags", "branches", "depends_on", "related", "items"];
 
 // What the board guesses when backlog.yml doesn't say: well-known values in their usual order.
 const KNOWN_ORDER = {
@@ -64,7 +64,7 @@ const isMap = (v) => v != null && typeof v === "object" && !Array.isArray(v);
 // Reads backlog.yml. Every setting is optional; what it leaves out comes from the items.
 export function parseConfig(source) {
   const config = { title: "", fields: null, done: null, closed: null, startable: null, active: null,
-    index: "", editor: "", colors: {} };
+    index: "", editor: "", prefix: "", colors: {} };
   if (source == null) return { config };
 
   let doc;
@@ -83,6 +83,11 @@ export function parseConfig(source) {
         break;
       case "done": case "closed": case "startable": case "active":
         config[key] = list(value);
+        break;
+      case "prefix":
+        // The letters before an item's ID: W-456, or OB-456 with prefix: OB.
+        if (!/^[A-Za-z][A-Za-z0-9]{0,9}$/.test(text(value))) return { config, error: `${CONFIG_FILE}: prefix should be letters (and digits after the first), like W or OB` };
+        config.prefix = text(value);
         break;
       case "fields": {
         // {status: [idea, done], area: []}, or just the names: [status, area]
@@ -197,7 +202,7 @@ function readFront(item, front) {
         break;
       case "related": item.related = list(value); break;
       case "items": item.items = list(value); break;
-      case "title": case "weight": case "created": item[key] = text(value); break;
+      case "title": case "id": case "weight": case "created": item[key] = text(value); break;
       default:
         if (value != null && typeof value !== "object" && text(value) !== "") item.fields[key] = text(value);
     }
@@ -244,6 +249,7 @@ export function parseBacklog({ files = {}, dir = "docs/backlog", path = "", writ
   const s = {
     title: config.title || "Backlog", dir, path, writable,
     editor: config.editor || "vscode",
+    prefix: config.prefix || "W",
     index: config.index === "none" ? "" : config.index || "README.md",
     problems: error ? [{ slug: "", message: error }] : [],
     files, config,
@@ -349,6 +355,23 @@ export function weightRank(weight) {
   return /^\d+$/.test(weight ?? "") && Number(weight) > 0 ? Number(weight) : UNWEIGHTED;
 }
 
+// An item's ID as a number, or 0 when it has none (or one that isn't a positive whole number).
+export function idNumber(item) {
+  return /^\d+$/.test(item?.id ?? "") && Number(item.id) > 0 ? Number(item.id) : 0;
+}
+
+// An item's ID as people write it, the backlog's prefix and the number (W-456), or "".
+export function itemCode(s, item) {
+  const n = idNumber(item);
+  return n ? `${s.prefix}-${n}` : "";
+}
+
+// The ID a new item gets: one more than the highest in the folder, done and parked items included.
+// The kit keeps no counter, so a deleted item's number can come back; keeping items keeps it taken.
+export function nextId(s) {
+  return Math.max(0, ...s.items.map(idNumber)) + 1;
+}
+
 // Where value comes in field's order; values it doesn't list come last.
 export function rank(s, name, value) {
   const i = field(s, name).values.indexOf(value);
@@ -378,6 +401,7 @@ export function sortItems(s, items, by, dir = sortDirection(by)) {
   const [value, missing, ties] = {
     weight: [(item) => weightRank(item.weight), (v) => v === UNWEIGHTED, (item) => [priority(item), title(item), item.slug]],
     title: [title, () => false, (item) => [item.slug]],
+    id: [(item) => idNumber(item), (v) => v === 0, (item) => [item.slug]],
     created: [(item) => item.created || "", (v) => !v, (item) => [title(item), item.slug]],
   }[by] ?? [(item) => rank(s, by, item.fields[by]), (v) => v === UNRANKED, (item) => [priority(item), weightRank(item.weight), title(item), item.slug]];
   const sign = dir === "desc" ? -1 : 1;
@@ -405,6 +429,8 @@ function problems(s) {
   const out = [];
   const add = (slug, message) => out.push({ slug, message });
   try { managedRegion(s.files[s.index] || ""); } catch (e) { add("", e.message); }
+  // An item without an ID is worth a word only once the backlog numbers its items.
+  const usesIds = s.items.some(idNumber);
   for (const item of [...s.items].sort((a, b) => (a.slug < b.slug ? -1 : 1))) {
     for (const p of item.problems) add(item.slug, p);
     for (const f of s.fields) {
@@ -416,6 +442,10 @@ function problems(s) {
     if (item.weight && weightRank(item.weight) === UNWEIGHTED) {
       add(item.slug, `weight is "${item.weight}", not a positive whole number`);
     }
+    if (item.id && !idNumber(item)) add(item.slug, `id is "${item.id}", not a positive whole number`);
+    else if (!item.id && usesIds) out.push({ slug: item.slug, message: "it has no ID: node bin/open-backlog.mjs ids --write gives every item one", notice: true });
+    const twins = idNumber(item) ? s.items.filter((other) => other !== item && idNumber(other) === idNumber(item)) : [];
+    if (twins.length) add(item.slug, `its ID ${itemCode(s, item)} is also ${twins.map((x) => x.slug).join(" and ")}'s`);
     for (const [name, slugs] of [["depends_on", item.dependsOn], ["related", item.related]]) {
       for (const slug of slugs) {
         if (slug === item.slug) add(item.slug, `${name} names the item itself`);
@@ -614,7 +644,7 @@ function readIndex(s) {
   const source = s.index ? s.files[s.index] : undefined;
   s.indexLines = source == null ? [] : source.split("\n");
   s.indexCRLF = source?.includes("\r\n") ?? false;
-  const names = ["weight", ...s.fields.map((f) => f.name)];
+  const names = ["id", "weight", ...s.fields.map((f) => f.name)];
   const tables = [];
   const lines = s.indexLines;
   let group = null, ignore = false;
@@ -626,14 +656,19 @@ function readIndex(s) {
     }
     const header = cells(lines[i]), sep = cells(lines[i + 1]);
     if (!header || !sep || sep.length !== header.length || !sep.every((c) => /^:?-+:?$/.test(c))) continue;
-    const table = { cols: header.map((h, c) => (c > 0 && names.find((n) => squash(n) === squash(h))) || ""), rows: [], group };
+    // The item's link is in the first cell, or the second when an ID column comes first.
+    const table = { cols: [], link: -1, rows: [], group };
     let j = i + 2;
     for (; j < lines.length; j++) {
       const row = cells(lines[j]);
       if (!row) break;
-      const m = ROW_LINK_RE.exec(row[0]);
-      if (m) table.rows.push({ line: j, slug: m[1], cells: row, title: /^\[((?:[^\]\\]|\\.)*)\]/.exec(row[0])?.[1].replace(/\\([\[\]|])/g, "$1") });
+      const at = row.slice(0, 2).findIndex((cell) => ROW_LINK_RE.test(cell));
+      if (at < 0 || table.link >= 0 && at !== table.link) continue;
+      table.link = at;
+      const m = ROW_LINK_RE.exec(row[at]);
+      table.rows.push({ line: j, slug: m[1], cells: row, title: /^\[((?:[^\]\\]|\\.)*)\]/.exec(row[at])?.[1].replace(/\\([\[\]|])/g, "$1") });
     }
+    table.cols = header.map((h, c) => (c !== table.link && names.find((n) => squash(n) === squash(h))) || "");
     if (table.rows.length && !ignore) tables.push(table);
     group = null;
     ignore = false;
@@ -671,7 +706,7 @@ function indexProblems(s, item) {
       if (table.group != null && (item.fields.area || "") !== table.group) out.push({ slug: item.slug, message: `${s.index}'s index puts it in area ${table.group || "none"}, the item says ${item.fields.area || "none"}` });
       table.cols.forEach((name, c) => {
         if (!name || c >= row.cells.length) return;
-        const want = name === "weight" ? item.weight : item.fields[name];
+        const want = name === "id" ? itemCode(s, item) : name === "weight" ? item.weight : item.fields[name];
         const got = row.cells[c].replace(/^[`*]+|[`*]+$/g, "");
         if (want && got !== want) {
           out.push({ slug: item.slug, message: `${s.index}'s index says ${name} ${got || "nothing"}, the item says ${want}` });
@@ -726,7 +761,7 @@ function indexWithItem(s, item) {
   }
   const title = item.title.replace(/[|[\]]/g, (c) => "\\" + c);
   const row = best.cols.map((name, c) =>
-    c === 0 ? `[${title}](${item.slug}.md)` : name === "weight" ? item.weight : name ? item.fields[name] ?? "" : "");
+    c === best.link ? `[${title}](${item.slug}.md)` : name === "id" ? itemCode(s, item) : name === "weight" ? item.weight : name ? item.fields[name] ?? "" : "");
   const lines = [...s.indexLines];
   lines.splice(best.rows.at(-1).line + 1, 0, rowLine(s, row));
   return lines.join("\n");
@@ -772,19 +807,45 @@ export function planIndex(s) {
   const areas = [...new Set([...field(s, "area").values, ...s.items.map((item) => item.fields.area || "")])];
   const lines = [INDEX_START];
   const cell = (value) => String(value ?? "").replace(/[\r\n]+/g, " ").replace(/\|/g, "\\|");
+  // Once any item has an ID, the tables lead with an ID column.
+  const ids = s.items.some(idNumber);
   for (const area of areas) {
     const items = s.items.filter((item) => (item.fields.area || "") === area);
     if (!items.length) continue;
-    lines.push("", `### ${label(area)}`, "", `<!-- open-backlog:group area=${encodeURIComponent(area)} -->`, "", `| Item | ${cols.map(label).join(" | ")} |`, `| --- | ${cols.map(() => "---").join(" | ")} |`);
+    const head = ids ? "| ID | Item" : "| Item";
+    lines.push("", `### ${label(area)}`, "", `<!-- open-backlog:group area=${encodeURIComponent(area)} -->`, "", `${head} | ${cols.map(label).join(" | ")} |`, `|${ids ? " --- |" : ""} --- | ${cols.map(() => "---").join(" | ")} |`);
     for (const item of sortItems(s, items, "weight")) {
       const title = item.title.replace(/[|[\]]/g, (c) => "\\" + c);
-      lines.push(`| [${title}](${item.slug}.md) | ${cols.map((name) => cell(name === "weight" ? item.weight : item.fields[name])).join(" | ")} |`);
+      lines.push(`|${ids ? ` ${itemCode(s, item)} |` : ""} [${title}](${item.slug}.md) | ${cols.map((name) => cell(name === "weight" ? item.weight : item.fields[name])).join(" | ")} |`);
     }
   }
   lines.push("", INDEX_END);
   const region = lines.join(nl);
   const index = bounds ? source.slice(0, bounds.start) + region + source.slice(bounds.end) : source + (source.endsWith(nl) ? nl : nl + nl) + region + nl;
   return index === source ? {} : { [s.index]: index };
+}
+
+// The writes that give every item without an ID the next free numbers, oldest `created` first
+// (undated last), then in work order, with `id:` under the title line. Nothing else in the items
+// changes; a managed index is regenerated to show the IDs.
+export function planIds(s) {
+  const day = (item) => item.created || "￿";
+  const missing = sortItems(s, s.items.filter((item) => !item.id), "weight").sort((a, b) => (day(a) < day(b) ? -1 : day(a) > day(b) ? 1 : 0));
+  let next = nextId(s);
+  const writes = {};
+  for (const item of missing) writes[item.file] = withId(s.files[item.file], next++);
+  if (missing.length && hasManagedIndex(s)) Object.assign(writes, planIndex(parseBacklog({ files: { ...s.files, ...writes }, dir: s.dir, path: s.path })));
+  return writes;
+}
+
+// The item's text with `id: n` right under its title line, or at the end of the front matter.
+function withId(source, n) {
+  const split = splitFront(source);
+  const parts = split?.front ? split.front.split(/(\r?\n)/) : [];
+  const at = parts.findIndex((part, i) => i % 2 === 0 && /^title:/.test(part));
+  if (at < 0 || /^[ \t]/.test(parts[at + 2] ?? "")) return setFront(source, "id", String(n));
+  parts.splice(at + 1, 0, parts[at + 1] ?? split.nl, `id: ${n}`);
+  return joinFront({ ...split, front: parts.join("") });
 }
 
 // ---- Edits -------------------------------------------------------------------------------------
@@ -922,7 +983,10 @@ export function planCreate(s, { title = "", weight = "", fields = {}, tags = [],
   let slug = base;
   for (let i = 2; s.files[`${slug}.md`] != null; i++) slug = `${base}-${i}`;
 
-  const lines = ["---", `title: ${scalar(title)}`];
+  // A backlog that numbers its items (or has none yet) numbers the new one; one that doesn't yet
+  // starts with ids --write, not with whichever item happens to be made next.
+  const id = s.items.length === 0 || s.items.some(idNumber) ? String(nextId(s)) : "";
+  const lines = ["---", `title: ${scalar(title)}`, ...(id ? [`id: ${id}`] : [])];
   for (const f of s.fields) if (values[f.name]) lines.push(`${f.name}: ${scalar(values[f.name])}`);
   if (weight) lines.push(`weight: ${weight}`);
   lines.push(`tags: [${tags.map((t) => t.trim()).filter(Boolean).map((t) => JSON.stringify(t)).join(", ")}]`);
@@ -930,7 +994,7 @@ export function planCreate(s, { title = "", weight = "", fields = {}, tags = [],
 
   const writes = { [`${slug}.md`]: lines.join("\n") + template(s, title) };
   if (target) writes[target.file] = setFront(s.files[target.file], "items", [...target.items, slug]);
-  const index = hasManagedIndex(s) ? planIndex(parseBacklog({ files: { ...s.files, ...writes } }))[s.index] : indexWithItem(s, { slug, title, weight, fields: values });
+  const index = hasManagedIndex(s) ? planIndex(parseBacklog({ files: { ...s.files, ...writes } }))[s.index] : indexWithItem(s, { slug, title, id, weight, fields: values });
   if (index != null) writes[s.index] = index;
   return { slug, writes };
 }
@@ -993,7 +1057,7 @@ export function viewParams(s, search) {
   const p = {
     view: ["board", "list"].includes(raw.view) ? raw.view : d.view,
     group: names.includes(raw.group) ? raw.group : d.group,
-    sort: ["weight", "title", "created", ...names].includes(raw.sort) ? raw.sort : d.sort,
+    sort: ["weight", "title", "id", "created", ...names].includes(raw.sort) ? raw.sort : d.sort,
   };
   p.dir = ["asc", "desc"].includes(raw.dir) ? raw.dir : sortDirection(p.sort);
   for (const key of ["q", "tag", "item", ...names]) if (raw[key]?.trim()) p[key] = raw[key].trim();
@@ -1046,9 +1110,12 @@ export function viewItems(s, p) {
 export function parseQuery(s, q = "") {
   const terms = [];
   const text = (raw, value) => { if (value) terms.push({ raw, kind: "text", value: value.toLowerCase() }); };
+  const code = s ? new RegExp(`^${s.prefix}-?(\\d+)$`, "i") : null;
   for (const m of (q ?? "").matchAll(/([^\s"]*)"([^"]*)"?|\S+/g)) {
     const raw = m[0];
     const quoted = m[2] !== undefined;
+    const id = !quoted && code?.exec(raw);
+    if (id && Number(id[1]) > 0) { terms.push({ raw, kind: "id", value: Number(id[1]) }); continue; }
     const [head, value] = quoted ? [m[1], m[2]] : raw.startsWith("#") ? ["#", raw.slice(1)] : [raw.slice(0, raw.indexOf(":") + 1), raw.slice(raw.indexOf(":") + 1)];
     if (quoted && !head) text(raw, value);
     else if (head === "#" && value) terms.push({ raw, kind: "tag", value });
@@ -1071,6 +1138,7 @@ export function matchesQuery(item, terms) {
   return terms.every((t) => {
     if (t.kind === "tag") return item.tags.some((tag) => same(tag, t.value));
     if (t.kind === "epic") return isEpic(item);
+    if (t.kind === "id") return idNumber(item) === t.value;
     if (t.kind === "field") return same(t.value, "none") ? !item.fields[t.name] : same(item.fields[t.name] ?? "", t.value);
     hay ??= [item.title, item.slug, item.summary, item.body, ...item.tags, ...Object.values(item.fields)].filter(Boolean).map((x) => x.toLowerCase());
     return hay.some((x) => x.includes(t.value));
@@ -1174,7 +1242,7 @@ export function itemPrompt(s, slug) {
   }
 
   return [
-    `Work on this item from the backlog: ${item.title}`,
+    `Work on this item from the backlog: ${[itemCode(s, item), item.title].filter(Boolean).join(" ")}`,
     "",
     ...blockedLine("It", item),
     ...(opening ? [opening, ""] : []),
@@ -1256,7 +1324,7 @@ export function epicPrompt(s, slug) {
   ].filter(Boolean);
 
   return [
-    `Work through this epic from the backlog: ${epic.title}`,
+    `Work through this epic from the backlog: ${[itemCode(s, epic), epic.title].filter(Boolean).join(" ")}`,
     "",
     ...blockedLine("The epic itself", epic),
     ...(opening ? [opening, ""] : []),

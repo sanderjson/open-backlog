@@ -1,5 +1,6 @@
 ---
 title: Dogfood the kit
+id: 1
 status: done
 priority: high
 type: build

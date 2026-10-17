@@ -1,5 +1,6 @@
 ---
 title: Refresh the colour palette
+id: 14
 status: ready
 priority: mid
 type: discuss

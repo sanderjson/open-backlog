@@ -148,11 +148,13 @@ saved, and the stale index row shows up as a problem to fix.
 
 ## The backlog's files
 
-Each item is `<slug>.md`: front matter, then Markdown. The file name is the item's id.
+Each item is `<slug>.md`: front matter, then Markdown. The file name is how links and lists name
+the item; its `id` is the short handle people say and type (W-12).
 
 ```markdown
 ---
 title: Brand palette
+id: 12
 status: idea
 priority: high
 type: build
@@ -171,9 +173,16 @@ related: []
 One palette drives every screen.
 ```
 
-- `title`, `weight`, `created`, `tags`, `branches`, `depends_on`, `related` and `items` are the
-  board's own fields. Every other key with a single value (`status`, `priority`, `type`, `area`
+- `title`, `id`, `weight`, `created`, `tags`, `branches`, `depends_on`, `related` and `items`
+  are the board's own fields. Every other key with a single value (`status`, `priority`, `type`, `area`
   or your own) is a **choice field**: a filter, a board grouping and a select in the item.
+- `id` is a positive whole number that never changes, shown with the backlog's prefix: `W-12`,
+  or `OB-12` with `prefix: OB` in backlog.yml. It leads the card, the list, the sheet's title, the
+  index and a copied prompt's first line, and typing it in the search (`W-12`, `w12`) finds the
+  item. A new item gets the highest ID in the folder plus one, done items included; there's no
+  counter, so two branches can take the same number, which `check` reports. The kit reads the
+  folder, not git, so deleting the highest-numbered item lets its number come back: keep done
+  items. `node bin/open-backlog.mjs ids docs/backlog --write` numbers a backlog that has none.
 - `weight` is the work order, smallest first. Ties go to priority, then title.
 - `depends_on` makes an item wait until those items are done. "Can start" shows the open
   items in a startable status that wait on nothing. Missing, self-referencing or malformed
@@ -263,6 +272,7 @@ node bin/open-backlog.mjs check docs/backlog --json
 node bin/open-backlog.mjs next docs/backlog --json
 node bin/open-backlog.mjs prompt item-slug docs/backlog
 node bin/open-backlog.mjs index docs/backlog --check
+node bin/open-backlog.mjs ids docs/backlog --write
 node bin/open-backlog.mjs new "Export to CSV" docs/backlog --field status=idea --tags export
 node bin/open-backlog.mjs new "Checkout v2" docs/backlog --items cart-rules,payment-retry
 ```
@@ -394,7 +404,8 @@ Epics are ordinary item files, so they need nothing from the host.
   it again to turn it around. Items without a value stay last either way.
 - **Filters**: search, each field, an epic, a tag, "Can start" and "Hide closed". The stats at
   the top are filters too. Everything you pick is in the address, so a view can be bookmarked.
-- **Search**: words match titles, slugs, text, tags and field values; every word has to match.
+- **Search**: an ID (`W-12`, `w12`) finds that item. Words match titles, slugs, text, tags and
+  field values; every word has to match.
   Qualifiers filter, in the style of GitHub's issue search: `#tag`, `field:value` for any choice
   field (`status:ready`, `status:"in review"`, `area:none`) and `is:epic` for every epic,
   whatever its type. Quotes keep a phrase together, and make text that looks like a filter

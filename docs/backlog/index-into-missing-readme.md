@@ -1,5 +1,6 @@
 ---
 title: Generating an index into a missing README leaves two blank lines first
+id: 23
 status: idea
 priority: low
 type: build

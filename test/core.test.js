@@ -530,3 +530,87 @@ test("editor links and paths", () => {
   assert.equal(core.editorURL("none", "/p/a.md"), "");
   assert.equal(core.editorURL("myeditor://open?path={path}", "/p/a.md"), "myeditor://open?path=/p/a.md");
 });
+
+test("items have short IDs: shown with the prefix, checked, assigned, searched and prompted", () => {
+  const numbered = () => {
+    const f = files();
+    f["palette.md"] = f["palette.md"].replace('title: "Brand palette"\n', 'title: "Brand palette"\nid: 1\n');
+    f["logo.md"] = f["logo.md"].replace('title: "Logo build"\n', 'title: "Logo build"\nid: 2\n');
+    f["backups.md"] = f["backups.md"].replace("title: Backups\n", "title: Backups\nid: 7\n"); // done, and the highest
+    return f;
+  };
+  const s = load(numbered());
+  assert.equal(core.itemCode(s, s.bySlug.get("palette")), "W-1");
+  assert.equal(core.nextId(s), 8, "a done item's number stays taken");
+  assert.deepEqual(s.problems.filter((p) => /ID|id is/.test(p.message)), []);
+
+  // backlog.yml can change the letters; id is the board's, so it can't be a choice field.
+  const ob = load({ ...numbered(), "backlog.yml": files()["backlog.yml"] + "prefix: OB\n" });
+  assert.equal(core.itemCode(ob, ob.bySlug.get("logo")), "OB-2");
+  assert.match(load({ ...files(), "backlog.yml": "prefix: W-\n" }).problems[0].message, /prefix should be letters/);
+  assert.match(load({ ...files(), "backlog.yml": "fields:\n  id: [a]\n" }).problems[0].message, /id can't be a choice field/);
+  assert.equal(load({ ...files(), "x.md": "---\ntitle: X\nid: 4\n---\n" }).fields.some((f) => f.name === "id"), false);
+
+  // A bad or shared ID is a problem; a missing one is a suggestion, once the backlog uses IDs.
+  const twins = load({ ...numbered(), "logo.md": numbered()["logo.md"].replace("id: 2", "id: 1"), "notes.md": "---\ntitle: Notes\nid: soon\nstatus: idea\npriority: low\narea: ops\n---\n\n# Notes\n" });
+  const about = (st, slug) => st.problems.filter((p) => p.slug === slug && /ID|id is/.test(p.message)).map((p) => [p.message, !!p.notice]);
+  assert.deepEqual(about(twins, "palette"), [["its ID W-1 is also logo's", false]]);
+  assert.deepEqual(about(twins, "logo"), [["its ID W-1 is also palette's", false]]);
+  assert.deepEqual(about(twins, "notes"), [['id is "soon", not a positive whole number', false]]);
+  const mixed = load({ ...numbered(), "logo.md": files()["logo.md"] });
+  assert.deepEqual(about(mixed, "logo"), [["it has no ID: node bin/open-backlog.mjs ids --write gives every item one", true]]);
+  assert.deepEqual(load().problems.filter((p) => /ID/.test(p.message)), [], "a backlog without IDs isn't told about each item");
+
+  // New items: numbered in a numbered backlog or an empty one, not in one that doesn't number yet.
+  assert.match(core.planCreate(s, { title: "Icons" }, "2026-10-18").writes["icons.md"], /^---\ntitle: Icons\nid: 8\n/);
+  assert.doesNotMatch(core.planCreate(load(), { title: "Icons" }).writes["icons.md"], /^id:/m);
+  assert.match(core.planCreate(load({}), { title: "First" }).writes["first.md"], /^id: 1$/m);
+
+  // Search: the ID with or without its hyphen, in any case; a bare number is text.
+  const show = (st, q) => core.viewItems(st, core.viewParams(st, `?q=${encodeURIComponent(q)}`)).map((i) => i.slug);
+  for (const q of ["W-2", "w2", "W2", "w-2"]) assert.deepEqual(show(s, q), ["logo"], q);
+  assert.deepEqual(core.parseQuery(s, "W-2").map((t) => t.kind), ["id"]);
+  assert.deepEqual(core.parseQuery(s, '2 W-0 "W-2" X-2').map((t) => t.kind), ["text", "text", "text", "text"]);
+  assert.deepEqual(show(ob, "ob-2"), ["logo"]);
+  assert.deepEqual(core.parseQuery(ob, "W-2").map((t) => t.kind), ["text"]);
+  assert.deepEqual(show(s, "W-9"), [], "no item has it");
+  assert.deepEqual(core.viewItems(s, core.viewParams(s, "?sort=id&dir=desc")).map((i) => i.slug), ["backups", "logo", "palette"]);
+
+  // The prompt leads with it, so it lands in commit messages.
+  assert.match(core.itemPrompt(s, "logo"), /^Work on this item from the backlog: W-2 Logo build\n/);
+  assert.match(core.itemPrompt(load(), "logo"), /^Work on this item from the backlog: Logo build\n/);
+});
+
+test("the index leads with an ID column once items have IDs, and checks it", () => {
+  const f = { ...files(), "README.md": `# Backlog\n\n${core.INDEX_START}\n${core.INDEX_END}\n` };
+  f["palette.md"] = f["palette.md"].replace('title: "Brand palette"\n', 'title: "Brand palette"\nid: 1\n');
+  f["logo.md"] = f["logo.md"].replace('title: "Logo build"\n', 'title: "Logo build"\nid: 2\n');
+  const index = core.planIndex(load(f))["README.md"];
+  assert.match(index, /^\| ID \| Item \| Weight \| Status \| Priority \|$/m);
+  assert.match(index, /^\| W-2 \| \[Logo build\]\(logo\.md\) \| 2 \| idea \| high \|$/m);
+  assert.match(index, /^\|  \| \[Backups\]\(backups\.md\) \| 1 \| done \| mid \|$/m);
+  const again = load({ ...f, "README.md": index });
+  assert.deepEqual(again.problems.filter((p) => /index/.test(p.message)), []);
+  assert.deepEqual(core.planIndex(again), {});
+  const stale = load({ ...f, "README.md": index.replace("| W-2 |", "| W-9 |") });
+  assert.deepEqual(stale.problems.filter((p) => /index/.test(p.message)).map((p) => p.message), ["README.md's index says id W-9, the item says W-2"]);
+  // A hand-written table with an ID column gets the new item's ID in it.
+  const hand = { ...f, "README.md": "| ID | Item | Status |\n|---|---|---|\n| W-1 | [Brand palette](palette.md) | idea |\n| W-2 | [Logo build](logo.md) | idea |\n|  | [Backups](backups.md) | done |\n" };
+  assert.match(core.planCreate(load(hand), { title: "Icons", fields: { status: "idea" } }).writes["README.md"], /^\| W-3 \| \[Icons\]\(icons\.md\) \| idea \|$/m);
+});
+
+test("ids numbers the items without one, oldest first, under their titles", () => {
+  const f = { ...files(), "README.md": `# Backlog\n\n${core.INDEX_START}\n${core.INDEX_END}\n` };
+  f["logo.md"] = f["logo.md"].replace('title: "Logo build"\n', 'title: "Logo build"\nid: 4\n');
+  f["undated.md"] = "---\ntitle: Undated\nstatus: idea\npriority: low\narea: ops\nweight: 1\n---\n\n# Undated\n";
+  const writes = core.planIds(load(f));
+  assert.deepEqual(Object.keys(writes).sort(), ["README.md", "backups.md", "palette.md", "undated.md"]);
+  assert.match(writes["backups.md"], /^---\ntitle: Backups\nid: 5\npriority: mid\n/, "created 2026-10-01, the oldest");
+  assert.match(writes["palette.md"], /^---\ntitle: "Brand palette"\nid: 6\n/);
+  assert.match(writes["undated.md"], /^---\ntitle: Undated\nid: 7\n/, "no date: last");
+  assert.equal(writes["palette.md"].replace("id: 6\n", ""), f["palette.md"], "nothing else changes");
+  const after = load({ ...f, ...writes });
+  assert.deepEqual(core.planIds(after), {});
+  assert.deepEqual(after.problems.filter((p) => !p.notice).map((p) => p.slug), []);
+  assert.match(core.planIds(load({ "x.md": "---\nstatus: idea\n---\n\n# X\n" }))["x.md"], /^---\nstatus: idea\nid: 1\n---/, "no title line: at the end");
+});

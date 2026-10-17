@@ -1,5 +1,6 @@
 ---
 title: Small fixes from the October 2026 review
+id: 22
 status: idea
 priority: low
 type: epic

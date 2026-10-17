@@ -24,6 +24,9 @@ active: [in-progress]
 # colors:
 #   area: {design: violet, ops: blue}
 
+# The letters before an item's ID on the board: W-12, or OB-12 with prefix: OB.
+# prefix: W
+
 # Where links to files open: vscode, cursor, windsurf, zed, idea, none, or a URL with {path}.
 editor: vscode
 
