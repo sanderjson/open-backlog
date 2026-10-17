@@ -81,7 +81,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | --- | --- | --- | --- | --- |
 | [Dogfood the kit](dogfood-the-kit.md) | 1 | done | high | build |
 | [Guidance agents find on their own](agent-guidance.md) | 2 | done | high | build |
-| [Publish a GitHub release for each tag](publish-a-github-release-for-each-tag.md) | 9 | ready | high | chore |
+| [Publish a GitHub release for each tag](publish-a-github-release-for-each-tag.md) | 9 | done | high | chore |
 | [A changelog, a version on the board, and a tag for the current head](release-hygiene.md) | 18 | done | mid | chore |
 | [Small fixes from the October 2026 review](small-fixes-from-the-review.md) | 21 | idea | low | epic |
 | [Tooling hygiene: engines, exec bit, vendor provenance and versions](tooling-hygiene.md) | 25 | idea | low | chore |

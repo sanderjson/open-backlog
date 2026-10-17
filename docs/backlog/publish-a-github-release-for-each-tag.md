@@ -1,6 +1,6 @@
 ---
 title: Publish a GitHub release for each tag
-status: ready
+status: done
 priority: high
 type: chore
 area: repo
