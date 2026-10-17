@@ -1,5 +1,6 @@
 ---
 title: backlog.yaml is sent by hosts but ignored by the board
+id: 24
 status: idea
 priority: low
 type: build

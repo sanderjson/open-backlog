@@ -1,5 +1,6 @@
 ---
 title: The board's horizontal scrollbar floats mid-screen when columns are short
+id: 13
 status: ready
 priority: mid
 type: build

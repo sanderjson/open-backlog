@@ -1,5 +1,6 @@
 ---
 title: Spell invisible characters in regexes as escapes
+id: 25
 status: idea
 priority: low
 type: chore

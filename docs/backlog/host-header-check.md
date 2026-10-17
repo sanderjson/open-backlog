@@ -1,5 +1,6 @@
 ---
 title: Hosts refuse requests for another Host
+id: 4
 status: done
 priority: high
 type: build

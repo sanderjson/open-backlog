@@ -135,3 +135,18 @@ test('CLI new refuses anything wrong before writing, on stderr with exit 2', asy
   assert.match(help.stdout, /new "<title>" \[directory\] \[--field name=value\]/);
   assert.match(help.stdout, /--items cart-rules,payment-retry,receipt-email/);
 });
+
+test('CLI ids checks and numbers the items without one', async (t) => {
+  const { dir } = await creatable(t);
+  assert.equal(run('ids', dir, '--check').status, 1);
+  const result = run('ids', dir, '--write');
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^Numbered 3 items\n/);
+  assert.match(await fs.readFile(join(dir, 'a.md'), 'utf8'), /^---\ntitle: A\nid: \d\n/);
+  assert.equal(run('ids', dir, '--check').status, 0);
+  assert.equal(run('ids', dir, '--write').stdout, 'Every item has an ID\n');
+  assert.match(run('new', 'Next one', dir, '--field', 'status=idea', '--field', 'priority=low').stdout, /Created next-one/);
+  assert.match(await fs.readFile(join(dir, 'next-one.md'), 'utf8'), /^id: 4$/m);
+  assert.equal(run('ids', dir).status, 2);
+  assert.equal(run('check', dir).status, 0, run('check', dir).stdout);
+});

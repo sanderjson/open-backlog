@@ -8,6 +8,21 @@ of the project, when it asks anything. The README's
 
 ## Unreleased
 
+This will be v0.6.0. Updating asks one thing of a project, and offers one:
+
+- **`id` is now the board's own key.** A choice field called `id` stops being one.
+- **Number the items** with `node bin/open-backlog.mjs ids docs/backlog --write` (or add `id: n` by
+  hand). Until a backlog has IDs nothing changes; once it has, new items are numbered and an item
+  without one gets a suggestion.
+
+Added:
+
+- Every item can have a short ID, shown with the backlog's prefix (`W-12`; `prefix:` in
+  backlog.yml changes the letters). It leads cards, the list (sortable), the sheet's title, the
+  managed index and a copied prompt's first line, and the search finds an item by it. New items
+  get the highest ID plus one; `check` reports a shared or malformed ID.
+- `ids [directory] --check|--write` in the CLI numbers the items without an ID, oldest first.
+
 Fixed:
 
 - A new item's `created` date is the local day where the board or the CLI runs. It was the UTC

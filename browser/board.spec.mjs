@@ -438,3 +438,22 @@ test('single-key shortcuts can be turned off, and the choice is remembered', asy
     await expect(page.locator('dialog[open]')).toHaveCount(1);
   } finally { await server.close(); }
 });
+
+test('an ID leads the card, the list and the sheet, and the search finds it', async ({ page }) => {
+  const files = three();
+  for (const [name, id] of [['a.md', 1], ['b.md', 2], ['c.md', 3]]) files[name] = files[name].replace(/^(title: .*)$/m, `$1\nid: ${id}`);
+  const server = await startServer({ files });
+  try {
+    await page.goto(server.url);
+    await expect(page.locator('.bb-card[data-item="b"] .bb-card-top .bb-code')).toHaveText('W-2');
+    await page.getByRole('searchbox').fill('w2');
+    await expect(page.locator('.bb-card')).toHaveCount(1);
+    await expect(page.locator('.bb-query-chip')).toHaveText(['W-2']);
+    await page.locator('.bb-card[data-item="b"]').click();
+    await expect(page.getByRole('dialog', { name: 'W-2 Beta' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.goto(server.url + '?view=list&sort=id&dir=desc');
+    await expect(page.locator('.bb-table thead th').first()).toHaveText('ID');
+    await expect.poll(() => rows(page)).toEqual(['c', 'b', 'a']);
+  } finally { await server.close(); }
+});

@@ -16,7 +16,8 @@ open-backlog repo.
 
 - Read `backlog.yml` first. A strict field allows only the values it lists.
 - An item is `<slug>.md`: front matter, a `# Title` line matching `title:`, then the body from
-  `_template.md`. The slug is the title in lower case joined with `-`. Every item has a row in
+  `_template.md`. `id:` is its short number (shown as W-12): the highest in the folder plus one
+  for a new item, never changed or reused, and the handle to use in commit messages. The slug is the title in lower case joined with `-`. Every item has a row in
   the README's index.
 - An epic is an item with `items: [slugs]` in work order. Nothing else makes one. `type: epic`
   only if the list allows it. Epics can't contain epics, and the member items' files stay as they
