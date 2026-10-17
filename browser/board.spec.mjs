@@ -259,3 +259,66 @@ test('epic creation, membership and prompts use checked saves', async ({ page, c
     expect(await fs.readFile(join(server.dir, 'README.md'), 'utf8')).toContain('[Gamma](gamma.md)');
   } finally { await server.close(); }
 });
+
+// Three items whose title order differs from their work order: Alpha (10), Beta (20), Aardvark (30).
+const three = () => {
+  const files = example();
+  files['c.md'] = '---\ntitle: Aardvark notes\nstatus: idea\npriority: low\narea: one\nweight: 30\n---\n\n# Aardvark notes\n\nThird task.\n';
+  files['README.md'] += '| [Aardvark notes](c.md) | low | idea |\n';
+  return files;
+};
+const rows = (page) => page.locator('.bb-table tbody tr').evaluateAll((trs) => trs.map((tr) => tr.dataset.row));
+const query = (page) => new URL(page.url()).search;
+
+test('a list header click sorts by that column and keeps it in the address', async ({ page }) => {
+  const server = await startServer({ files: three() });
+  try {
+    await page.goto(server.url + '?view=list');
+    await expect.poll(() => rows(page)).toEqual(['a', 'b', 'c']);
+    await page.locator('.bb-table thead').getByRole('button', { name: 'Item', exact: true }).click();
+    await expect.poll(() => rows(page)).toEqual(['c', 'a', 'b']);
+    expect(query(page)).toBe('?sort=title&view=list');
+    await expect(page.locator('th[aria-sort="ascending"]')).toHaveText('Item');
+  } finally { await server.close(); }
+});
+
+test('the search box and a field filter narrow the board and the address', async ({ page }) => {
+  const server = await startServer({ files: three() });
+  try {
+    await page.goto(server.url);
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    await page.getByRole('searchbox').fill('beta');
+    await expect(page.locator('.bb-card')).toHaveCount(1);
+    await expect(page.locator('.bb-card[data-item="b"]')).toBeVisible();
+    await expect.poll(() => query(page)).toBe('?q=beta');
+    await page.getByRole('searchbox').fill('');
+    await page.getByRole('combobox', { name: 'Priority', exact: true }).selectOption('high');
+    await expect(page.locator('.bb-card')).toHaveCount(1);
+    await expect(page.locator('.bb-card[data-item="a"]')).toBeVisible();
+    await expect.poll(() => query(page)).toBe('?priority=high');
+  } finally { await server.close(); }
+});
+
+test('the j, k, b, l and / keys move through items, switch views and focus search', async ({ page }) => {
+  const server = await startServer({ files: three() });
+  try {
+    await page.goto(server.url);
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    await page.keyboard.press('l');
+    await expect(page.locator('.bb-table')).toBeVisible();
+    expect(query(page)).toBe('?view=list');
+    await page.keyboard.press('b');
+    await expect(page.locator('.bb-board')).toBeVisible();
+    // j opens the first item in work order, then steps through the board's columns in order.
+    await page.keyboard.press('j');
+    await expect(page.locator('.bb-item-title')).toHaveText('Alpha');
+    await page.keyboard.press('j');
+    await expect(page.locator('.bb-item-title')).toHaveText('Beta');
+    await page.keyboard.press('k');
+    await expect(page.locator('.bb-item-title')).toHaveText('Alpha');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.bb-panel')).toHaveCount(0);
+    await page.keyboard.press('/');
+    await expect(page.getByRole('searchbox')).toBeFocused();
+  } finally { await server.close(); }
+});

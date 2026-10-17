@@ -1,6 +1,6 @@
 ---
 title: Test the board's view logic without a browser
-status: ready
+status: done
 priority: mid
 type: build
 area: board

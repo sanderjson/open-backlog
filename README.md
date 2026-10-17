@@ -58,7 +58,7 @@ you're an agent working from inside one host project.
 | `web/` | The board. Serve this folder as it is; don't edit it in your project. |
 | `web/index.html` | The page: mounts the board on `<div data-open-backlog data-api=".">`. |
 | `web/board.js`, `web/board.css` | The page's behaviour and look. Everything is scoped under `.bb`. |
-| `web/core.js` | Reading, checking and planning edits to the backlog, with no page. |
+| `web/core.js` | Reading, checking and planning edits to the backlog, and what the board shows for an address, with no page. |
 | `web/vendor/` | [marked](https://github.com/markedjs/marked) 18.0.13 and [js-yaml](https://github.com/nodeca/js-yaml) 5.4.2, with their MIT licences. |
 | `starter/` | A backlog for a project that has none: `backlog.yml`, a README index, a template, and an epic with two items. |
 | `docs/backlog/` | The kit's own backlog, kept with the board it's built with: `npm run dev` serves it (see [Development checks](#development-checks)). |
@@ -424,7 +424,11 @@ both with file versions and with only the two routes. It covers:
 - conflicts and partial saves;
 - malformed links and render failures, which never show as the host being down;
 - epic membership and creation;
-- keyboard and focus behaviour.
+- search, field filters and list sorting;
+- keyboard navigation and focus behaviour.
+
+The Node suite covers the view itself (filters, search, sorting, columns and the address) without
+a browser.
 
 `npm run dev` serves the kit's own backlog, `docs/backlog/`, on the test host at
 http://127.0.0.1:3737/dev/backlog/ (`PORT=4000 npm run dev` for another port). It's for working on

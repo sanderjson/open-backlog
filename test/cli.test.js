@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import * as core from '../web/core.js';
 
 const cli = fileURLToPath(new URL('../bin/open-backlog.mjs', import.meta.url));
 const run = (...args) => spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8' });
@@ -42,4 +43,23 @@ test('CLI index check is read-only; write updates only the managed region', asyn
   assert(generated.startsWith('Before\n'));
   assert(generated.endsWith('After\n'));
   assert.match(generated, /\[A\]\(a.md\)/);
+});
+
+test("CLI next lists what the board's Can start shows, in the same order", async (t) => {
+  const dir = await fs.mkdtemp(join(tmpdir(), 'backlog-cli-'));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const files = {
+    'backlog.yml': 'fields:\n  status: [idea, ready, done]\n  priority: [high, low]\nstartable: [idea, ready]\n',
+    'a.md': '---\ntitle: A\nstatus: ready\npriority: low\nweight: 2\n---\n\n# A\n',
+    'b.md': '---\ntitle: B\nstatus: idea\npriority: high\nweight: 2\n---\n\n# B\n',
+    'c.md': '---\ntitle: C\nstatus: ready\ndepends_on: [a]\n---\n\n# C\n',
+    'd.md': '---\ntitle: D\nstatus: done\nweight: 1\n---\n\n# D\n',
+    'e.md': '---\ntitle: E\nstatus: idea\n---\n\n# E\n',
+    'epic.md': '---\ntitle: Epic\nstatus: ready\nweight: 1\nitems: [a, c]\n---\n\n# Epic\n',
+  };
+  for (const [name, text] of Object.entries(files)) await fs.writeFile(join(dir, name), text);
+  const s = core.parseBacklog({ files, dir });
+  const board = core.viewItems(s, core.viewParams(s, '?next=1')).map((item) => item.slug);
+  assert.deepEqual(board, ['epic', 'b', 'a', 'e']);
+  assert.deepEqual(JSON.parse(run('next', dir, '--json').stdout).map((item) => item.slug), board);
 });

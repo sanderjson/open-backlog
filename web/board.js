@@ -41,16 +41,6 @@ const icon = (name, cls = "") => `<svg class="bb-i ${cls}" viewBox="0 0 24 24" a
 const esc = core.escapeHTML;
 const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 
-// The colour a value gets when backlog.yml doesn't give one.
-const STATUS_TONES = {
-  idea: "gray", backlog: "gray", todo: "gray", new: "gray", open: "gray", ready: "teal", planned: "teal",
-  "in-progress": "blue", doing: "blue", active: "blue", started: "blue", wip: "blue", review: "violet",
-  "in-review": "violet", blocked: "red", parked: "amber", done: "green", closed: "green", complete: "green",
-  completed: "green", shipped: "green", resolved: "green", cancelled: "gray", canceled: "gray",
-  wontfix: "gray", archived: "gray",
-};
-const CYCLE = ["violet", "orange", "teal", "blue", "pink", "green", "indigo", "amber"];
-
 // The order an epic's progress bar shows its items in (see core.stage).
 const STAGES = ["done", "setAside", "active", "ready", "blocked", "other"];
 
@@ -249,29 +239,15 @@ class Board {
   // ---- The address -----------------------------------------------------------------------------
 
   defaults() {
-    const names = this.snap?.fields.map((f) => f.name) ?? [];
-    return { view: "board", sort: "weight", group: names.includes("status") ? "status" : names[0] || "" };
+    return core.viewDefaults(this.snap);
   }
 
-  // Only what the board knows: anything else in the address is left out.
   params() {
-    const raw = Object.fromEntries(new URLSearchParams(location.search));
-    const d = this.defaults();
-    const names = this.snap?.fields.map((f) => f.name) ?? [];
-    const p = {
-      view: ["board", "list"].includes(raw.view) ? raw.view : d.view,
-      group: names.includes(raw.group) ? raw.group : d.group,
-      sort: ["weight", "title", "created", ...names].includes(raw.sort) ? raw.sort : d.sort,
-    };
-    for (const key of ["q", "tag", "item", ...names]) if (raw[key]?.trim()) p[key] = raw[key].trim();
-    for (const key of ["open", "next"]) if (raw[key] === "1") p[key] = "1";
-    if (this.epicFilterOn() && core.isEpic(this.snap.bySlug.get(raw.epic?.trim()))) p.epic = raw.epic.trim();
-    return p;
+    return core.viewParams(this.snap, location.search);
   }
 
-  // ?epic= filters to an epic's items, unless the backlog has a choice field called epic.
   epicFilterOn() {
-    return !!this.snap && !this.snap.fields.some((f) => f.name === "epic");
+    return core.epicFilterOn(this.snap);
   }
 
   epics() {
@@ -279,14 +255,7 @@ class Board {
   }
 
   href(changes = {}) {
-    const p = { ...this.params(), ...changes };
-    const d = this.defaults();
-    const query = new URLSearchParams();
-    for (const [key, value] of Object.entries(p).sort()) {
-      if (value != null && value !== "" && d[key] !== value) query.set(key, value);
-    }
-    const q = query.toString();
-    return location.pathname + (q ? `?${q}` : "");
+    return location.pathname + core.viewQuery(this.snap, location.search, changes);
   }
 
   setParams(changes, { push = false } = {}) {
@@ -296,39 +265,21 @@ class Board {
   }
 
   filters() {
-    return ["q", "tag", "epic", "open", "next", ...this.snap.fields.map((f) => f.name)];
+    return core.viewFilters(this.snap);
   }
 
   filtering(p) {
-    return this.filters().some((k) => p[k]);
+    return core.isFiltering(this.snap, p);
   }
 
   visible(p) {
-    const s = this.snap;
-    const q = p.q?.toLowerCase();
-    const epic = this.epicFilterOn() && p.epic ? s.bySlug.get(p.epic) : null;
-    const items = s.items.filter((item) =>
-      s.fields.every((f) => !p[f.name] || (item.fields[f.name] ?? "") === (p[f.name] === "none" ? "" : p[f.name])) &&
-      (!epic || item === epic || epic.items.includes(item.slug)) &&
-      (!p.tag || item.tags.includes(p.tag)) &&
-      (!p.open || item.open) &&
-      (!p.next || item.startable) &&
-      (!q || [item.title, item.slug, item.summary, item.body, ...item.tags].some((t) => t?.toLowerCase().includes(q))));
-    const sorted = core.sortItems(s, items, p.sort);
-    // An epic's items come with the epic itself, first.
-    return epic && sorted.includes(epic) ? [epic, ...sorted.filter((item) => item !== epic)] : sorted;
+    return core.viewItems(this.snap, p);
   }
 
   // ---- Colours ---------------------------------------------------------------------------------
 
   tone(name, value) {
-    const f = core.field(this.snap, name);
-    if (!value) return "none";
-    if (f.colors[value]) return f.colors[value];
-    const i = f.values.indexOf(value);
-    if (name === "status") return STATUS_TONES[value] ?? (i >= 0 ? CYCLE[i % CYCLE.length] : "gray");
-    if (name === "priority") return i === 0 ? "red" : i === 1 && f.values.length > 2 ? "amber" : "gray";
-    return i >= 0 ? CYCLE[i % CYCLE.length] : "gray";
+    return core.tone(this.snap, name, value);
   }
 
   chip(name, value) {
@@ -817,16 +768,8 @@ class Board {
       : "";
   }
 
-  // The board's columns: one for each value of the grouping field, then one for items without a
-  // value and one for values the field doesn't list.
   columns(items, group) {
-    const f = core.field(this.snap, group);
-    const columns = f.values.map((value) => ({ value, title: core.label(value), drop: true, items: items.filter((i) => i.fields[group] === value) }));
-    const none = items.filter((i) => !i.fields[group]);
-    const other = items.filter((i) => i.fields[group] && !f.values.includes(i.fields[group]));
-    if (none.length) columns.push({ value: "", title: `No ${group}`, drop: false, items: none });
-    if (other.length) columns.push({ value: "other", title: "Other", drop: false, items: other });
-    return columns;
+    return core.viewColumns(this.snap, items, group);
   }
 
   renderBoard(p, visible) {
