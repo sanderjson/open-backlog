@@ -48,10 +48,16 @@ and its save:
   `If-None-Match: *`, answer 412 and change nothing;
 - if the server handles requests concurrently, hold a lock around the compare and the write.
 
-The header check is the protection against cross-site writes (a foreign page can't add a custom
-header without a CORS preflight, which this server never allows). So keep the route out of any
-CSRF-token middleware and body parsers that would reject or consume a `text/plain` PUT. Leave it
-out of authentication too: it exists only in development.
+Both routes also refuse with 403 any request whose `Host` header isn't a development host:
+`localhost`, `127.0.0.1`, `[::1]` or the dev host the project configures, with any port. Strip
+the port and compare, case-insensitively.
+
+Together these protect against cross-site reads and writes. A foreign page can't add a custom
+header without a CORS preflight, which this server never allows. A foreign page that points its
+own name at this machine (DNS rebinding) is treated as same-origin and can send the header, but
+its name is still in `Host`. So keep the route out of any CSRF-token middleware and body parsers
+that would reject or consume a `text/plain` PUT. Leave it out of authentication too: it exists
+only in development.
 
 The page needs nothing else: no CDN, no inline script. Under a content security policy it needs
 `script-src 'self'`, `style-src 'self'` and `img-src 'self' data:`. To show the board inside the
@@ -106,6 +112,7 @@ the same.
    - `PUT` writes the file;
    - `PUT` refuses a missing header (403), `..%2Fx.md`, `x.sh` and `.x.md` (400), and nothing
      is written outside the folder;
+   - a `GET` and a `PUT` with `Host: evil.example` are refused (403) and nothing is written;
    - `GET /dev/backlog/` serves the page and `board.js` is served as JavaScript;
    - in a production build or configuration, the route doesn't exist;
    - if the host gives versions: a PUT with the current version writes, a PUT with a stale

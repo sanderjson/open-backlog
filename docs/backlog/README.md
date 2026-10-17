@@ -59,7 +59,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 
 | Item | Weight | Status | Priority | Type |
 | --- | --- | --- | --- | --- |
-| [Hosts refuse requests for another Host](host-header-check.md) | 4 | ready | high | build |
+| [Hosts refuse requests for another Host](host-header-check.md) | 4 | done | high | build |
 
 ### Cli
 
