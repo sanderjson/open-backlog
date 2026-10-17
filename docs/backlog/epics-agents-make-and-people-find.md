@@ -24,13 +24,14 @@ cards. Each piece is its own item. Together they close the loop, and the guidanc
 already, so the bar shows where this started.
 
 ## Acceptance
-- In a project with the skill and the CLI, "roll these items up into an epic" ends with an epic
-  file whose `items` are in work order, with an allowed type, a matching title line and an index
-  row, written by `node bin/open-backlog.mjs new … --items`.
-- Typing `epic` in the board's search shows the epics, whatever their type; typing a tag or a
-  field value filters by it.
+- Asked to "roll these items up into an epic", an agent ends with a correct epic either way the
+  project allows: by writing the files the guide describes, which every project can do, or with
+  `node bin/open-backlog.mjs new … --items` where the project has the CLI. Either way the epic's
+  `items` are in work order, its type is allowed, its title line matches and its index row exists.
+- Typing `is:epic` in the board's search shows the epics, whatever their type; `#tag` and
+  `field:value` filter by a tag or a field, and a plain word also matches field values.
 - An epic card is recognisable in a column of ordinary cards, in light and dark, without reading
-  it.
+  it, and the list and the sheet mark epics the same way.
 
 ## Notes
 `search-matches-tags` is also in [Filters and sorting, pure and tested](filters-and-sorting-pure-and-tested.md).

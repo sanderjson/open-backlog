@@ -24,11 +24,12 @@ extraction, so the order is: extract and test, then search, then sort direction.
 it's one series of changes to the same few functions.
 
 ## Acceptance
-- The view logic lives in `web/core.js` or a DOM-free module, with Node tests for every filter,
-  sort and address case its item lists.
-- Search filters by tag and field value and finds epics; list columns sort both ways with
-  unknowns last.
-- The CLI's `next` uses the same filter as "Can start".
+- The view logic lives in `web/core.js` with no DOM, with Node tests for every filter, sort and
+  address case its item lists, and today's behaviour preserved by the extraction.
+- Search takes plain words (now matching field values too) and the qualifiers `#tag`,
+  `field:value` and `is:epic`, combined with AND, with quoting for phrases and literal text; list
+  columns sort both ways with unknowns last.
+- The CLI's `next` and the board's "Can start" agree, and a test says so.
 
 ## Notes
 `search-matches-tags` is also in [Epics an agent can make and a person can find](epics-agents-make-and-people-find.md).
