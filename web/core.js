@@ -992,7 +992,7 @@ export function isFiltering(s, p) {
 
 // The items the address shows, in its order. The Epic filter puts the epic itself first.
 export function viewItems(s, p) {
-  const q = p.q?.toLowerCase();
+  const terms = parseQuery(s, p.q);
   const epic = epicFilterOn(s) && p.epic ? s.bySlug.get(p.epic) : null;
   const items = s.items.filter((item) =>
     s.fields.every((f) => !p[f.name] || (item.fields[f.name] ?? "") === (p[f.name] === "none" ? "" : p[f.name])) &&
@@ -1000,9 +1000,52 @@ export function viewItems(s, p) {
     (!p.tag || item.tags.includes(p.tag)) &&
     (!p.open || item.open) &&
     (!p.next || item.startable) &&
-    (!q || [item.title, item.slug, item.summary, item.body, ...item.tags].some((t) => t?.toLowerCase().includes(q))));
+    matchesQuery(item, terms));
   const sorted = sortItems(s, items, p.sort);
   return epic && sorted.includes(epic) ? [epic, ...sorted.filter((item) => item !== epic)] : sorted;
+}
+
+// A search query in the qualifier style GitHub uses for issues. Plain words and "quoted phrases"
+// are text; #tag, field:value (field:"two words") and is:epic filter. A quoted term is always text,
+// and a qualifier that isn't one (http:, is: with anything but epic, a name that isn't a field) is
+// text too. Each term keeps its raw text, so the board can take one out of the query.
+export function parseQuery(s, q = "") {
+  const terms = [];
+  const text = (raw, value) => { if (value) terms.push({ raw, kind: "text", value: value.toLowerCase() }); };
+  for (const m of (q ?? "").matchAll(/([^\s"]*)"([^"]*)"?|\S+/g)) {
+    const raw = m[0];
+    const quoted = m[2] !== undefined;
+    const [head, value] = quoted ? [m[1], m[2]] : raw.startsWith("#") ? ["#", raw.slice(1)] : [raw.slice(0, raw.indexOf(":") + 1), raw.slice(raw.indexOf(":") + 1)];
+    if (quoted && !head) text(raw, value);
+    else if (head === "#" && value) terms.push({ raw, kind: "tag", value });
+    else if (head.endsWith(":") && head.length > 1 && value) {
+      const name = head.slice(0, -1).toLowerCase();
+      const f = name === "is" ? null : s?.fields.find((x) => x.name.toLowerCase() === name);
+      if (name === "is" && value.toLowerCase() === "epic") terms.push({ raw, kind: "epic" });
+      else if (f) terms.push({ raw, kind: "field", name: f.name, value });
+      else text(raw, raw.replaceAll('"', ""));
+    } else text(raw, raw.replaceAll('"', ""));
+  }
+  return terms;
+}
+
+// Does the item match every term? Text looks at the title, slug, summary, text, tags and
+// choice-field values; field:none matches an item without that field, as the selects' None does.
+export function matchesQuery(item, terms) {
+  const same = (a, b) => a.toLowerCase() === b.toLowerCase();
+  let hay;
+  return terms.every((t) => {
+    if (t.kind === "tag") return item.tags.some((tag) => same(tag, t.value));
+    if (t.kind === "epic") return isEpic(item);
+    if (t.kind === "field") return same(t.value, "none") ? !item.fields[t.name] : same(item.fields[t.name] ?? "", t.value);
+    hay ??= [item.title, item.slug, item.summary, item.body, ...item.tags, ...Object.values(item.fields)].filter(Boolean).map((x) => x.toLowerCase());
+    return hay.some((x) => x.includes(t.value));
+  });
+}
+
+// The query without its index-th term.
+export function queryWithout(terms, index) {
+  return terms.filter((_, i) => i !== index).map((t) => t.raw).join(" ");
 }
 
 // The board's columns: one for each value of the grouping field, then one for items without a

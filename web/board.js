@@ -319,9 +319,11 @@ class Board {
           <form class="bb-filters" data-el="filters" role="search">
             <label class="bb-search">
               ${icon("search")}
-              <input type="search" name="q" placeholder="Search" autocomplete="off" aria-label="Search titles, text and tags" data-el="search">
+              <input type="search" name="q" placeholder="Search" autocomplete="off" aria-label="Search: words, #tag, field:value or is:epic" data-el="search"
+                title="Words search titles, text, tags and field values. #tag, field:value and is:epic filter. Quotes keep a phrase, or text that looks like a filter, as text.">
               <kbd>/</kbd>
             </label>
+            <span class="bb-query-chips" data-el="queryChips"></span>
             <span class="bb-filter-fields" data-el="fieldFilters"></span>
             <select name="epic" class="bb-select bb-epic-filter" data-el="epicFilter" aria-label="Epic" title="An epic's items (Shift E)" hidden></select>
             <select name="tag" class="bb-select" data-el="tagFilter" aria-label="Tag"></select>
@@ -366,7 +368,7 @@ class Board {
     const { filters, main, sheet, newForm, search } = this.el;
 
     this.root.addEventListener("click", (e) => {
-      const target = e.target.closest("[data-action],[data-toggle],[data-view],[data-group],[data-sort],[data-stat],[data-tag],a[data-item],[data-row]");
+      const target = e.target.closest("[data-action],[data-toggle],[data-view],[data-group],[data-sort],[data-stat],[data-tag],[data-term],a[data-item],[data-row]");
       if (!target || !this.root.contains(target)) return;
       if (target.matches("a[data-item]")) {
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
@@ -387,6 +389,10 @@ class Board {
         this.setParams(JSON.parse(target.dataset.stat));
       } else if (target.dataset.tag) {
         this.setParams({ tag: target.dataset.tag, item: null });
+      } else if (target.dataset.term) {
+        const terms = core.parseQuery(this.snap, this.params().q);
+        this.setParams({ q: core.queryWithout(terms, Number(target.dataset.term)) || null });
+        this.el.search.focus();
       } else {
         this.action(target.dataset.action, target);
       }
@@ -760,6 +766,13 @@ class Board {
       button.classList.toggle("is-on", on);
       button.setAttribute("aria-pressed", on);
     }
+    const chips = core.parseQuery(s, p.q).map((t, i) => {
+      if (t.kind === "text") return "";
+      const what = t.kind === "tag" ? `#${t.value}` : t.kind === "epic" ? "Epics"
+        : t.value.toLowerCase() === "none" ? `No ${t.name}` : `${core.field(s, t.name).label}: ${core.label(t.value)}`;
+      return `<button type="button" class="bb-query-chip" data-term="${i}" title="Remove ${esc(t.raw)} from the search" aria-label="Remove the filter ${esc(what)}">${esc(what)}${icon("x")}</button>`;
+    }).join("");
+    if (this.el.queryChips.innerHTML !== chips) this.el.queryChips.innerHTML = chips;
     this.el.clear.hidden = !this.filtering(p);
     this.el.count.textContent = this.filtering(p) ? `${visible.length} of ${s.items.length}` : plural(s.items.length, "item");
     this.el.group.innerHTML = p.view === "board" && s.fields.length > 1

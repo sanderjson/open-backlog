@@ -1,6 +1,6 @@
 ---
 title: Search finds items by tag, field value and kind
-status: ready
+status: done
 priority: high
 type: build
 area: board
