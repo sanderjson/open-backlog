@@ -46,7 +46,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 
 | Item | Weight | Status | Priority | Type |
 | --- | --- | --- | --- | --- |
-| [Prompts open with the status change](prompt-starts-with-status.md) | 3 | ready | high | build |
+| [Prompts open with the status change](prompt-starts-with-status.md) | 3 | done | high | build |
 | [Review the text around the item in copied prompts](review-prompt-text.md) | 13 | ready | mid | build |
 | [Generating an index into a missing README leaves two blank lines first](index-into-missing-readme.md) | 22 | idea | low | build |
 | [backlog.yaml is sent by hosts but ignored by the board](backlog-yaml-is-ignored.md) | 23 | idea | low | build |

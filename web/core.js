@@ -971,6 +971,12 @@ function statusPlaces(s, items) {
   return `in its front matter and${rows < items.length ? ", where it has one," : ""} its row in ${promptPath(s, s.index)}`;
 }
 
+// A blocked item's warning. It comes before the status change: the agent waits for the go-ahead.
+function blockedLine(what, item) {
+  if (!item.blockers.length) return [];
+  return [`${what} waits on ${item.blockers.length === 1 ? "an unfinished item" : `${item.blockers.length} unfinished items`}. Tell me before you start on it anyway.`, ""];
+}
+
 // An item as a prompt to paste into a coding agent's session in the project: its file, fields,
 // what it waits on, unblocks and relates to, its epics, any problems, and its text.
 export function itemPrompt(s, slug) {
@@ -978,22 +984,27 @@ export function itemPrompt(s, slug) {
   const fields = promptFields(item);
   const epics = epicsOf(s, item.slug);
   const problems = s.problems.filter((p) => p.slug === item.slug).map((p) => `- ${p.message}`);
-  const keep = [
-    s.active.length && `to ${s.active[0]} when you start`,
-    s.done.length && `to ${s.done[0]} when it's finished`,
-  ].filter(Boolean);
+  const active = s.active[0], done = s.done[0];
+  const places = statusPlaces(s, [item]);
+  const started = s.active.includes(item.fields.status);
+  // The prompt starts with the status change, so an agent makes it before the work instead of
+  // forgetting it at the end.
+  let opening = "";
+  if ("status" in item.fields) {
+    if (active && !started) opening = `${item.blockers.length ? "If you go ahead, start" : "Start"} by setting its status to ${active}, ${places}.${done ? ` Set it to ${done} there when it's finished.` : ""}`;
+    else if (done) opening = `${started ? `It's ${item.fields.status} already. ` : ""}Set its status to ${done}, ${places}, when it's finished.`;
+  }
 
   return [
     `Work on this item from the backlog: ${item.title}`,
     "",
+    ...blockedLine("It", item),
+    ...(opening ? [opening, ""] : []),
     `File: ${promptPath(s, item.file)}`,
     ...(fields.length ? [`Fields: ${fields.join(", ")}`] : []),
     ...(item.tags.length ? [`Tags: ${item.tags.join(", ")}`] : []),
     ...(item.branches.length ? [`Branches: ${item.branches.join(", ")}`] : []),
     "",
-    ...(item.blockers.length
-      ? [`It waits on ${item.blockers.length === 1 ? "an unfinished item" : `${item.blockers.length} unfinished items`}. Tell me before you start on it anyway.`, ""]
-      : []),
     ...promptList(s, "Depends on", item.dependsOn),
     ...promptList(s, "Unblocks", item.dependents),
     ...promptList(s, "Related", item.related),
@@ -1002,9 +1013,7 @@ export function itemPrompt(s, slug) {
     `The item (its links are relative to ${s.dir}):`,
     "",
     ...fenced(item.body),
-    ...(keep.length && "status" in item.fields
-      ? ["", `Keep it current as you work: set status ${keep.join(" and ")}, ${statusPlaces(s, [item])}.`]
-      : []),
+    ...(opening && done ? ["", `When it's finished, set its status to ${done}.`] : []),
   ].join("\n") + "\n";
 }
 
@@ -1057,11 +1066,13 @@ export function epicPrompt(s, slug) {
   const active = s.active[0], done = s.done[0];
   const setAside = s.closed.filter((status) => !s.done.includes(status));
   const keep = [active && `to ${active} when you start it`, done && `to ${done} when it's finished`].filter(Boolean);
+  const opening = active && (s.active.includes(epic.fields.status)
+    ? `The epic is ${epic.fields.status} already. Move each item to ${active} as you start it.`
+    : `${epic.blockers.length ? "If you go ahead, start" : "Start"} by setting the epic's status to ${active}, ${statusPlaces(s, [epic])}, and move each item to ${active} as you start it.`);
   const work = [
     "Read each item's file before you start it. This brief points to the files rather than repeating them.",
     "Follow the work order unless an item's file says otherwise.",
     keep.length && `Keep each item's status current: set it ${keep.join(" and ")}, ${statusPlaces(s, order)}.`,
-    active && !s.active.includes(epic.fields.status) && `Set the epic's status to ${active} when you start, ${statusPlaces(s, [epic])}.`,
     done && `Set the epic to ${done} only when every item in it is ${done}${setAside.length ? ` (or ${setAside.join(" or ")})` : ""} and the epic's own acceptance holds.`,
     "If an item lists open questions, stop and ask me before you decide any of them.",
   ].filter(Boolean);
@@ -1069,6 +1080,8 @@ export function epicPrompt(s, slug) {
   return [
     `Work through this epic from the backlog: ${epic.title}`,
     "",
+    ...blockedLine("The epic itself", epic),
+    ...(opening ? [opening, ""] : []),
     "An epic groups items that belong together, to be worked through as one. Its text below says what the whole of it is for and how to tell it's finished; each item's file says what that item needs.",
     "",
     `Epic: ${promptPath(s, epic.file)}`,
@@ -1077,9 +1090,6 @@ export function epicPrompt(s, slug) {
     ...(epic.branches.length ? [`Branches: ${epic.branches.join(", ")}`] : []),
     `Progress: ${progress.done} of ${progress.total} ${progress.total === 1 ? "item" : "items"} done${counts.length ? `, ${counts.join(", ")}` : ""}`,
     "",
-    ...(epic.blockers.length
-      ? [`The epic itself waits on ${epic.blockers.length === 1 ? "an unfinished item" : `${epic.blockers.length} unfinished items`}. Tell me before you start on it anyway.`, ""]
-      : []),
     ...promptList(s, "Depends on", epic.dependsOn),
     ...promptList(s, "Unblocks", epic.dependents),
     ...promptList(s, "Related", epic.related),
