@@ -1,6 +1,6 @@
 ---
 title: Epic cards look unmistakably different
-status: ready
+status: done
 priority: mid
 type: build
 area: board

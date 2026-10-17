@@ -359,3 +359,21 @@ test('a qualifier in the search shows as a chip that agrees with the address', a
     await expect(page.locator('.bb-query-chip')).toHaveCount(0);
   } finally { await server.close(); }
 });
+
+test('an epic is marked as one on its card, its list row and its sheet', async ({ page }) => {
+  const files = example();
+  files['launch.md'] = '---\ntitle: Launch\nstatus: ready\npriority: high\narea: one\nitems: [a, b]\n---\n\n# Launch\n\nShip the two tasks.\n';
+  files['README.md'] += '| [Launch](launch.md) | high | ready |\n';
+  const server = await startServer({ files });
+  try {
+    await page.goto(server.url);
+    await expect(page.locator('.bb-card[data-item="launch"] .bb-epic-badge')).toHaveText('Epic');
+    await expect(page.locator('.bb-card .bb-epic-badge')).toHaveCount(1);
+    await page.locator('.bb-card[data-item="launch"]').click();
+    await expect(page.getByRole('dialog', { name: 'Epic Launch' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.goto(server.url + '?view=list');
+    await expect(page.locator('tr[data-row="launch"] .bb-epic-badge')).toBeVisible();
+    await expect(page.locator('tr[data-row="a"] .bb-epic-badge')).toHaveCount(0);
+  } finally { await server.close(); }
+});

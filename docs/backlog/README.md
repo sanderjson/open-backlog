@@ -28,10 +28,10 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | Item | Weight | Status | Priority | Type |
 | --- | --- | --- | --- | --- |
 | [A bad link in an item can't break the sheet or report the host down](bad-link-breaks-the-sheet.md) | 5 | done | high | build |
-| [Epics an agent can make and a person can find](epics-agents-make-and-people-find.md) | 6 | ready | high | epic |
+| [Epics an agent can make and a person can find](epics-agents-make-and-people-find.md) | 6 | in-progress | high | epic |
 | [Test the board's view logic without a browser](test-the-board-view-logic.md) | 6 | done | mid | build |
 | [Search finds items by tag, field value and kind](search-matches-tags.md) | 7 | done | high | build |
-| [Epic cards look unmistakably different](epic-cards-stand-out.md) | 8 | ready | mid | build |
+| [Epic cards look unmistakably different](epic-cards-stand-out.md) | 8 | done | mid | build |
 | [List columns sort both ways](list-sorts-both-ways.md) | 9 | done | mid | build |
 | [A header and toolbar that lay out the same in every project](header-layout.md) | 10 | ready | mid | discuss |
 | [The board's horizontal scrollbar floats mid-screen when columns are short](board-scrollbar-position.md) | 11 | ready | mid | build |

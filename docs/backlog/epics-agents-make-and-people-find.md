@@ -1,6 +1,6 @@
 ---
 title: Epics an agent can make and a person can find
-status: ready
+status: in-progress
 priority: high
 type: epic
 area: board
