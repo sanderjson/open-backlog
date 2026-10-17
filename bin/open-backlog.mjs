@@ -3,7 +3,8 @@ import * as fs from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import * as core from '../web/core.js';
 
-const usage = `Usage: node bin/open-backlog.mjs <command> [arguments]
+const usage = `open-backlog v${core.VERSION}
+Usage: node bin/open-backlog.mjs <command> [arguments]
 
   check [directory] [--json]
   next [directory] [--json]

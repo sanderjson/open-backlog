@@ -371,6 +371,7 @@ class Board {
           <dl>${SHORTCUTS.map(([k, what]) => `<dt><kbd>${esc(k)}</kbd></dt><dd>${esc(what)}</dd>`).join("")}</dl>
           <label class="bb-switch"><input type="checkbox" data-el="charKeys"><span>Single-key shortcuts</span></label>
           <p class="bb-help-note">Turn them off if they get in the way of a screen reader or speech input. Esc, Tab and the buttons keep working, and this browser remembers the choice.</p>
+          <p class="bb-help-version">open-backlog v${core.VERSION}</p>
           <div class="bb-dialog-actions"><button type="button" class="bb-btn" data-action="dismiss">Close</button></div>
         </dialog>
         <div class="bb-toasts" data-el="toasts" aria-live="polite"></div>

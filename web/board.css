@@ -406,6 +406,7 @@ a.bb-path:hover { background: var(--sunken); color: var(--ink); }
 .bb-switch { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-weight: 600; }
 .bb-switch input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
 .bb-help-note { margin: 4px 0 8px 24px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.bb-help-version { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
 .bb-no-keys .bb-help dl { opacity: 0.5; }
 .bb-no-keys .bb-search kbd { display: none; }
 /* Mounted in a host's page, the board takes focus so its keys work; it isn't a stop for Tab. */
