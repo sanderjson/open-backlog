@@ -1,6 +1,6 @@
 ---
 title: The CLI creates items and epics
-status: ready
+status: in-progress
 priority: mid
 type: build
 area: cli

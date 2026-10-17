@@ -884,7 +884,7 @@ const DEFAULT_TEMPLATE = "## Why\n\n\n## Acceptance\n\n- \n";
 
 // The writes for a new item, { slug, writes }: its file, with the body from _template.md when the
 // folder has one, then the epic's list when epic names one to add it to, then its row in the index.
-export function planCreate(s, { title = "", weight = "", fields = {}, tags = [], epic = "" }, today = new Date().toISOString().slice(0, 10)) {
+export function planCreate(s, { title = "", weight = "", fields = {}, tags = [], epic = "", items = null }, today = new Date().toISOString().slice(0, 10)) {
   title = title.trim();
   weight = String(weight ?? "").trim();
   if (!title) throw new Error("a new item needs a title");
@@ -899,6 +899,15 @@ export function planCreate(s, { title = "", weight = "", fields = {}, tags = [],
   }
   const target = epic ? itemCalled(s, epic) : null;
   if (target) canListItems(s, target);
+  // `items` makes the new item an epic over existing items, in work order.
+  if (items != null) {
+    if (epic) throw new Error("a new epic can't go into an epic: epics can't contain epics");
+    if (!items.length) throw new Error("an epic needs at least one item");
+    items.forEach((slug, i) => {
+      if (isEpic(itemCalled(s, slug))) throw new Error(`${slug} is an epic, and epics can't contain epics`);
+      if (items.indexOf(slug) !== i) throw new Error(`${slug} is listed twice`);
+    });
+  }
 
   const base = slugify(title);
   let slug = base;
@@ -908,7 +917,7 @@ export function planCreate(s, { title = "", weight = "", fields = {}, tags = [],
   for (const f of s.fields) if (values[f.name]) lines.push(`${f.name}: ${scalar(values[f.name])}`);
   if (weight) lines.push(`weight: ${weight}`);
   lines.push(`tags: [${tags.map((t) => t.trim()).filter(Boolean).map((t) => JSON.stringify(t)).join(", ")}]`);
-  lines.push(`created: ${today}`, "depends_on: []", "related: []", "---", "", `# ${title}`, "", "");
+  lines.push(`created: ${today}`, ...(items ? [`items: [${items.join(", ")}]`] : []), "depends_on: []", "related: []", "---", "", `# ${title}`, "", "");
 
   const writes = { [`${slug}.md`]: lines.join("\n") + template(s, title) };
   if (target) writes[target.file] = setFront(s.files[target.file], "items", [...target.items, slug]);
