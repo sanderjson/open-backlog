@@ -1,7 +1,7 @@
 # Add the open-backlog board to this project
 
 Give this file to a coding agent working in the project, with the version to use (a tag of
-https://github.com/sanderjson/open-backlog, e.g. `v0.3.0`).
+https://github.com/sanderjson/open-backlog, e.g. `v0.5.0`).
 
 ## Goal
 

@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'node:fs/promises';
 import { join } from 'node:path';
 import { startServer, example } from '../test/server.mjs';
+import { VERSION } from '../web/core.js';
 
 const puts = (server) => server.requests.filter(([method]) => method === 'PUT');
 
@@ -414,6 +415,7 @@ test('single-key shortcuts can be turned off, and the choice is remembered', asy
     expect(await page.title()).toContain('Alpha');
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
+    await expect(page.locator('dialog[open]')).toContainText(`open-backlog v${VERSION}`);
     await page.getByRole('checkbox', { name: 'Single-key shortcuts' }).uncheck();
     await page.getByRole('button', { name: 'Close', exact: true }).click();
     await page.reload();

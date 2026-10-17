@@ -65,6 +65,7 @@ you're an agent working from inside one host project.
 | `docs/backlog-guidance/` | Text for people and agents working a backlog: `working-the-backlog.md`, which PROMPT.md installs in projects, and a project's own conventions. Markdown only. |
 | `docs/backlog-assets/` | What isn't text: screenshots and other files that belong to items, linked from them. |
 | `PROMPT.md` | Instructions for an agent adding the board to a project. |
+| `CHANGELOG.md` | What changed at each tag, newest first, opening with what the update asks of a project. |
 | `.claude/skills/open-backlog/` | A skill that gets a coding agent to read `docs/backlog-guidance/` when backlog work comes up, and holds the essentials. PROMPT.md installs it. |
 | `test/` | Core, CLI and contract tests, with the throwaway host they run against: `npm test` (Node 22 or later). |
 | `bin/open-backlog.mjs` | An optional command line for agents and CI (Node 22 or later): checks, work that can start, prompts and managed indexes. |
@@ -413,21 +414,27 @@ Epics are ordinary item files, so they need nothing from the host.
 - **Keys**: `/` search, `n` new item, `b` board, `l` list, `Shift E` epic filter, `j`/`k` next
   and previous item, `e` open in editor, `c` copy as prompt, `Esc` close, `?` all of them. The
   shortcuts dialog can turn the single-key ones off, per browser, for screen reader and speech
-  input users; Esc, Tab and the buttons keep working. In a host's own page (no `data-page` on the
-  mount), the keys work only while focus is inside the board, and the board leaves the page's
-  title alone.
+  input users; Esc, Tab and the buttons keep working. It also says which version the board is.
+  In a host's own page (no `data-page` on the mount), the keys work only while focus is inside
+  the board, and the board leaves the page's title alone.
 - Light and dark follow the system. The theme button overrides it, per browser.
 
 ## Updating a project's copy
 
 Projects keep a copy of `web/` at a tagged version (see PROMPT.md). To update, replace the
-folder with the newer tag's `web/` and change the recorded version. The two routes don't change
-within a major version. v0.2.0 (epics) needs nothing new from hosts. The only thing it can break
-is a choice field called `items`, which is now the board's own. v0.3.0 needs nothing new either:
-file versions are optional, and a host with only the two routes works as before. After v0.3.0
-the contract asks hosts for one more check: refuse requests whose `Host` isn't a development
-host (see [The two routes](#the-two-routes)). The board doesn't depend on it, so a host without
-it keeps working, but add it: it closes the DNS-rebinding gap the header leaves.
+folder with the newer tag's `web/` (and `bin/open-backlog.mjs`, if the project has it) and change
+the recorded version. [CHANGELOG.md](CHANGELOG.md) says what changed at each tag, opening with
+what the update asks of the project, if anything. The two routes don't change within a major
+version. What an update has asked so far:
+
+- v0.2.0 made `items` the board's own key, so a choice field called `items` stops being one.
+- v0.5.0 asks hosts to refuse requests whose `Host` isn't a development host (see
+  [The two routes](#the-two-routes)). The board doesn't depend on it, so a host without the check
+  keeps working, but add it: it closes the DNS-rebinding gap the header leaves. v0.5.0 also needs
+  `data-page` on the mount element when the board is the whole page, as `web/index.html` has;
+  without it the board behaves as it does inside a host's own page.
+
+The board says which version it is in its shortcuts dialog (`?`), and the CLI in `--help`.
 
 ## Development checks
 
@@ -460,6 +467,23 @@ test host stays a throwaway. The backlog's index is a managed region, so
 
 CI runs the Node suites on Node 22 and 24, and Chromium headlessly, and checks `starter/` and
 `docs/backlog/` with the CLI. The kit still has no build step and no runtime npm dependency.
+
+## Releasing
+
+A release is a tag: projects pin it and copy `web/`. To cut one:
+
+1. Set `VERSION` in `web/core.js` and the example tag in `PROMPT.md` to the new version, and add
+   its entry at the top of [CHANGELOG.md](CHANGELOG.md), opening with what the update asks of a
+   project when it asks anything. `test/version.test.js` fails until the three agree and `--help`
+   prints it.
+2. Run the checks above, merge to `main`, and tag the merge with an annotated tag whose message
+   starts with the version (`git tag -a v0.5.0 -m "v0.5.0: …"`), then push the tag.
+3. If the release asks something of hosts, say so where projects will see it: the changelog entry
+   is the record, and a GitHub release pointing at it is the announcement.
+
+Within a major version the two routes don't change. A minor version may add to what the kit asks
+of a project (a key the board owns, a check hosts should add) and says so at the top of its
+changelog entry; a patch version asks nothing.
 
 ## Licence
 

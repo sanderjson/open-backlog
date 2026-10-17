@@ -1,6 +1,6 @@
 ---
 title: A changelog, a version on the board, and a tag for the current head
-status: idea
+status: done
 priority: mid
 type: chore
 area: repo
@@ -20,6 +20,17 @@ list, with only v0.2.0 and v0.3.0 in it. The head already changes behaviour sinc
 can start only when one of its items can, four new checks (H1 against front-matter title, stale
 index titles, duplicate rows, links to missing files) and `open-backlog:ignore`. PROMPT.md step 7
 asks the agent to report the version, but the running board can't say which one it is.
+
+## What was done
+- v0.4.0 was tagged on 2026-10-16 at the can-start change, before any of this existed. This item
+  shipped in v0.5.0 on 2026-10-18, the release that carries the Host check.
+- [CHANGELOG.md](../../CHANGELOG.md): an entry per tag back to v0.1.0, each opening with what the
+  update asks of a project. "Updating a project's copy" in the README keeps only those notes and
+  points to it.
+- `VERSION` in [web/core.js](../../web/core.js), shown in the shortcuts dialog and in `--help`.
+  [test/version.test.js](../../test/version.test.js) fails when it disagrees with the changelog's
+  first entry or PROMPT.md's example tag, or `--help` doesn't print it.
+- "Releasing" in the README: bump, changelog, merge, tag.
 
 ## Acceptance
 - A `CHANGELOG.md` with an entry per tag (or GitHub Releases, linked from the README). "Updating a
