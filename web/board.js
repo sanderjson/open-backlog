@@ -30,6 +30,7 @@ const ICONS = {
   warning: '<path d="M12 3.5L2.5 20h19L12 3.5z"/><path d="M12 10v4.5M12 17.5h.01"/>',
   down: '<path d="M6 9l6 6 6-6"/>',
   up: '<path d="M6 15l6-6 6 6"/>',
+  sort: '<path d="M8 9.5l4-4 4 4M8 14.5l4 4 4-4"/>',
   keys: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
   copy: '<rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5v-3a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
@@ -384,7 +385,10 @@ class Board {
       } else if (target.dataset.group) {
         this.setParams({ group: target.dataset.group });
       } else if (target.dataset.sort) {
-        this.setParams({ sort: target.dataset.sort });
+        // The sorted column turns around; another one starts in its own direction.
+        const { sort, dir } = this.params();
+        const by = target.dataset.sort;
+        this.setParams(by === sort ? { dir: dir === "desc" ? "asc" : "desc" } : { sort: by, dir: null });
       } else if (target.dataset.stat) {
         this.setParams(JSON.parse(target.dataset.stat));
       } else if (target.dataset.tag) {
@@ -862,7 +866,9 @@ class Board {
       <div class="bb-table-wrap">
         <table class="bb-table">
           <thead><tr>${cols.map(([name, sort]) => sort
-            ? `<th aria-sort="${p.sort === sort ? (sort === "created" ? "descending" : "ascending") : "none"}"><button type="button" data-sort="${esc(sort)}" class="${p.sort === sort ? "is-on" : ""}">${esc(name)}${p.sort === sort ? icon(sort === "created" ? "down" : "up") : ""}</button></th>`
+            ? (p.sort === sort
+              ? `<th aria-sort="${p.dir === "desc" ? "descending" : "ascending"}"><button type="button" data-sort="${esc(sort)}" class="is-on">${esc(name)}${icon(p.dir === "desc" ? "down" : "up")}</button></th>`
+              : `<th><button type="button" data-sort="${esc(sort)}">${esc(name)}${icon("sort", "bb-sort-idle")}</button></th>`)
             : `<th>${esc(name)}</th>`).join("")}</tr></thead>
           <tbody>${visible.map((item) => `
             <tr class="${p.item === item.slug ? "is-selected" : ""} ${item.open ? "" : "is-closed"}" data-row="${esc(item.slug)}">

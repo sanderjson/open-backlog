@@ -22,13 +22,13 @@ const show = (s, search) => slugs(core.viewItems(s, core.viewParams(s, search)))
 test("the address keeps only what the board knows", () => {
   const s = load();
   assert.deepEqual(core.viewDefaults(s), { view: "board", sort: "weight", group: "status" });
-  assert.deepEqual(core.viewParams(s, ""), { view: "board", group: "status", sort: "weight" });
+  assert.deepEqual(core.viewParams(s, ""), { view: "board", group: "status", sort: "weight", dir: "asc" });
   assert.deepEqual(core.viewParams(s, "?view=list&group=area&sort=created&q=+auth+&tag=release&item=a&status=ready&open=1&next=1&epic=launch"),
-    { view: "list", group: "area", sort: "created", q: "auth", tag: "release", item: "a", status: "ready", open: "1", next: "1", epic: "launch" });
+    { view: "list", group: "area", sort: "created", dir: "desc", q: "auth", tag: "release", item: "a", status: "ready", open: "1", next: "1", epic: "launch" });
   // Unknown keys and values fall away: a view, group or sort the board lacks, a toggle that isn't
   // 1, an epic that isn't one, a blank value.
-  assert.deepEqual(core.viewParams(s, "?view=grid&group=kind&sort=size&open=yes&next=0&epic=a&q=+&colour=red"),
-    { view: "board", group: "status", sort: "weight" });
+  assert.deepEqual(core.viewParams(s, "?view=grid&group=kind&sort=size&dir=up&open=yes&next=0&epic=a&q=+&colour=red"),
+    { view: "board", group: "status", sort: "weight", dir: "asc" });
   assert.equal(core.viewParams(s, "?epic=nope").epic, undefined);
   assert.equal(core.viewParams(s, "?sort=priority").sort, "priority");
 
@@ -130,6 +130,31 @@ test("every sort puts items in its order", () => {
   assert.deepEqual(show(s, "?sort=created"), ["launch", "b", "c", "a", "d"], "newest first, undated last");
   assert.deepEqual(show(s, "?sort=status"), ["b", "a", "launch", "c", "d"], "the field's order, then priority; unlisted last");
   assert.deepEqual(show(s, "?sort=area"), ["a", "d", "launch", "b", "c"]);
+});
+
+test("every sort turns around, keeping unknowns last and ties in order", () => {
+  const f = files();
+  // e ties with b on weight and priority, f has no weight, and g ties with launch on created.
+  f["e.md"] = "---\ntitle: Epsilon\nstatus: idea\npriority: mid\narea: ops\nweight: 1\ncreated: 2026-10-03\n---\n\n# Epsilon\n";
+  f["f.md"] = "---\ntitle: Zeta\nstatus: ready\npriority: high\n---\n\n# Zeta\n";
+  f["g.md"] = "---\ntitle: Aardvark\nstatus: idea\npriority: low\narea: web\nweight: 4\ncreated: 2026-10-04\n---\n\n# Aardvark\n";
+  const s = load(f);
+  assert.deepEqual(show(s, "?sort=weight"), ["b", "e", "a", "d", "g", "launch", "f", "c"]);
+  assert.deepEqual(show(s, "?sort=weight&dir=desc"), ["launch", "g", "d", "a", "b", "e", "f", "c"], "ties and the unweighted keep their order");
+  assert.deepEqual(show(s, "?sort=created"), ["g", "launch", "b", "e", "c", "a", "d", "f"]);
+  assert.deepEqual(show(s, "?sort=created&dir=asc"), ["a", "c", "b", "e", "g", "launch", "d", "f"], "undated last both ways");
+  assert.deepEqual(show(s, "?sort=title&dir=desc"), ["f", "launch", "c", "e", "d", "b", "a", "g"]);
+  assert.deepEqual(show(s, "?sort=status"), ["b", "e", "g", "a", "f", "launch", "c", "d"]);
+  assert.deepEqual(show(s, "?sort=status&dir=desc"), ["c", "a", "f", "launch", "b", "e", "g", "d"], "an unlisted status stays last");
+  assert.deepEqual(show(s, "?sort=area&dir=desc"), ["b", "e", "a", "d", "launch", "g", "f", "c"], "no area stays last");
+  // Without a direction, a sort is in its own; the address names one only when it isn't that.
+  assert.equal(core.viewParams(s, "?sort=created").dir, "desc");
+  assert.equal(core.viewQuery(s, "?sort=created&dir=desc"), "?sort=created");
+  assert.equal(core.viewQuery(s, "?sort=created&dir=asc"), "?dir=asc&sort=created");
+  assert.equal(core.viewQuery(s, "?dir=desc"), "?dir=desc");
+  assert.equal(core.viewQuery(s, "?dir=desc", { dir: "asc" }), "");
+  assert.equal(core.viewQuery(s, "?dir=desc&sort=title", { sort: "created", dir: null }), "?sort=created");
+  assert.equal(core.viewQuery(s, "?dir=sideways"), "");
 });
 
 test("columns follow the grouping field, then None and Other", () => {

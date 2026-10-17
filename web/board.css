@@ -277,6 +277,8 @@ html.bb-locked { overflow: hidden; }
 .bb-table th button { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font-weight: 600; }
 .bb-table th button:hover, .bb-table th button.is-on { color: var(--ink); }
 .bb-table th .bb-i { width: 13px; height: 13px; }
+.bb-table th .bb-sort-idle { opacity: 0.45; }
+.bb-table th button:hover .bb-sort-idle { opacity: 0.8; }
 .bb-table td { padding: 10px 14px; border-top: 1px solid var(--line); vertical-align: middle; }
 .bb-table tbody tr:first-child td { border-top: 0; }
 .bb-table tbody tr { cursor: pointer; transition: background 0.12s; }
