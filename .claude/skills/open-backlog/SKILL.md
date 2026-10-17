@@ -1,0 +1,39 @@
+---
+name: open-backlog
+description: Work a project's Markdown backlog kept with open-backlog (one item per file in docs/backlog, a README index, a board in development). Use when asked to add, change or find work items, roll items up into an epic, mark work started or done, say what to work on next, or when finishing work that a backlog item tracks. Points at the project's backlog guidance and holds the essentials: the file format, epics, statuses, the index row, attachments and the CLI checks.
+---
+
+# Working a backlog kept with open-backlog
+
+The backlog is a folder, usually `docs/backlog/`: one Markdown file per work item, a `README.md`
+that indexes them, `backlog.yml` with the fields and the values they allow, and `_template.md` for
+new items. The guidance for working it is text in `docs/backlog-guidance/`: the kit's
+`working-the-backlog.md` and the project's own conventions. Read that folder before changing the
+backlog. If the project has no such folder, the kit's copy is `docs/backlog-guidance/` in the
+open-backlog repo.
+
+## The essentials
+
+- Read `backlog.yml` first. A strict field allows only the values it lists.
+- An item is `<slug>.md`: front matter, a `# Title` line matching `title:`, then the body from
+  `_template.md`. The slug is the title in lower case joined with `-`. Every item has a row in
+  the README's index.
+- An epic is an item with `items: [slugs]` in work order. Nothing else makes one. `type: epic`
+  only if the list allows it. Epics can't contain epics, and the member items' files stay as they
+  are. Asked to roll items up into an epic, make the epic file and its index row, and say where it
+  is.
+- A status change goes in the front matter **and** the index row: the active status when you
+  start, the done status when you finish. An epic is done only when every item in it is and its
+  own acceptance holds.
+- A README with `<!-- open-backlog:index start -->` and `end` markers has a generated index:
+  `node bin/open-backlog.mjs index docs/backlog --write` regenerates it. Otherwise edit the row.
+- Attachments, such as a screenshot the user hands you with a request, go in
+  `docs/backlog-assets/`, linked as `../backlog-assets/name.png`. The backlog folder holds `.md`
+  and `.yml` only, and the guidance folder holds text only.
+- The backlog is as visible as the repository. Unfixed security findings, credentials, personal or
+  customer data and legal matters don't go in an item's text. Write the item as a pointer to where
+  the project keeps such details (its backlog README says where), and ask if it doesn't say.
+- With Node 22 or later and the kit's CLI: `check`, `next`, `prompt <slug>` and `index --check`,
+  each taking the folder as an argument.
+- The board's search covers titles, slugs, text and tags, not field values. Use the Epic filter
+  and the field selects to find things by field.

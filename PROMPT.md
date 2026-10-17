@@ -63,27 +63,44 @@ the same.
 
 - The kit at the chosen tag: `git clone --depth 1 --branch <tag>
   https://github.com/sanderjson/open-backlog`. Its README describes the routes, the item format,
-  `backlog.yml` and the README index. Its `starter/` folder is a backlog to start from.
+  `backlog.yml` and the README index. Its `starter/` folder is a backlog to start from,
+  `docs/backlog-guidance/working-the-backlog.md` is the guide for people and agents working one,
+  and `.claude/skills/open-backlog/` is the skill that gets a coding agent to read it.
 - This project's web server, router and dev-only configuration: how it serves files, how it
   limits routes to development, and where it keeps vendored code.
 - A dev menu or dev tools page, if the project has one, to link the board from.
+- The project's agent instructions (`CLAUDE.md`, `AGENTS.md` or the like), if it has them, to
+  point at the backlog from.
 
 ## Expectations
 
 1. **Vendor the kit.** Copy the tag's `web/` into the project unchanged (e.g.
    `vendor/open-backlog/`, or wherever the project keeps vendored code), with the repo's
-   `LICENSE` and a `VERSION` file holding the tag beside it. Don't edit those files: updating
-   means replacing the folder. If the kit falls short for this project, say so in your report
-   instead of patching the copy. The kit has to stay the same for every host, whatever its
-   language (see "Ground rules" in its README). Don't put the files in a folder the server
-   publishes in production (a public or static directory). The dev route serves them itself.
+   `LICENSE` and a `VERSION` file holding the tag beside it. Where the project has Node 22 or
+   later, copy `bin/open-backlog.mjs` beside `web/` too: it imports `../web/core.js`, and gives
+   agents and CI `check`, `next`, `prompt` and `index`. Don't edit those files: updating means
+   replacing the folders. If the kit falls short for this project, say so in your report instead
+   of patching the copy. The kit has to stay the same for every host, whatever its language (see
+   "Ground rules" in its README). Don't put the files in a folder the server publishes in
+   production (a public or static directory). The dev route serves them itself.
 2. **Add the route in development only.** It should be absent from production builds, not just
    hidden: a compile-time or startup check on the environment, the way the project already
    limits other dev tools.
 3. **Start a backlog if there's none.** If `docs/backlog/` doesn't exist, copy `starter/` there.
    If it exists, add a `backlog.yml` only when the items' values need an order or a strict
-   list, which the board can't guess (e.g. a status no item uses yet).
-4. **Test the routes** with the project's own test tools:
+   list, which the board can't guess (e.g. a status no item uses yet). Either way, if the project
+   has no `docs/backlog-guidance/`, create it with the kit's `working-the-backlog.md`: it's
+   Markdown only, and the project's own conventions go beside it. Attachments that belong to items
+   go in `docs/backlog-assets/`, created when first needed. The backlog is as visible as the
+   repository, so fill in the starter README's line on what stays out of it (unfixed security
+   findings, credentials, personal data) with where this project keeps such things, and ask if it
+   isn't obvious.
+4. **Point agents at it.** Copy the kit's `.claude/skills/open-backlog/` into the project's
+   `.claude/skills/` (or wherever the project's agent tooling keeps skills). Add a few lines to
+   the project's agent instructions (`CLAUDE.md`, `AGENTS.md` or the like): where the backlog
+   folder is, to read `docs/backlog-guidance/` before changing it, that an epic is an item with an
+   `items` list, and that a status change goes in the item's front matter and its index row.
+5. **Test the routes** with the project's own test tools:
    - `GET files` returns the folder's `.md`/`.yml` files, `_template.md` included, and nothing
      else (no hidden files, no other kinds), and `writable` is true;
    - `PUT` writes the file;
@@ -93,13 +110,14 @@ the same.
    - in a production build or configuration, the route doesn't exist;
    - if the host gives versions: a PUT with the current version writes, a PUT with a stale
      `If-Match` gets 412 and changes nothing, and `If-None-Match: *` on an existing file gets 412.
-5. **Check it in a headless browser.** Open the board, change an item's status in its sheet, and
+6. **Check it in a headless browser.** Open the board, change an item's status in its sheet, and
    confirm the file's front matter (and its README row, if the index shows status) changed. Then
    edit a file by hand and see the board follow within a few seconds. If the host gives
    versions, also edit a file by hand while its sheet is open, then change a field in the sheet:
    the board reports the conflict and your hand edit stays. Keep browser windows hidden unless
    explicitly requested.
-6. **Link it** from the project's dev menu, if there is one, and mention the board in the
+7. **Link it** from the project's dev menu, if there is one, and mention the board in the
    project's docs where dev tools are listed.
-7. **Report** where the kit lives and at which version, the route and how it's limited to
-   development, what you added to the backlog, and anything from step 4 or 5 that didn't hold.
+8. **Report** where the kit lives and at which version, the route and how it's limited to
+   development, what you added to the backlog and to the agent instructions, and anything from
+   step 5 or 6 that didn't hold.
