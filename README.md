@@ -378,9 +378,14 @@ Epics are ordinary item files, so they need nothing from the host.
 ## Using the board
 
 - **Board or list**: group the board by any choice field; sort the list by any column.
-- **Filters**: search (titles, text, tags), each field, an epic, a tag, "Can start" and "Hide
-  closed". The stats at the top are filters too. Everything you pick is in the address, so a
-  view can be bookmarked.
+- **Filters**: search, each field, an epic, a tag, "Can start" and "Hide closed". The stats at
+  the top are filters too. Everything you pick is in the address, so a view can be bookmarked.
+- **Search**: words match titles, slugs, text, tags and field values; every word has to match.
+  Qualifiers filter, in the style of GitHub's issue search: `#tag`, `field:value` for any choice
+  field (`status:ready`, `status:"in review"`, `area:none`) and `is:epic` for every epic,
+  whatever its type. Quotes keep a phrase together, and make text that looks like a filter
+  (`"#chore"`) plain text. Each filter in force shows as a chip by the search box, and its ×
+  takes it out. `parseQuery` and `matchesQuery` in `core.js` do the work.
 - **Edit**: change an item's weight and fields in its sheet, drag a card to another column, or
   add a **New item**. Each edit rewrites that line of front matter and the item's index row,
   nothing else.

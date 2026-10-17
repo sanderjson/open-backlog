@@ -69,14 +69,51 @@ test("each filter keeps what it says, alone and together", () => {
   }
 });
 
-test("search looks at title, slug, summary, text and tags, in any case", () => {
+test("search looks at title, slug, summary, text, tags and field values, in any case", () => {
   const s = load();
   assert.deepEqual(show(s, "?q=AUTH"), ["b", "a", "d"]); // b's text, a's and d's tags
   assert.deepEqual(show(s, "?q=passkey"), ["a"]);
   assert.deepEqual(show(s, "?q=gamma"), ["c"]);
   assert.deepEqual(show(s, "?q=launch"), ["launch"]);
   assert.deepEqual(show(s, "?q=release notes"), ["d"]);
-  assert.deepEqual(show(s, "?q=web"), [], "field values aren't searched");
+  assert.deepEqual(show(s, "?q=web"), ["a", "d", "launch"], "field values are searched");
+});
+
+test("a query's qualifiers filter, and everything else is text", () => {
+  const s = load();
+  const kinds = (q) => core.parseQuery(s, q).map(({ kind, name, value }) => [kind, name, value].filter(Boolean).join(" "));
+  assert.deepEqual(kinds('ship #auth Status:READY area:"web" is:Epic "two words"'),
+    ["text ship", "tag auth", "field status READY", "field area web", "epic", "text two words"]);
+  // Quoted, empty or unknown qualifiers are text.
+  assert.deepEqual(kinds('"#auth" "status:ready" http://x is:open kind:ops status: # ""'),
+    ["text #auth", "text status:ready", "text http://x", "text is:open", "text kind:ops", "text status:", "text #"]);
+  assert.deepEqual(kinds('status:"in review" #"two words" open"ended'), ["field status in review", "tag two words", "text openended"]);
+  assert.deepEqual(kinds('"unterminated phrase'), ["text unterminated phrase"]);
+  assert.deepEqual(core.parseQuery(s, undefined), []);
+
+  assert.deepEqual(show(s, "?q=%23auth"), ["a", "d"], "b mentions auth but isn't tagged");
+  assert.deepEqual(show(s, "?q=%23AUTH+%23release"), ["d"]);
+  assert.deepEqual(show(s, "?q=status:ready"), ["a", "launch"]);
+  assert.deepEqual(show(s, "?q=STATUS:Ready+priority:high"), ["a"]);
+  assert.deepEqual(show(s, "?q=area:none"), ["c"]);
+  assert.deepEqual(show(s, "?q=status:ready+status:idea"), [], "filters combine with AND");
+  assert.deepEqual(show(s, "?q=is:epic"), ["launch"]);
+  assert.deepEqual(show(s, "?q=auth+export"), ["b"], "every word must match");
+  assert.deepEqual(show(s, "?q=%22release+notes%22"), ["d"]);
+  assert.deepEqual(show(s, "?q=%22notes+release%22"), [], "a phrase keeps its order");
+  assert.deepEqual(show(s, "?q=status:ready&area=web&sort=title"), ["a", "launch"], "with the selects too");
+  assert.deepEqual(show(s, "?q=%22status:ready%22"), [], "quoted, it's only text");
+  assert.deepEqual(show(s, "?q=release+is:epic"), []);
+
+  // An epic is an item with an items list, whatever its type says.
+  const typed = load({ ...files(), "backlog.yml": files()["backlog.yml"].replace("  area: [web, ops]", "  area: [web, ops]\n  type: [build, epic]"),
+    "e.md": "---\ntitle: Typed\ntype: epic\n---\n\n# Typed\n" });
+  assert.deepEqual(show(typed, "?q=is:epic"), ["launch"]);
+  assert.deepEqual(show(typed, "?q=type:epic"), ["e"]);
+
+  const terms = core.parseQuery(s, 'ship   #auth status:"in review"');
+  assert.equal(core.queryWithout(terms, 1), 'ship status:"in review"');
+  assert.equal(core.queryWithout(terms, 2), "ship #auth");
 });
 
 test("the Epic filter shows the epic first, then its items", () => {

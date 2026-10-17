@@ -322,3 +322,28 @@ test('the j, k, b, l and / keys move through items, switch views and focus searc
     await expect(page.getByRole('searchbox')).toBeFocused();
   } finally { await server.close(); }
 });
+
+test('a qualifier in the search shows as a chip that agrees with the address', async ({ page }) => {
+  const server = await startServer({ files: three() });
+  try {
+    await page.goto(server.url + '?q=status%3Aready+alpha');
+    await expect(page.getByRole('searchbox')).toHaveValue('status:ready alpha');
+    await expect(page.locator('.bb-card')).toHaveCount(1);
+    await page.getByRole('searchbox').fill('status:idea');
+    await expect(page.locator('.bb-card')).toHaveCount(1);
+    await expect(page.locator('.bb-card[data-item="c"]')).toBeVisible();
+    await expect.poll(() => query(page)).toBe('?q=status%3Aidea');
+    await page.getByRole('button', { name: 'Remove the filter Status: Idea' }).click();
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    await expect(page.getByRole('searchbox')).toHaveValue('');
+    await expect(page.getByRole('searchbox')).toBeFocused();
+    await expect(page.locator('.bb-query-chip')).toHaveCount(0);
+    expect(query(page)).toBe('');
+    await page.getByRole('searchbox').fill('#nothing "status:ready"');
+    await expect(page.locator('.bb-query-chip')).toHaveText(['#nothing']);
+    await expect(page.locator('.bb-card')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Clear', exact: true }).click();
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    await expect(page.locator('.bb-query-chip')).toHaveCount(0);
+  } finally { await server.close(); }
+});

@@ -137,5 +137,7 @@ node bin/open-backlog.mjs index docs/backlog --check    # does the managed index
 - `# Heading` not matching `title:`: "its H1 title disagrees with its front matter title".
 - `items`, `depends_on` or `related` naming a title or a path: "names X, which isn't an item".
 - An epic listed inside an epic: "epics can't contain epics". Flatten it instead.
-- The board's search covers titles, slugs, text and tags, not field values. To find an epic, use
-  the Epic filter; to find items by a field, use that field's select.
+- Finding things on the board: words in the search match titles, slugs, text, tags and field
+  values. `#tag` keeps items with that tag, `field:value` (`status:ready`, `status:"in review"`)
+  those with that value, and `is:epic` the epics. They combine with AND, and quotes keep a phrase,
+  or text that looks like a filter, as text. The Epic filter shows one epic and its items.

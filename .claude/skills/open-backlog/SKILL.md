@@ -35,5 +35,6 @@ open-backlog repo.
   the project keeps such details (its backlog README says where), and ask if it doesn't say.
 - With Node 22 or later and the kit's CLI: `check`, `next`, `prompt <slug>` and `index --check`,
   each taking the folder as an argument.
-- The board's search covers titles, slugs, text and tags, not field values. Use the Epic filter
-  and the field selects to find things by field.
+- The board's search matches words in titles, slugs, text, tags and field values, and takes
+  filters: `#tag`, `field:value` (`status:ready`), `is:epic`. Quotes keep a phrase or literal text.
+  Tell the user to type `is:epic` to find an epic you made.
