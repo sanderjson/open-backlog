@@ -86,7 +86,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | W-31 | [Answer the questions a project update raised](answer-the-questions-a-project-update-raised.md) | 14 | done | mid | build |
 | W-19 | [A changelog, a version on the board, and a tag for the current head](release-hygiene.md) | 18 | done | mid | chore |
 | W-22 | [Predictable configuration, index generation and tooling](small-fixes-from-the-review.md) | 21 | in-progress | low | epic |
-| W-26 | [Tooling hygiene: Node requirement, executable CLI and vendor provenance](tooling-hygiene.md) | 25 | ready | low | chore |
+| W-26 | [Tooling hygiene: Node requirement, executable CLI and vendor provenance](tooling-hygiene.md) | 25 | done | low | chore |
 | W-32 | [Update the vendored parsers with recorded versions](update-the-vendored-parsers-with-recorded-versions.md) | 28 | idea | low | chore |
 | W-33 | [Release v0.6.0 after the project-update fixes](release-v0-6-0-after-the-project-update-fixes.md) | 29 | ready | mid | chore |
 
