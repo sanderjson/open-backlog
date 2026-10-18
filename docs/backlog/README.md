@@ -50,7 +50,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | W-3 | [Prompts open with the status change](prompt-starts-with-status.md) | 3 | done | high | build |
 | W-11 | [Every item has a short ID](every-item-has-a-short-id.md) | 10 | done | mid | build |
 | W-17 | [Review the text around the item in copied prompts](review-prompt-text.md) | 15 | done | mid | build |
-| W-23 | [Generating an index into a missing README leaves two blank lines first](index-into-missing-readme.md) | 22 | ready | low | build |
+| W-23 | [Generating an index into a missing README leaves two blank lines first](index-into-missing-readme.md) | 22 | done | low | build |
 | W-24 | [backlog.yaml is sent by hosts but ignored by the board](backlog-yaml-is-ignored.md) | 23 | ready | mid | build |
 | W-25 | [Spell invisible characters in regexes as escapes](regex-literals.md) | 24 | ready | low | chore |
 | W-27 | [The dependency-loop check repeats work along long chains](loop-check-speed.md) | 26 | idea | low | build |
@@ -85,7 +85,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | W-28 | [Publish a GitHub release for each tag](publish-a-github-release-for-each-tag.md) | 9 | done | high | chore |
 | W-31 | [Answer the questions a project update raised](answer-the-questions-a-project-update-raised.md) | 14 | done | mid | build |
 | W-19 | [A changelog, a version on the board, and a tag for the current head](release-hygiene.md) | 18 | done | mid | chore |
-| W-22 | [Predictable configuration, index generation and tooling](small-fixes-from-the-review.md) | 21 | ready | low | epic |
+| W-22 | [Predictable configuration, index generation and tooling](small-fixes-from-the-review.md) | 21 | in-progress | low | epic |
 | W-26 | [Tooling hygiene: Node requirement, executable CLI and vendor provenance](tooling-hygiene.md) | 25 | ready | low | chore |
 | W-32 | [Update the vendored parsers with recorded versions](update-the-vendored-parsers-with-recorded-versions.md) | 28 | idea | low | chore |
 | W-33 | [Release v0.6.0 after the project-update fixes](release-v0-6-0-after-the-project-update-fixes.md) | 29 | ready | mid | chore |

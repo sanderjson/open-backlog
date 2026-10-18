@@ -60,6 +60,8 @@ Changed:
 
 Fixed:
 
+- `index --write` into a folder without a README starts the new file with the index's start
+  marker; it began with two blank lines.
 - A new item's `created` date is the local day where the board or the CLI runs. It was the UTC
   day, so an item made after local midnight ahead of UTC got yesterday's date.
 

@@ -52,6 +52,18 @@ test('managed index generation preserves prose, orders work and follows area cha
   assert.deepEqual(core.parseBacklog({ files: { ...files, ...created.writes } }).problems, []);
 });
 
+test('an index generated from nothing starts with the marker and ends with one newline', () => {
+  for (const readme of [undefined, '']) {
+    const files = { 'backlog.yml': config, 'a.md': item('A'), ...(readme == null ? {} : { 'README.md': readme }) };
+    const generated = core.planIndex(core.parseBacklog({ files }))['README.md'];
+    assert(generated.startsWith(`${core.INDEX_START}\n\n### One`), JSON.stringify(generated.slice(0, 40)));
+    assert(generated.endsWith(`${core.INDEX_END}\n`) && !generated.endsWith('\n\n'));
+    assert.deepEqual(core.planIndex(core.parseBacklog({ files: { ...files, 'README.md': generated } })), {}, 'generating again writes nothing');
+  }
+  const prose = core.planIndex(core.parseBacklog({ files: { 'backlog.yml': config, 'a.md': item('A'), 'README.md': '# Backlog\n' } }))['README.md'];
+  assert(prose.startsWith(`# Backlog\n\n${core.INDEX_START}`), 'text before it keeps its blank line');
+});
+
 test('unmanaged tables require deliberate adoption and explicit grouping catches drift', () => {
   const files = { 'backlog.yml': config, 'a.md': item('A'), 'README.md': '<!-- open-backlog:group area=two -->\n\n| Item | Status |\n| --- | --- |\n| [A](a.md) | ready |\n' };
   const s = core.parseBacklog({ files });
