@@ -7,8 +7,8 @@ The branch includes `feat/ids-layout-release`, including the earlier fixes at `1
 
 One finding: 0 critical, 0 high, 1 medium, 0 low, now resolved. The CLI, prompt and parser changes
 passed the existing suites and additional probes; no runtime regression was found. The update
-steps now keep CLI verification conditional. W-33 remains in progress while release operations
-and final CI are pending.
+steps now keep CLI verification conditional. Final CI and release operations have since completed;
+W-33 records the published release and checked commit.
 
 ## Scope
 
@@ -86,14 +86,25 @@ matched, confirming that marked comes from `lib/marked.esm.js`, not `dist/`.
 | `web/vendor/js-yaml.js` | [js-yaml 5.4.2](https://registry.npmjs.org/js-yaml/-/js-yaml-5.4.2.tgz), `package/dist/browser/js-yaml.esm.min.mjs` | `154ea2da9e53404fb206f19cb9ce6c3a9880295fa34b96e40855be7cbc02f082` |
 | `web/vendor/js-yaml.LICENSE` | Same archive, `package/LICENSE` | `a07bc24468b9654ce76a547d47a2db282d07733b715db4c73a98bd63961f9550` |
 
-## Remaining release checks and limits
+## Release follow-up
 
-1. Run CI on the final reviewed merge/release commit as W-33 requires. The two reported upgrade
-   walkthroughs lacked a project dev server; the passing browser suites exercise the test host,
-   not those projects' own dev servers.
-2. Follow the two-branch merge order and complete the annotated tag and published release before
-   closing W-33. No local v0.6.0 tag exists at review time. This review performs no push, merge,
-   tag or publication; the subsequent wording fix and release operations are separate work.
+The foundation merged in [PR #9](https://github.com/sanderjson/open-backlog/pull/9), followed by
+the sprint in [PR #10](https://github.com/sanderjson/open-backlog/pull/10). The release commit is
+`cfbd38112d70b8168d9e9a88264ef67b8a9b4254` on `main`. Both its
+[main CI](https://github.com/sanderjson/open-backlog/actions/runs/39107008515) and
+[tag CI](https://github.com/sanderjson/open-backlog/actions/runs/39107092995) passed Node 22/24,
+the complete browser suite, starter/project checks and managed-index verification.
+
+Additional headless walkthroughs upgraded isolated copies from v0.4.0 (with the CLI) and v0.5.0
+(without the CLI). Both displayed v0.6.0 in `?`, saved a status change into the item and README,
+and displayed a subsequent hand edit in the open sheet. The existing configuration and local
+guidance stayed unchanged. These fixtures used the v0.5.0 test host, with its import and asset
+paths adjusted for the vendored kit before either walkthrough; the host stayed unchanged during
+the update. These fixtures cover the browser steps missing from the original walkthroughs.
+
+The annotated v0.6.0 tag points to the checked release commit and is pushed to origin.
+[The GitHub release](https://github.com/sanderjson/open-backlog/releases/tag/v0.6.0) was published
+on 2026-10-18 with the exact changelog entry as its notes. W-33 is complete.
 
 The pre-existing untracked `docs/next-sprint-review.md` was excluded from the committed-sprint
 assessment; its known stale status is housekeeping, not a new finding.

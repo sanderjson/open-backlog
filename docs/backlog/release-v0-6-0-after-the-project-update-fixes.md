@@ -1,7 +1,7 @@
 ---
 title: Release v0.6.0 after the project-update fixes
 id: 33
-status: in-progress
+status: done
 priority: mid
 type: chore
 area: repo
@@ -50,5 +50,19 @@ it is not waiting for a palette, themes, importer or parser upgrade.
 - The update was repeated on a throwaway v0.4.0 project at these files: the copied CLI is tracked
   after anchoring its `bin/` ignore rule, `--help` says v0.6.0 from a fresh worktree, `check`
   passes, and the project's own files are untouched.
-- Left: a review of the branch, then merge `feat/ids-layout-release` and this branch to `main`,
-  CI on the merge, the annotated tag, and the published release.
+- The independent review found one documentation mismatch: update verification required the
+  optional CLI. Fixed in `b243848`; the verification report records the finding and resolution.
+  All 73 Node tests also passed locally on Node 22 and 24, and all 23 browser tests on Node 24.
+- Merged the foundation in [PR #9](https://github.com/sanderjson/open-backlog/pull/9), then the
+  sprint in [PR #10](https://github.com/sanderjson/open-backlog/pull/10). The checked release
+  commit is `cfbd38112d70b8168d9e9a88264ef67b8a9b4254` on `main`, version 0.6.0. Its
+  [main CI](https://github.com/sanderjson/open-backlog/actions/runs/39107008515) and
+  [tag CI](https://github.com/sanderjson/open-backlog/actions/runs/39107092995) passed Node 22/24,
+  the complete browser suite, starter/project checks and managed-index verification.
+- Headless upgrade walkthroughs now cover the browser steps too: isolated v0.4.0 and v0.5.0
+  copies showed v0.6.0 in `?`, saved a sheet status to the item and README, and followed a hand
+  edit back into the sheet. Configuration and local conventions were preserved, and the fixture
+  hosts were unchanged. The v0.4.0 copy included the CLI; the v0.5.0 copy had none.
+- Published [v0.6.0](https://github.com/sanderjson/open-backlog/releases/tag/v0.6.0) on
+  2026-10-18: annotated tag on the checked release commit, pushed to origin, with the exact
+  changelog entry as the GitHub release notes.
