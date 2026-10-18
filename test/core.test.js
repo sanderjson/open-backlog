@@ -78,6 +78,25 @@ test("guesses fields and their order without backlog.yml", () => {
   assert.deepEqual(s.done, ["done"]);
 });
 
+test("backlog.yaml is reported, never read", () => {
+  const yaml = "title: From yaml\nfields:\n  status: [someday, now]\n";
+  const top = (s) => s.problems.filter((p) => p.slug === "").map((p) => p.message);
+
+  const f = files();
+  delete f["backlog.yml"];
+  const alone = load({ ...f, "backlog.yaml": yaml });
+  assert.deepEqual(top(alone), ["backlog.yaml isn't read, so the fields are guessed: name it backlog.yml"]);
+  assert.equal(alone.title, "Backlog", "its settings aren't used");
+  assert.deepEqual(core.field(alone, "status").values, ["idea", "done"], "the fields are guessed as without a file");
+
+  const both = load({ ...files(), "backlog.yaml": yaml });
+  assert.deepEqual(top(both), ["backlog.yaml isn't read, backlog.yml is: move what you need from backlog.yaml into backlog.yml, then delete backlog.yaml"]);
+  assert.equal(both.title, "Example", "backlog.yml is read as usual");
+  assert.deepEqual(core.field(both, "status").values, ["idea", "ready", "in-progress", "parked", "done"]);
+
+  assert.deepEqual(top(load()), [], "backlog.yml alone is fine");
+});
+
 test("an update writes the front matter and the index row", () => {
   const s = load();
   const writes = core.planUpdate(s, "backups", "status", "parked");

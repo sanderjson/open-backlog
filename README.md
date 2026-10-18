@@ -244,7 +244,9 @@ doesn't copy anything sensitive into an item while it waits.
 
 ### backlog.yml
 
-Optional. It names the choice fields and their values in order, which statuses count as done,
+Optional, and spelled `backlog.yml`: a `backlog.yaml` isn't read, and the board reports it as a
+problem until it's renamed (or, beside a `backlog.yml`, merged into it and deleted). It names the
+choice fields and their values in order, which statuses count as done,
 closed, not started and under way, colours, the editor for file links, and the index file. See
 [starter/backlog.yml](starter/backlog.yml) for every setting. Without it, the board takes the
 usual fields (status, priority, type, area) and the values the items use, with well-known
@@ -335,8 +337,8 @@ A new backlog's own README (from `starter/`) carries the short version, for agen
 A value `backlog.yml` doesn't allow, a strict field left empty, a weight that isn't a positive
 whole number, a link to no item (in `depends_on`, `related` or the index) or to a file in the
 folder that isn't there (in an item's text), a dependency loop, a file without front matter or a
-title, an index that disagrees with the items, and an epic whose list or status doesn't add up
-(see [Epics](#epics)). These appear in a panel at the top and on each item, with suggestions
+title, a `backlog.yaml` (which isn't read), an index that disagrees with the items, and an epic
+whose list or status doesn't add up (see [Epics](#epics)). These appear in a panel at the top and on each item, with suggestions
 (things worth a look, not mistakes) after the problems: an unfinished prerequisite that comes
 after its dependent in work order, `related` repeating `depends_on`, `type: epic` on an item
 that lists no items, and an epic whose items are all done.
