@@ -30,6 +30,16 @@ Added:
 
 Changed:
 
+- README's "Updating a project's copy" and a new Updating section in PROMPT.md list every step of
+  an update: replace the copy and set the project's `VERSION`, refresh the guide and the skill,
+  check that git keeps the copied files (a broad `bin/` rule can hide the CLI), add the backlog
+  README's line on where details that stay out go, point the agent instructions at the backlog,
+  and confirm the new version on the board. A project updating from v0.4.0 or earlier has none of
+  the guide, the skill or that line yet, so follow them in full.
+- Item file names may follow a project's own pattern (`api-07-export.md`): README, the guide and
+  the skill say the slug is the file name, the title is only its default, and how to rename an
+  item's file safely. With no agent instructions file, PROMPT.md now says to offer the lines for
+  an `AGENTS.md` instead of skipping the step or creating one unasked.
 - The toolbar has two rows with fixed roles in every project: search, its chips, then the count,
   Group and the view switch on the first; the filters, always in the same order, on the second,
   which wraps within itself. Clear keeps its place while hidden, so applying a filter moves

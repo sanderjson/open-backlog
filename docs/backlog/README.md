@@ -83,7 +83,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | W-1 | [Dogfood the kit](dogfood-the-kit.md) | 1 | done | high | build |
 | W-2 | [Guidance agents find on their own](agent-guidance.md) | 2 | done | high | build |
 | W-28 | [Publish a GitHub release for each tag](publish-a-github-release-for-each-tag.md) | 9 | done | high | chore |
-| W-31 | [Answer the questions a project update raised](answer-the-questions-a-project-update-raised.md) | 14 | ready | mid | build |
+| W-31 | [Answer the questions a project update raised](answer-the-questions-a-project-update-raised.md) | 14 | done | mid | build |
 | W-19 | [A changelog, a version on the board, and a tag for the current head](release-hygiene.md) | 18 | done | mid | chore |
 | W-22 | [Predictable configuration, index generation and tooling](small-fixes-from-the-review.md) | 21 | ready | low | epic |
 | W-26 | [Tooling hygiene: Node requirement, executable CLI and vendor provenance](tooling-hygiene.md) | 25 | ready | low | chore |
