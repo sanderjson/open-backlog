@@ -2,3 +2,6 @@
 node_modules/
 test-results/
 playwright-report/
+
+# Full-size attachment originals; review copies live in docs/backlog-assets/.
+/docs/backlog-assets-local/

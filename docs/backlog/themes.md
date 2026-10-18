@@ -9,7 +9,7 @@ weight: 19
 tags: [ui]
 created: 2026-10-17
 depends_on: [colour-palette]
-related: []
+related: [a-refreshed-board-everyone-can-read-and-use]
 ---
 
 # Themes beyond light and dark
@@ -37,5 +37,8 @@ accent, or a named theme that matches the project's other dev tools. Today that 
 ## Order
 `depends_on: [colour-palette]` means the palette decisions are known before choosing a theme
 mechanism. It does not mean the refreshed palette has shipped: the future themes build must
-also depend on the separate palette build created by W-14. Themes discussion and implementation
-remain outside the proposed project-update sprint.
+also depend on the separate palette build created by W-14. W-38 now includes the palette
+decision and its build; themes discussion and implementation stay outside that epic and its
+release. Completing W-38 does not require theme names, a new configuration mechanism or a
+theme picker. Add the palette build's actual slug as a prerequisite of any later themes build
+when that build is created; do not treat completion of this discussion as implemented themes.

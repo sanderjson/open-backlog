@@ -37,9 +37,14 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | W-12 | [A header and toolbar that lay out the same in every project](header-layout.md) | 12 | done | mid | build |
 | W-13 | [The board's horizontal scrollbar floats mid-screen when columns are short](board-scrollbar-position.md) | 13 | done | mid | build |
 | W-16 | [Filters and sorting, pure and tested](filters-and-sorting-pure-and-tested.md) | 15 | done | mid | epic |
+| W-36 | [A compact header with version and GitHub links](compact-header-with-version-and-github-links.md) | 17 | ready | mid | build |
+| W-38 | [A refreshed board everyone can read and use](a-refreshed-board-everyone-can-read-and-use.md) | 17 | in-progress | mid | epic |
+| W-40 | [Audit what each card mark tells a reader](audit-what-each-card-mark-tells-a-reader.md) | 17 | in-progress | mid | spike |
 | W-18 | [Keyboard shortcuts stay inside the board](scope-keys-to-the-board.md) | 17 | done | mid | build |
 | W-14 | [Refresh the colour palette](colour-palette.md) | 18 | ready | mid | discuss |
 | W-20 | [Themes beyond light and dark](themes.md) | 19 | idea | low | discuss |
+| W-35 | [Item details open in a native dialog](item-details-open-in-a-native-dialog.md) | 21 | ready | mid | discuss |
+| W-37 | [A visual legend for card symbols](visual-legend-for-card-symbols.md) | 22 | ready | mid | build |
 
 ### Core
 
@@ -84,6 +89,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | W-2 | [Guidance agents find on their own](agent-guidance.md) | 2 | done | high | build |
 | W-28 | [Publish a GitHub release for each tag](publish-a-github-release-for-each-tag.md) | 9 | done | high | chore |
 | W-31 | [Answer the questions a project update raised](answer-the-questions-a-project-update-raised.md) | 14 | done | mid | build |
+| W-39 | [Collect and answer feedback from the projects using the kit](collect-and-answer-feedback-from-the-projects-using-the-kit.md) | 16 | ready | high | build |
 | W-19 | [A changelog, a version on the board, and a tag for the current head](release-hygiene.md) | 18 | done | mid | chore |
 | W-22 | [Predictable configuration, index generation and tooling](small-fixes-from-the-review.md) | 21 | done | low | epic |
 | W-26 | [Tooling hygiene: Node requirement, executable CLI and vendor provenance](tooling-hygiene.md) | 25 | done | low | chore |

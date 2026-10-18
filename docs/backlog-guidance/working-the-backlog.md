@@ -122,6 +122,14 @@ to an item go in `docs/backlog-assets/`, linked from the item as
 `[the screenshot](../backlog-assets/name.png)`. The board opens such links in the editor, and the
 checks leave them alone. This guidance folder stays text.
 
+Keep committed attachments light: optimise raster images before adding them, and check that
+fine text remains readable at the intended size. WebP works well for large screenshots and
+wireframes; retain SVG sources where useful, and use optimised PNG when exact pixels matter.
+Commit the review copies linked from items so those links work in every clone. Bulky originals
+and unused explorations can stay in an ignored local folder, such as
+`docs/backlog-assets-local/`, or external storage. Item links should point to the shared review
+copies, and local originals need their own backup if they must be retained.
+
 ## What doesn't belong in an item
 
 The backlog is files in the repository, so an item is exactly as visible as the code: everyone who

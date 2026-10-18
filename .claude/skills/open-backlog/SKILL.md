@@ -34,6 +34,10 @@ open-backlog repo.
 - Attachments, such as a screenshot the user hands you with a request, go in
   `docs/backlog-assets/`, linked as `../backlog-assets/name.png`. The backlog folder holds `.md`
   and `.yml` only, and the guidance folder holds text only.
+- Keep linked review copies small and committed: optimise images and check text readability.
+  Prefer WebP for large raster previews, retaining useful SVG sources or optimised PNG when
+  exact pixels matter. Bulky originals can live in an ignored local folder such as
+  `docs/backlog-assets-local/` or external storage; item links point to shared review copies.
 - The backlog is as visible as the repository. Unfixed security findings, credentials, personal or
   customer data and legal matters don't go in an item's text. Write the item as a pointer to where
   the project keeps such details (its backlog README says where). If it doesn't say, propose a
