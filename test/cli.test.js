@@ -45,6 +45,17 @@ test('CLI index check is read-only; write updates only the managed region', asyn
   assert.match(generated, /\[A\]\(a.md\)/);
 });
 
+test('CLI index --write into a folder with no README starts it with the marker', async (t) => {
+  const dir = await fs.mkdtemp(join(tmpdir(), 'backlog-index-'));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  await fs.writeFile(join(dir, 'a.md'), '---\ntitle: A\nstatus: ready\n---\n\n# A\n');
+  assert.equal(run('index', dir, '--write').status, 0);
+  const generated = await fs.readFile(join(dir, 'README.md'), 'utf8');
+  assert(generated.startsWith('<!-- open-backlog:index start -->\n'), JSON.stringify(generated.slice(0, 40)));
+  assert(generated.endsWith('<!-- open-backlog:index end -->\n'));
+  assert.equal(run('index', dir, '--check').status, 0);
+});
+
 test("CLI next lists what the board's Can start shows, in the same order", async (t) => {
   const dir = await fs.mkdtemp(join(tmpdir(), 'backlog-cli-'));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));

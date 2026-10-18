@@ -825,7 +825,7 @@ export function planIndex(s) {
   }
   lines.push("", INDEX_END);
   const region = lines.join(nl);
-  const index = bounds ? source.slice(0, bounds.start) + region + source.slice(bounds.end) : source + (source.endsWith(nl) ? nl : nl + nl) + region + nl;
+  const index = bounds ? source.slice(0, bounds.start) + region + source.slice(bounds.end) : source + (!source ? "" : source.endsWith(nl) ? nl : nl + nl) + region + nl;
   return index === source ? {} : { [s.index]: index };
 }
 

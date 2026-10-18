@@ -1,7 +1,7 @@
 ---
 title: Generating an index into a missing README leaves two blank lines first
 id: 23
-status: ready
+status: done
 priority: low
 type: build
 area: core
@@ -29,3 +29,9 @@ empty, so the new README starts with two newlines before the start marker.
 - Tests cover missing and empty files through `planIndex`, plus CLI `index --write` followed by
   a passing `index --check`; existing preservation tests in
   [test/reliability.test.js](../../test/reliability.test.js) still pass.
+
+## Done
+- `planIndex` adds no separator before the region when the index file is missing or empty. Text
+  before a new region keeps its blank line, and a marked region is replaced as before.
+- Tests in [test/reliability.test.js](../../test/reliability.test.js) and
+  [test/cli.test.js](../../test/cli.test.js) fail without the fix and pass with it.

@@ -1,7 +1,7 @@
 ---
 title: Predictable configuration, index generation and tooling
 id: 22
-status: ready
+status: in-progress
 priority: low
 type: epic
 area: repo
