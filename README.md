@@ -487,8 +487,9 @@ With the new tag cloned somewhere outside the project
    matches them (`--no-index` checks files already tracked too). Anchor the rule to what it meant
    (`/bin/` for the project's own `bin/`) or add a narrow exception (`!vendor/open-backlog/bin/`).
    Then `git status` lists every copied file that changed. A file that works locally isn't
-   evidence that it's in git: after committing, run the CLI's `--help` and `check` from a fresh
-   clone or a `git worktree add`.
+   evidence that it's in git: after committing, inspect the copied files in a fresh clone or a
+   `git worktree add`. Where Node 22+ and the CLI are installed, also run `--help` and `check`
+   there.
 4. **Say where details that stay out go.** A backlog started before v0.5.0 has no line in its
    README saying where unfixed security findings, credentials and personal data go (see
    [As visible as the repository](#as-visible-as-the-repository)). Add one, beside the README's
@@ -498,9 +499,10 @@ With the new tag cloned somewhere outside the project
    or the like) don't point at the backlog yet, add the lines PROMPT.md's step 4 describes. If the
    project has no such file, say so and offer the lines for a new `AGENTS.md`; don't create one
    unasked, and don't count its absence as a failed update.
-6. **See it working.** Run `check`, and `index --check` if the README has a managed index.
+6. **See it working.** Where Node 22+ and the CLI are installed, run `check`, and `index --check`
+   if the README has a managed index; confirm that `--help` reports the new version.
    Restart the project's dev server if it was running before the copy or caches files, reload the
-   board without the cache, and confirm that `?` shows the new version, as the CLI's `--help` does.
+   board without the cache, and confirm that `?` shows the tag recorded in the project's `VERSION`.
    Then repeat PROMPT.md's step 6: change a status in a sheet and see the file change, edit a file
    by hand and see the board follow. If the server can't be run, say so instead of reporting the
    update as checked.

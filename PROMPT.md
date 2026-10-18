@@ -156,6 +156,8 @@ CHANGELOG entry since the project's recorded version. In short:
 4. If the backlog README doesn't say where details that stay out of the repository go, propose an
    answer and ask, as in Expectations step 3.
 5. Point the agent instructions at the backlog if they don't yet, as in Expectations step 4.
-6. Run `check`, restart the dev server, reload the board without the cache, confirm `?` shows the
-   new version, and repeat Expectations step 6. Report the versions updated from and to, what each
-   CHANGELOG entry asked and whether it's done, and anything you couldn't check.
+6. Where Node 22+ and the CLI are installed, run `check` and `index --check` if the README has a
+   managed index, and confirm `--help` reports the new version. Restart the dev server, reload
+   the board without the cache, confirm `?` shows the tag recorded in the project's `VERSION`,
+   and repeat Expectations step 6. Report the versions updated from and to, what each CHANGELOG
+   entry asked and whether it's done, and anything you couldn't check.
