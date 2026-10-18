@@ -1253,19 +1253,35 @@ function statusPlaces(s, items) {
   return `in its front matter and${rows < items.length ? ", where it has one," : ""} its row in ${promptPath(s, s.index)}`;
 }
 
-// A blocked item's warning. It comes before the status change: the agent waits for the go-ahead.
-function blockedLine(what, item) {
+// A blocked item's warning, naming what it waits on. It comes before the status change: the agent
+// waits for the go-ahead.
+function blockedLine(s, what, item) {
   if (!item.blockers.length) return [];
-  return [`${what} waits on ${item.blockers.length === 1 ? "an unfinished item" : `${item.blockers.length} unfinished items`}. Tell me before you start on it anyway.`, ""];
+  const names = item.blockers.map((slug) => s.bySlug.get(slug)?.title ?? slug);
+  return [`${what} waits on unfinished work: ${names.join("; ")}. Ask me before you start on it.`, ""];
 }
 
-// An item as a prompt to paste into a coding agent's session in the project: its file, fields,
-// what it waits on, unblocks and relates to, its epics, any problems, and its text.
+// What the board found in an item, problems first, then its suggestions, each under a heading.
+function promptFindings(s, slug, whose) {
+  const found = s.problems.filter((p) => p.slug === slug);
+  const problems = found.filter((p) => !p.notice).map((p) => `- ${p.message}`);
+  const notices = found.filter((p) => p.notice).map((p) => `- ${p.message}`);
+  return [
+    ...(problems.length ? [`Problems the board found in ${whose}:`, ...problems, ""] : []),
+    ...(notices.length ? ["The board suggests:", ...notices, ""] : []),
+  ];
+}
+
+const QUESTIONS = "If it lists open questions, ask me before you decide any of them.";
+
+// An item as a prompt to paste into a coding agent's session in the project. What to do comes
+// first: any warning, the status change, and reading the file. Then what it may want to know: its
+// file, fields, what it depends on, unblocks and relates to, its epics, what the board found, and
+// its text.
 export function itemPrompt(s, slug) {
   const item = itemCalled(s, slug);
   const fields = promptFields(item);
   const epics = epicsOf(s, item.slug);
-  const problems = s.problems.filter((p) => p.slug === item.slug).map((p) => `- ${p.message}`);
   const active = s.active[0], done = s.done[0];
   const places = statusPlaces(s, [item]);
   const started = s.active.includes(item.fields.status);
@@ -1280,8 +1296,10 @@ export function itemPrompt(s, slug) {
   return [
     `Work on this item from the backlog: ${[itemCode(s, item), item.title].filter(Boolean).join(" ")}`,
     "",
-    ...blockedLine("It", item),
+    ...blockedLine(s, "It", item),
     ...(opening ? [opening, ""] : []),
+    `Read its file before you start: the file is current, and this copy may not be. ${QUESTIONS}`,
+    "",
     `File: ${promptPath(s, item.file)}`,
     ...(fields.length ? [`Fields: ${fields.join(", ")}`] : []),
     ...(item.tags.length ? [`Tags: ${item.tags.join(", ")}`] : []),
@@ -1291,18 +1309,18 @@ export function itemPrompt(s, slug) {
     ...promptList(s, "Unblocks", item.dependents),
     ...promptList(s, "Related", item.related),
     ...promptList(s, epics.length === 1 ? "In the epic" : "In the epics", epics.map((epic) => epic.slug)),
-    ...(problems.length ? ["Problems the board found in it:", ...problems, ""] : []),
-    `The item (its links are relative to ${s.dir}):`,
+    ...promptFindings(s, item.slug, "it"),
+    `Its text (links in it are relative to ${s.dir}):`,
     "",
     ...fenced(item.body),
-    ...(opening && done ? ["", `When it's finished, set its status to ${done}.`] : []),
   ].join("\n") + "\n";
 }
 
-// An epic as one brief for a coding agent working through it in the project: the epic's file and
-// whole text (its goal and end-to-end acceptance), its items in work order, each with its file,
-// status, priority, weight, what it waits on and any problems, what holds it up from outside, and
-// how to work. It points to the items' files rather than pasting them: the agent reads each one
+// An epic as one brief for a coding agent working through it in the project. What to do comes
+// first: any warning, the epic's status, how to work, its items in work order (each with its file,
+// status, priority, weight, what it waits on and what the board found) and what holds it up from
+// outside. Then the epic's file, fields and progress, and its whole text (its goal and end-to-end
+// acceptance). It points to the items' files rather than pasting them: the agent reads each one
 // when it gets there, and the brief stays short.
 export function epicPrompt(s, slug) {
   const epic = itemCalled(s, slug);
@@ -1311,7 +1329,6 @@ export function epicPrompt(s, slug) {
   const progress = epicProgress(s, slug);
   const step = (item) => `${order.indexOf(item) + 1}. ${item.title}`;
   const fields = promptFields(epic);
-  const found = s.problems.filter((p) => p.slug === epic.slug);
   const counts = [
     progress.active && `${progress.active} ${label(s.active[0]).toLowerCase()}`,
     progress.ready && `${progress.ready} can start`,
@@ -1330,12 +1347,15 @@ export function epicPrompt(s, slug) {
       const other = s.bySlug.get(dep);
       return order.includes(other) ? step(other) : `${promptRef(s, other)}, outside the epic`;
     });
-    const problems = s.problems.filter((p) => p.slug === item.slug).map((p) => p.message);
+    const found = s.problems.filter((p) => p.slug === item.slug);
+    const problems = found.filter((p) => !p.notice).map((p) => p.message);
+    const notices = found.filter((p) => p.notice).map((p) => p.message);
     return [
       `${i + 1}. ${item.title} (${promptPath(s, item.file)})`,
       ...(facts.length ? [`   ${facts.join(", ")}`] : []),
       ...(waits.length ? [`   waits on: ${waits.join("; ")}`] : []),
       ...(problems.length ? [`   problems: ${problems.join("; ")}`] : []),
+      ...(notices.length ? [`   suggestions: ${notices.join("; ")}`] : []),
     ];
   });
 
@@ -1348,12 +1368,12 @@ export function epicPrompt(s, slug) {
   const active = s.active[0], done = s.done[0];
   const setAside = s.closed.filter((status) => !s.done.includes(status));
   const keep = [active && `to ${active} when you start it`, done && `to ${done} when it's finished`].filter(Boolean);
-  const opening = active && (s.active.includes(epic.fields.status)
-    ? `The epic is ${epic.fields.status} already. Move each item to ${active} as you start it.`
-    : `${epic.blockers.length ? "If you go ahead, start" : "Start"} by setting the epic's status to ${active}, ${statusPlaces(s, [epic])}, and move each item to ${active} as you start it.`);
+  const opening = active && "status" in epic.fields && (s.active.includes(epic.fields.status)
+    ? `The epic is ${epic.fields.status} already.`
+    : `${epic.blockers.length ? "If you go ahead, start" : "Start"} by setting the epic's status to ${active}, ${statusPlaces(s, [epic])}.`);
   const work = [
-    "Read each item's file before you start it. This brief points to the files rather than repeating them.",
-    "Follow the work order unless an item's file says otherwise.",
+    "Read the epic's file now, and each item's file before you start that item: the files are current, and this copy may not be. This brief points to the items' files rather than repeating them.",
+    "Follow the work order below unless an item's file says otherwise.",
     keep.length && `Keep each item's status current: set it ${keep.join(" and ")}, ${statusPlaces(s, order)}.`,
     done && `Set the epic to ${done} only when every item in it is ${done}${setAside.length ? ` (or ${setAside.join(" or ")})` : ""} and the epic's own acceptance holds.`,
     "If an item lists open questions, stop and ask me before you decide any of them.",
@@ -1362,10 +1382,24 @@ export function epicPrompt(s, slug) {
   return [
     `Work through this epic from the backlog: ${[itemCode(s, epic), epic.title].filter(Boolean).join(" ")}`,
     "",
-    ...blockedLine("The epic itself", epic),
+    ...blockedLine(s, "The epic itself", epic),
     ...(opening ? [opening, ""] : []),
-    "An epic groups items that belong together, to be worked through as one. Its text below says what the whole of it is for and how to tell it's finished; each item's file says what that item needs.",
+    "How to work:",
+    ...work.map((line) => `- ${line}`),
     "",
+    "Its items in work order (each after the items it depends on, and otherwise in the epic's order):",
+    "",
+    ...items,
+    "",
+    next,
+    "",
+    ...(outside.length
+      ? [
+        "Outside the epic, these unfinished items hold up items in it. Ask me before you start an item that waits on one of them:",
+        ...outside.map(({ item, waiting }) => `- ${promptRef(s, item)}: ${waiting.map(step).join("; ")} ${waiting.length === 1 ? "waits" : "wait"} on it`),
+        "",
+      ]
+      : []),
     `Epic: ${promptPath(s, epic.file)}`,
     ...(fields.length ? [`Fields: ${fields.join(", ")}`] : []),
     ...(epic.tags.length ? [`Tags: ${epic.tags.join(", ")}`] : []),
@@ -1375,27 +1409,10 @@ export function epicPrompt(s, slug) {
     ...promptList(s, "Depends on", epic.dependsOn),
     ...promptList(s, "Unblocks", epic.dependents),
     ...promptList(s, "Related", epic.related),
-    ...(found.some((p) => !p.notice) ? ["Problems the board found in the epic:", ...found.filter((p) => !p.notice).map((p) => `- ${p.message}`), ""] : []),
-    ...(found.some((p) => p.notice) ? ["The board suggests:", ...found.filter((p) => p.notice).map((p) => `- ${p.message}`), ""] : []),
-    `The epic (its links are relative to ${s.dir}):`,
+    ...promptFindings(s, epic.slug, "the epic"),
+    `Its text says what the whole is for and how to tell it's finished (links in it are relative to ${s.dir}):`,
     "",
     ...fenced(epic.body),
-    "",
-    "Its items in work order (each comes after the items it depends on, and otherwise in the order the epic lists them):",
-    "",
-    ...items,
-    "",
-    next,
-    "",
-    ...(outside.length
-      ? [
-        "Outside the epic, these unfinished items hold up items in it. Tell me before you start an item that waits on one of them:",
-        ...outside.map(({ item, waiting }) => `- ${promptRef(s, item)}: ${waiting.map(step).join("; ")} ${waiting.length === 1 ? "waits" : "wait"} on it`),
-        "",
-      ]
-      : []),
-    "How to work:",
-    ...work.map((line) => `- ${line}`),
   ].join("\n") + "\n";
 }
 

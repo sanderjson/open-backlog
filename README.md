@@ -402,20 +402,24 @@ the order.
 - Sorting and the index's tables treat an epic as an ordinary item: it's a row like any other.
 
 **Copy epic as prompt.** On an epic, **Copy epic as prompt** (or `c`) copies one brief for a
-coding agent working in the project. It opens by telling the agent to set the epic in progress
-now and each item as it starts it. Then it holds:
+coding agent working in the project. What to do comes first:
 
-- the epic's file and its whole text, which is where its goal and end-to-end acceptance live;
+- if the epic itself waits on unfinished work, which work, and to ask before starting;
+- setting the epic in progress now (or that it's in progress already), using the backlog's own
+  statuses, and nothing about status when it names none;
+- how to work: read the epic's file now and each item's file before starting it, since the files
+  are current and the copy may not be; follow the work order unless an item says otherwise; keep
+  each item's status current in its front matter and its index row; mark the epic done only when
+  every item is done and its own acceptance holds; and stop to ask about any open question an
+  item lists;
 - its items in work order, each with its file, status, priority, weight, what it waits on
-  (marking what's outside the epic) and any problems;
-- what holds the epic up from outside;
-- how to work: read each item's file before starting it, follow the work order unless an item
-  says otherwise, keep each item's status current in its front matter and its index row, mark
-  the epic done only when every item is done and its own acceptance holds, and stop to ask about
-  any open question an item lists.
+  (marking what's outside the epic), and the board's problems and suggestions; then what can
+  start next, and what holds the epic up from outside.
 
-It points to the items' files rather than pasting them, so the brief stays short and the agent
-reads each file when it gets there. `epicPrompt` in `core.js` builds it, and `epicOrder`,
+Then what the agent may want to know: the epic's file, fields and progress, what it depends on,
+unblocks and relates to, the board's problems and suggestions for it, and last its whole text,
+which is where its goal and end-to-end acceptance live. It points to the items' files rather than
+pasting them, so the brief stays short and the agent reads each file when it gets there. `epicPrompt` in `core.js` builds it, and `epicOrder`,
 `epicProgress`, `epicsOf`, `planAddToEpic` and `planRemoveFromEpic` are there too.
 
 Epics are ordinary item files, so they need nothing from the host.
@@ -439,10 +443,13 @@ Epics are ordinary item files, so they need nothing from the host.
 - **Links**: links to other items open them on the board, links to other files open in your
   editor, and links to the web open in a new tab.
 - **Copy as prompt**: the button in an item's sheet copies the item for a coding agent's
-  session in the project. It opens with the status change (set it in progress now, done when
-  finished; a blocked item asks for the go-ahead first), then gives its file, fields, what it
-  waits on, unblocks and relates to, its epics, any problems and its text. Paste it into the agent
-  and add your own instructions. `itemPrompt` in `core.js` builds it. On an epic, the button
+  session in the project. What to do comes first: a blocked item names what it waits on and asks
+  for the go-ahead; then the status change (in progress now, done when finished, in the
+  backlog's own statuses), and to read the item's file, which is current where the copy may not
+  be, and ask about any open question it lists. Then its file, fields, what it depends on,
+  unblocks and relates to, its epics, the board's problems and suggestions, and last its text,
+  whose links are relative to the backlog folder. Paste it into the agent and add your own
+  instructions. `itemPrompt` in `core.js` builds it. On an epic, the button
   copies the whole epic instead (see [Epics](#epics)).
 - **Keys**: `/` search, `n` new item, `b` board, `l` list, `Shift E` epic filter, `j`/`k` next
   and previous item, `e` open in editor, `c` copy as prompt, `Esc` close, `?` all of them. The

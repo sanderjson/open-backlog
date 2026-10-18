@@ -44,6 +44,11 @@ Changed:
   the skill say the slug is the file name, the title is only its default, and how to rename an
   item's file safely. With no agent instructions file, PROMPT.md now says to offer the lines for
   an `AGENTS.md` instead of skipping the step or creating one unasked.
+- Copied prompts put what to do before what to know. An item's names what it waits on when it's
+  blocked, says to read its file (which is current where the copy may not be) and to ask about
+  open questions, and no longer repeats the done status after its text. An epic's gives how to
+  work and its items in work order before its file, fields and text, and says the item status
+  rule once. Both list the board's suggestions apart from its problems.
 - The toolbar has two rows with fixed roles in every project: search, its chips, then the count,
   Group and the view switch on the first; the filters, always in the same order, on the second,
   which wraps within itself. Clear keeps its place while hidden, so applying a filter moves
