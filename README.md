@@ -59,7 +59,7 @@ you're an agent working from inside one host project.
 | `web/index.html` | The page: mounts the board on `<div data-open-backlog data-api="." data-page>`. |
 | `web/board.js`, `web/board.css` | The page's behaviour and look. Everything is scoped under `.bb`. |
 | `web/core.js` | Reading, checking and planning edits to the backlog, and what the board shows for an address, with no page. |
-| `web/vendor/` | [marked](https://github.com/markedjs/marked) 18.0.13 and [js-yaml](https://github.com/nodeca/js-yaml) 5.4.2, with their MIT licences. |
+| `web/vendor/` | [marked](https://github.com/markedjs/marked) 18.0.13 and [js-yaml](https://github.com/nodeca/js-yaml) 5.4.2, with their MIT licences, each one file copied unchanged from its npm package (see [Vendored parsers](#vendored-parsers)). |
 | `starter/` | A backlog for a project that has none: `backlog.yml`, a README index, a template, and an epic with two items. |
 | `docs/backlog/` | The kit's own backlog, kept with the board it's built with: `npm run dev` serves it (see [Development checks](#development-checks)). |
 | `docs/backlog-guidance/` | Text for people and agents working a backlog: `working-the-backlog.md`, which PROMPT.md installs in projects, and a project's own conventions. Markdown only. |
@@ -547,6 +547,22 @@ test host stays a throwaway. The backlog's index is a managed region, so
 
 CI runs the Node suites on Node 22 and 24, and Chromium headlessly, and checks `starter/` and
 `docs/backlog/` with the CLI. The kit still has no build step and no runtime npm dependency.
+
+### Vendored parsers
+
+The board parses Markdown and YAML with two files copied from npm packages, unchanged, so the kit
+has no runtime dependency and no build step:
+
+| Package | File in the package | Copied to | Licence |
+|---|---|---|---|
+| [marked](https://www.npmjs.com/package/marked) 18.0.13 | `lib/marked.esm.js` | `web/vendor/marked.js` | `LICENSE`, as `web/vendor/marked.LICENSE` |
+| [js-yaml](https://www.npmjs.com/package/js-yaml) 5.4.2 | `dist/browser/js-yaml.esm.min.mjs` | `web/vendor/js-yaml.js` | `LICENSE`, as `web/vendor/js-yaml.LICENSE` |
+
+On 2026-10-18 all four copies matched the files in `npm pack marked@18.0.13 js-yaml@5.4.2` byte for
+byte. To check them again, or to copy a new version: `npm pack <package>@<version>
+--ignore-scripts` in an empty folder outside the repository, extract it, and compare or copy the
+files in the table. A new version changes how every project reads its items, so it goes through
+its own review, with both suites run and the table updated.
 
 ## Releasing
 
