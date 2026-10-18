@@ -8,6 +8,7 @@ the backlog board shows them as a board or a list (see `backlog.yml` for its set
 | Field | Values |
 |---|---|
 | `title` | short name |
+| `id` | the item's short number, shown as W-1: the highest in the folder plus one, never changed or reused |
 | `status` | `idea`, `ready` (discussed, ready to plan), `in-progress`, `parked` (decided, waiting), `done` |
 | `priority` | `high`, `mid`, `low` |
 | `type` | `build`, `spike` (time-boxed research that ends in a decision), `discuss` (needs a decision first), `epic` (an item that lists others) |
@@ -49,8 +50,8 @@ board, says the same at more length; the project's own conventions go in that fo
 
 ## Items
 
-| Item | Type | Priority | Status |
-|---|---|---|---|
-| [Adopt the backlog](adopt-the-backlog.md) | epic | high | in-progress |
-| [Set up the backlog](set-up-the-backlog.md) | build | high | in-progress |
-| [Move the project's ideas into the backlog](move-ideas-in.md) | build | mid | idea |
+| ID | Item | Type | Priority | Status |
+|---|---|---|---|---|
+| W-1 | [Adopt the backlog](adopt-the-backlog.md) | epic | high | in-progress |
+| W-2 | [Set up the backlog](set-up-the-backlog.md) | build | high | in-progress |
+| W-3 | [Move the project's ideas into the backlog](move-ideas-in.md) | build | mid | idea |

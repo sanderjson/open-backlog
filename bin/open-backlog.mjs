@@ -10,10 +10,12 @@ Usage: node bin/open-backlog.mjs <command> [arguments]
   next [directory] [--json]
   prompt <slug> [directory]
   index [directory] --check|--write
+  ids [directory] --check|--write
   new "<title>" [directory] [--field name=value]... [--weight <n>] [--tags a,b]
       [--items a,b,c | --epic <slug>]
 
-Directory defaults to docs/backlog. Index generation replaces only a marked region.
+Directory defaults to docs/backlog. Index generation replaces only a marked region. ids --write
+gives every item without an ID the next free numbers, oldest first.
 
 new writes an item from _template.md and its index row. --field sets a choice field (once per
 field), --items makes the item an epic over those items in work order, and --epic adds it to an
@@ -115,9 +117,9 @@ async function main(args) {
   if (command === 'new') return create(args);
   const flags = args.filter((a) => a.startsWith('--'));
   const positional = args.filter((a) => !a.startsWith('--'));
-  const allowed = command === 'index' ? ['--check', '--write'] : ['check', 'next'].includes(command) ? ['--json'] : [];
-  if (!['check', 'next', 'prompt', 'index'].includes(command) || flags.some((f) => !allowed.includes(f)) || positional.length > (command === 'prompt' ? 2 : 1)) throw new Error(usage);
-  if (command === 'index' && flags.length !== 1) throw new Error('index needs exactly one of --check or --write');
+  const allowed = ['index', 'ids'].includes(command) ? ['--check', '--write'] : ['check', 'next'].includes(command) ? ['--json'] : [];
+  if (!['check', 'next', 'prompt', 'index', 'ids'].includes(command) || flags.some((f) => !allowed.includes(f)) || positional.length > (command === 'prompt' ? 2 : 1)) throw new Error(usage);
+  if (['index', 'ids'].includes(command) && flags.length !== 1) throw new Error(`${command} needs exactly one of --check or --write`);
   const slug = command === 'prompt' ? positional.shift() : '';
   if (command === 'prompt' && !slug) throw new Error('prompt needs an item slug');
   const dir = positional[0] || 'docs/backlog';
@@ -129,6 +131,17 @@ async function main(args) {
   if (command === 'next') {
     const items = s.items.filter((item) => item.startable).map((item) => ({ slug: item.slug, title: item.title, file: join(dir, item.file), weight: item.weight, fields: item.fields }));
     process.stdout.write(flags.includes('--json') ? JSON.stringify(items, null, 2) + '\n' : items.map((item) => `${item.weight || '—'}\t${item.slug}\t${item.title}\n`).join(''));
+    return 0;
+  }
+  if (command === 'ids') {
+    const writes = core.planIds(s);
+    const numbered = Object.keys(writes).filter((name) => name !== s.index).length;
+    if (flags.includes('--check')) {
+      if (numbered) { process.stderr.write(`${numbered} ${numbered === 1 ? 'item has' : 'items have'} no ID; ids --write numbers them\n`); return 1; }
+      return 0;
+    }
+    const written = await writeChecked(dir, path, files, writes, 'changed while the IDs were planned; run it again');
+    process.stdout.write(numbered ? `Numbered ${numbered} ${numbered === 1 ? 'item' : 'items'}\n${written.map((name) => `  ${name}\n`).join('')}` : 'Every item has an ID\n');
     return 0;
   }
   if (command === 'index') {

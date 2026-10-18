@@ -1,5 +1,6 @@
 ---
 title: Test the board's view logic without a browser
+id: 7
 status: done
 priority: mid
 type: build

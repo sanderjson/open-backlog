@@ -328,26 +328,31 @@ class Board {
         <div data-el="problems"></div>
         <div class="bb-toolbar">
           <form class="bb-filters" data-el="filters" role="search">
-            <label class="bb-search">
-              ${icon("search")}
-              <input type="search" name="q" placeholder="Search" autocomplete="off" aria-label="Search: words, #tag, field:value or is:epic" data-el="search"
-                title="Words search titles, text, tags and field values. #tag, field:value and is:epic filter. Quotes keep a phrase, or text that looks like a filter, as text.">
-              <kbd>/</kbd>
-            </label>
-            <span class="bb-query-chips" data-el="queryChips"></span>
-            <span class="bb-filter-fields" data-el="fieldFilters"></span>
-            <select name="epic" class="bb-select bb-epic-filter" data-el="epicFilter" aria-label="Epic" title="An epic's items (Shift E)" hidden></select>
-            <select name="tag" class="bb-select" data-el="tagFilter" aria-label="Tag"></select>
-            <button type="button" class="bb-toggle" data-toggle="next" title="Open items with nothing unfinished before them">${icon("play")}<span>Can start</span></button>
-            <button type="button" class="bb-toggle" data-toggle="open" title="Hide closed items">${icon("hide")}<span>Hide closed</span></button>
-            <button type="button" class="bb-link-btn" data-action="clear" data-el="clear" hidden>Clear</button>
-            <span class="bb-spacer"></span>
-            <span class="bb-count" data-el="count"></span>
-            <span class="bb-group" data-el="group"></span>
-            <span class="bb-seg" role="group" aria-label="View">
-              <button type="button" data-view="board" title="Board (b)" aria-label="Board">${icon("board")}</button>
-              <button type="button" data-view="list" title="List (l)" aria-label="List">${icon("list")}</button>
-            </span>
+            <div class="bb-toolbar-row bb-toolbar-main">
+              <label class="bb-search">
+                ${icon("search")}
+                <input type="search" name="q" placeholder="Search" autocomplete="off" aria-label="Search: words, #tag, field:value or is:epic" data-el="search"
+                  title="Words search titles, text, tags and field values. An ID (W-12), #tag, field:value and is:epic filter. Quotes keep a phrase, or text that looks like a filter, as text.">
+                <kbd>/</kbd>
+              </label>
+              <span class="bb-query-chips" data-el="queryChips"></span>
+              <span class="bb-toolbar-end">
+                <span class="bb-count" data-el="count"></span>
+                <span class="bb-group" data-el="group"></span>
+                <span class="bb-seg" role="group" aria-label="View">
+                  <button type="button" data-view="board" title="Board (b)" aria-label="Board">${icon("board")}</button>
+                  <button type="button" data-view="list" title="List (l)" aria-label="List">${icon("list")}</button>
+                </span>
+              </span>
+            </div>
+            <div class="bb-toolbar-row bb-toolbar-filters">
+              <span class="bb-filter-fields" data-el="fieldFilters"></span>
+              <select name="epic" class="bb-select bb-epic-filter" data-el="epicFilter" aria-label="Epic" title="An epic's items (Shift E)" hidden></select>
+              <select name="tag" class="bb-select bb-tag-filter" data-el="tagFilter" aria-label="Tag"></select>
+              <button type="button" class="bb-toggle" data-toggle="next" title="Open items with nothing unfinished before them">${icon("play")}<span>Can start</span></button>
+              <button type="button" class="bb-toggle" data-toggle="open" title="Hide closed items">${icon("hide")}<span>Hide closed</span></button>
+              <button type="button" class="bb-link-btn bb-clear" data-action="clear" data-el="clear" hidden>Clear</button>
+            </div>
           </form>
         </div>
         <main class="bb-main" data-el="main"><div class="bb-loading"><span></span><span></span><span></span></div></main>
@@ -449,6 +454,7 @@ class Board {
     this.bindDrag(main);
 
     window.addEventListener("popstate", () => this.render());
+    window.addEventListener("resize", () => this.fitList());
     document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && this.poll());
     window.addEventListener("focus", () => this.poll());
     window.addEventListener("open-backlog:refresh", () => this.poll());
@@ -808,7 +814,7 @@ class Board {
     }
     const chips = core.parseQuery(s, p.q).map((t, i) => {
       if (t.kind === "text") return "";
-      const what = t.kind === "tag" ? `#${t.value}` : t.kind === "epic" ? "Epics"
+      const what = t.kind === "tag" ? `#${t.value}` : t.kind === "epic" ? "Epics" : t.kind === "id" ? `${s.prefix}-${t.value}`
         : t.value.toLowerCase() === "none" ? `No ${t.name}` : `${core.field(s, t.name).label}: ${core.label(t.value)}`;
       return `<button type="button" class="bb-query-chip" data-term="${i}" title="Remove ${esc(t.raw)} from the search" aria-label="Remove the filter ${esc(what)}">${esc(what)}${icon("x")}</button>`;
     }).join("");
@@ -844,6 +850,12 @@ class Board {
       </section>`).join("")}</div>`;
   }
 
+  // An item's ID as it's written (W-12), or nothing for an item without one.
+  code(item, after = "") {
+    const code = core.itemCode(this.snap, item);
+    return code ? `<span class="bb-code">${esc(code)}</span>${after}` : "";
+  }
+
   card(item, p) {
     const s = this.snap;
     const others = s.fields.filter((f) => f.name !== p.group && f.name !== "priority" && item.fields[f.name]);
@@ -857,7 +869,7 @@ class Board {
     return `
       <a class="bb-card ${epic ? "is-epic" : ""} ${p.item === item.slug ? "is-selected" : ""} ${item.open ? "" : "is-closed"}" id="bb-card-${esc(item.slug)}"
          href="${esc(this.href({ item: item.slug }))}" data-item="${esc(item.slug)}" ${s.writable ? 'draggable="true"' : ""}>
-        <span class="bb-card-top">${epic ? epicBadge() : ""}<span class="bb-card-title">${esc(item.title)}</span>${this.priority(item.fields.priority)}</span>
+        <span class="bb-card-top">${this.code(item, " ")}${epic ? epicBadge() : ""}<span class="bb-card-title">${esc(item.title)}</span>${this.priority(item.fields.priority)}</span>
         ${item.summary ? `<span class="bb-card-summary">${esc(item.summary)}</span>` : ""}
         ${epic ? this.progress(item) : ""}
         <span class="bb-card-meta">
@@ -897,7 +909,8 @@ class Board {
   renderList(p, visible) {
     const s = this.snap;
     const epics = s.items.some(core.isEpic);
-    const cols = [["Item", "title"], ["Weight", "weight"], ...s.fields.map((f) => [f.label, f.name]), ...(epics ? [["Epic", null]] : []), ["Waits on", null], ["Created", "created"]];
+    const ids = s.items.some(core.idNumber);
+    const cols = [...(ids ? [["ID", "id"]] : []), ["Item", "title"], ["Weight", "weight"], ...s.fields.map((f) => [f.label, f.name]), ...(epics ? [["Epic", null]] : []), ["Waits on", null], ["Created", "created"]];
     this.el.main.innerHTML = `
       <div class="bb-table-wrap">
         <table class="bb-table">
@@ -908,6 +921,7 @@ class Board {
             : `<th>${esc(name)}</th>`).join("")}</tr></thead>
           <tbody>${visible.map((item) => `
             <tr class="${p.item === item.slug ? "is-selected" : ""} ${item.open ? "" : "is-closed"}" data-row="${esc(item.slug)}">
+              ${ids ? `<td class="bb-num bb-nowrap">${this.code(item) || '<span class="bb-faint">—</span>'}</td>` : ""}
               <td class="bb-td-item"><a href="${esc(this.href({ item: item.slug }))}" data-item="${esc(item.slug)}">${core.isEpic(item) ? epicBadge() : ""}${esc(item.title)}</a><span>${esc(item.summary)}</span></td>
               <td class="bb-num">${esc(item.weight || "—")}</td>
               ${s.fields.map((f) => `<td>${f.name === "priority" ? this.priority(item.fields.priority, { text: true }) : item.fields[f.name] ? this.chip(f.name, item.fields[f.name]) : '<span class="bb-faint">—</span>'}</td>`).join("")}
@@ -918,6 +932,15 @@ class Board {
         </table>
         ${visible.length ? "" : `<p class="bb-column-empty">Nothing matches</p>`}
       </div>`;
+    this.fitList();
+  }
+
+  // A list wider than its box scrolls sideways. Then its box reaches down to the bottom of the
+  // board's space, so the scrollbar sits there and not under the last row; a list that fits keeps
+  // its own height.
+  fitList() {
+    const wrap = this.el.main.querySelector(".bb-table-wrap");
+    wrap?.classList.toggle("is-wide", wrap.scrollWidth > wrap.clientWidth + 1);
   }
 
   renderEmpty() {
@@ -1040,7 +1063,7 @@ depends_on: []
           </div>
           <div class="bb-panel-body">
             ${epic ? `<p class="bb-item-kind">${epicBadge("bb-item-kind")}</p>` : ""}
-            <h2 id="bb-item-title" class="bb-item-title">${esc(item.title)}</h2>
+            <h2 id="bb-item-title" class="bb-item-title">${this.code(item, " ")}${esc(item.title)}</h2>
             ${fields}
             ${notes(found.filter((x) => !x.notice), "warning")}
             ${notes(found.filter((x) => x.notice), "info")}
