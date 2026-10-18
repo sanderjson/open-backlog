@@ -1,7 +1,7 @@
 ---
 title: Answer the questions a project update raised
 id: 31
-status: ready
+status: done
 priority: mid
 type: build
 area: repo
@@ -74,3 +74,17 @@ every project that updates:
   record which update steps apply and confirm that project-owned files survive.
 - `npm test`, `check` for this backlog and the starter, and this backlog's `index --check` pass.
   Keep Node and the CLI optional for hosts without them.
+
+## Done
+- README's "Updating a project's copy" has six steps; PROMPT.md has an Updating section that
+  follows them, notes the project's `VERSION` against core.js's, checks ignore rules on a fresh
+  install, and offers `AGENTS.md` lines when there's no instructions file. "As visible as the
+  repository" gives defaults to propose; the guide and the skill say to propose one and ask.
+- README, the guide, the skill and the starter say the slug is the file name, a project's own
+  pattern is fine, and how to rename an item's file. `new --slug` is W-34.
+- Walked through with two throwaway projects, each with `bin/` in `.gitignore`, updated to this
+  branch's files. A v0.4.0 copy needed every step: the CLI was ignored (`check-ignore` named the
+  rule; `/bin/` fixed it), and the guide, the skill and the "What stays out" line were missing. A
+  v0.5.0 copy with its own `triage.md` and a second skill needed steps 1 to 3 only; its own
+  files survived. From a fresh `git worktree`, `--help` and `check` ran in both. Neither had a
+  dev server, so step 6's board check wasn't exercised there.

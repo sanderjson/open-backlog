@@ -148,8 +148,11 @@ saved, and the stale index row shows up as a problem to fix.
 
 ## The backlog's files
 
-Each item is `<slug>.md`: front matter, then Markdown. The file name is how links and lists name
-the item; its `id` is the short handle people say and type (W-12).
+Each item is `<slug>.md`: front matter, then Markdown. The slug, the file name without `.md`, is
+how links, `depends_on`, `related`, `items` and the index name the item; its `id` is the short
+handle people say and type (W-12). The board and `new` make the slug from the title ("Brand
+palette" is `brand-palette`), but any name the folder accepts will do, so a project can name items
+its own way (`api-07-export.md`).
 
 ```markdown
 ---
@@ -190,6 +193,10 @@ One palette drives every screen.
 - `items` makes the item an epic: see [Epics](#epics).
 - Files starting with `_` or `.` aren't items. `_template.md` is the body for new items, with
   `{{title}}` replaced.
+- A new title doesn't need a new file name. To rename the file anyway, keep its `id`, `git mv` it,
+  and change the old slug wherever it's used: other items' `depends_on`, `related` and `items`,
+  Markdown links to it (`](old-slug.md)`) and its index row (or `index --write`). `check` then
+  reports anything still naming the old slug.
 - The folder holds only `.md` and `.yml`. Screenshots and other files an item needs go beside it,
   in `docs/backlog-assets/`, linked from the item as `[the screenshot](../backlog-assets/name.png)`:
   the board opens such links in your editor, and the checks leave them alone. Text about how the
@@ -222,7 +229,18 @@ Three ways to keep them out, none of which changes the kit:
 
 Write the project's own rule into its backlog README (the starter has a line to fill in) so people
 and agents writing items know where such things go. The guide and the skill tell agents to check
-it before writing anything of the kind.
+it before writing anything of the kind. For the common cases, a good default:
+
+- **Unfixed security findings**: a draft security advisory on the code host (GitHub's, or GitLab's
+  confidential issues). The item points at it and gets the details once the fix ships.
+- **Credentials**: the password or secrets manager the project already uses. No backlog holds a
+  secret's value; an item may name which secret, never what it is.
+- **Customer and personal data, legal, HR and embargoed matters**: wherever the people involved
+  already keep them, such as a private tracker or a shared drive only they can open. A second
+  backlog outside the repository suits a team that wants a board for them too.
+
+An agent that finds no rule can propose these and ask; it doesn't decide for the project, and it
+doesn't copy anything sensitive into an item while it waits.
 
 ### backlog.yml
 
@@ -432,11 +450,49 @@ Epics are ordinary item files, so they need nothing from the host.
 
 ## Updating a project's copy
 
-Projects keep a copy of `web/` at a tagged version (see PROMPT.md). To update, replace the
-folder with the newer tag's `web/` (and `bin/open-backlog.mjs`, if the project has it) and change
-the recorded version. [CHANGELOG.md](CHANGELOG.md) says what changed at each tag, opening with
-what the update asks of the project, if anything. The two routes don't change within a major
-version. What an update has asked so far:
+Projects keep a copy of the kit at a tagged version (see PROMPT.md). An update moves the whole copy
+to one newer tag: no files from two tags, and no edits to them. [CHANGELOG.md](CHANGELOG.md) says
+what changed at each tag, opening with what the update asks of the project, if anything. Read every
+entry after the project's recorded version, up to the new tag, and do what each asks. The two
+routes don't change within a major version.
+
+With the new tag cloned somewhere outside the project
+(`git clone --depth 1 --branch <tag> https://github.com/sanderjson/open-backlog`):
+
+1. **Replace the kit's files.** Replace the project's copy of `web/` with the tag's, and
+   `bin/open-backlog.mjs` if the project has the CLI. Set the project's `VERSION` file, its record
+   of the tag it copied, to the new tag. `VERSION` in `web/core.js` is the kit's own: it arrives
+   with the copy and is never edited by hand.
+2. **Install or refresh the guidance and the skill.** Copy the tag's
+   `docs/backlog-guidance/working-the-backlog.md` and `.claude/skills/open-backlog/SKILL.md` over
+   the project's, creating them if the project's copy predates v0.5.0. Those two files are the
+   kit's. Everything else stays as it is: the project's own conventions beside the guide, its other
+   skills, the backlog, `backlog.yml`, `_template.md` and `docs/backlog-assets/`.
+3. **Make sure git keeps the copied files.** A broad ignore rule such as `bin/` also matches
+   `vendor/open-backlog/bin/`, and the CLI then works on this machine and is missing from every
+   clone. `git check-ignore -v --no-index <path>…` over the copied files names any rule that
+   matches them (`--no-index` checks files already tracked too). Anchor the rule to what it meant
+   (`/bin/` for the project's own `bin/`) or add a narrow exception (`!vendor/open-backlog/bin/`).
+   Then `git status` lists every copied file that changed. A file that works locally isn't
+   evidence that it's in git: after committing, run the CLI's `--help` and `check` from a fresh
+   clone or a `git worktree add`.
+4. **Say where details that stay out go.** A backlog started before v0.5.0 has no line in its
+   README saying where unfixed security findings, credentials and personal data go (see
+   [As visible as the repository](#as-visible-as-the-repository)). Add one, beside the README's
+   other notes on working the backlog, like the starter's "What stays out" line. Propose the
+   project's answer and ask its owners to confirm; until they do, items stay pointers.
+5. **Point agents at the backlog.** If the project's agent instructions (`CLAUDE.md`, `AGENTS.md`
+   or the like) don't point at the backlog yet, add the lines PROMPT.md's step 4 describes. If the
+   project has no such file, say so and offer the lines for a new `AGENTS.md`; don't create one
+   unasked, and don't count its absence as a failed update.
+6. **See it working.** Run `check`, and `index --check` if the README has a managed index.
+   Restart the project's dev server if it was running before the copy or caches files, reload the
+   board without the cache, and confirm that `?` shows the new version, as the CLI's `--help` does.
+   Then repeat PROMPT.md's step 6: change a status in a sheet and see the file change, edit a file
+   by hand and see the board follow. If the server can't be run, say so instead of reporting the
+   update as checked.
+
+What an update has asked so far:
 
 - v0.2.0 made `items` the board's own key, so a choice field called `items` stops being one.
 - v0.5.0 asks hosts to refuse requests whose `Host` isn't a development host (see

@@ -23,9 +23,12 @@ that doesn't add up.
 
 ## An item
 
-`<slug>.md`. The slug is the file name and the item's id: the title in lower case with words
-joined by `-`, so "Brand palette" is `brand-palette.md`. Front matter, a `# Title` line that
-matches `title:`, then the body from `_template.md`, usually `## Why` and `## Acceptance`:
+`<slug>.md`. The slug, the file name without `.md`, is how other items, the index and links name
+the item; `id` is its short handle. By default the slug is the title in lower case with words
+joined by `-`, so "Brand palette" is `brand-palette.md`, and that's what the board and `new` make.
+A project may name items its own way (`api-07-export.md`): if its existing items or its
+conventions follow a pattern, follow it too. Front matter, a `# Title` line that matches `title:`,
+then the body from `_template.md`, usually `## Why` and `## Acceptance`:
 
 ```markdown
 ---
@@ -61,6 +64,10 @@ One palette drives every screen.
 - `weight` is the work order, smallest first. `depends_on` names items that must be finished
   first; `related` is for reading alongside. Both hold slugs, never titles or paths.
 - A new item needs a row in the index too (see "The index").
+- A new title doesn't need a new file name. To rename the file, keep its `id`, `git mv` it, and
+  change the old slug in other items' `depends_on`, `related` and `items`, in Markdown links to it
+  (`](old-slug.md)`) and in its index row. Then run `check`: it reports anything still naming the
+  old slug.
 
 ## Rolling items up into an epic
 
@@ -125,7 +132,11 @@ anything under embargo doesn't go into an item's text. Write the item as a point
 names the work ("Fix the export authorisation check, see the advisory") and links to where the
 details live, such as a GitHub security advisory, a private tracker, or a second backlog the
 project keeps outside the repository. The project's backlog README says where; if it doesn't, ask
-before writing, and keep the item a pointer meanwhile.
+before writing, and keep the item a pointer meanwhile. When you ask, propose an answer for the case
+at hand: a draft security advisory on the code host for a security finding, the project's password
+or secrets manager for a credential (an item never holds one), and wherever the people involved
+already keep customer, legal or embargoed matters. Then add the agreed answer to the backlog README
+so the next person doesn't have to ask.
 
 ## The CLI
 
