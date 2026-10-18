@@ -6,9 +6,11 @@ of the project, when it asks anything. The README's
 [Updating a project's copy](README.md#updating-a-projects-copy) has the short form, and
 [Releasing](README.md#releasing) says how an entry gets here.
 
-## Unreleased
+## v0.6.0 - 2026-10-18
 
-This will be v0.6.0. Updating asks two things of a project, and offers one:
+Updating from v0.5.0 asks two things of a project, and offers one. README's
+[Updating a project's copy](README.md#updating-a-projects-copy) now lists every step; follow it in
+full when updating from v0.4.0 or earlier.
 
 - **`id` is now the board's own key.** A choice field called `id` stops being one.
 - **A board in a host's own page is as tall as its content** unless its element has a height; it
@@ -27,9 +29,28 @@ Added:
 - `ids [directory] --check|--write` in the CLI numbers the items without an ID, oldest first.
   It handles empty ID fields and multiline titles, and fills existing ID cells in handwritten
   indexes as well as regenerating managed ones.
+- `new --slug <name>` in the CLI names the new item's file `<name>.md` instead of after its title,
+  for a project that names items its own way (`api-07-export`). The name is used exactly as given;
+  one that's taken, ends in `.md`, starts with `_`, is the README or index, or isn't a name the
+  folder accepts is refused with exit 2, and nothing is written.
 
 Changed:
 
+- README's "Updating a project's copy" and a new Updating section in PROMPT.md list every step of
+  an update: replace the copy and set the project's `VERSION`, refresh the guide and the skill,
+  check that git keeps the copied files (a broad `bin/` rule can hide the CLI), add the backlog
+  README's line on where details that stay out go, point the agent instructions at the backlog,
+  and confirm the new version on the board. A project updating from v0.4.0 or earlier has none of
+  the guide, the skill or that line yet, so follow them in full.
+- Item file names may follow a project's own pattern (`api-07-export.md`): README, the guide and
+  the skill say the slug is the file name, the title is only its default, and how to rename an
+  item's file safely. With no agent instructions file, PROMPT.md now says to offer the lines for
+  an `AGENTS.md` instead of skipping the step or creating one unasked.
+- Copied prompts put what to do before what to know. An item's names what it waits on when it's
+  blocked, says to read its file (which is current where the copy may not be) and to ask about
+  open questions, and no longer repeats the done status after its text. An epic's gives how to
+  work and its items in work order before its file, fields and text, and says the item status
+  rule once. Both list the board's suggestions apart from its problems.
 - The toolbar has two rows with fixed roles in every project: search, its chips, then the count,
   Group and the view switch on the first; the filters, always in the same order, on the second,
   which wraps within itself. Clear keeps its place while hidden, so applying a filter moves
@@ -41,6 +62,11 @@ Changed:
 
 Fixed:
 
+- A `backlog.yaml` is reported as a problem: only `backlog.yml` is read, and the board used to
+  guess the fields without a word. Beside a `backlog.yml`, the problem says to merge it in and
+  delete it.
+- `index --write` into a folder without a README starts the new file with the index's start
+  marker; it began with two blank lines.
 - A new item's `created` date is the local day where the board or the CLI runs. It was the UTC
   day, so an item made after local midnight ahead of UTC got yesterday's date.
 

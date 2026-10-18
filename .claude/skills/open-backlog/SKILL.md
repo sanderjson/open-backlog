@@ -17,8 +17,11 @@ open-backlog repo.
 - Read `backlog.yml` first. A strict field allows only the values it lists.
 - An item is `<slug>.md`: front matter, a `# Title` line matching `title:`, then the body from
   `_template.md`. `id:` is its short number (shown as W-12): the highest in the folder plus one
-  for a new item, never changed or reused, and the handle to use in commit messages. The slug is the title in lower case joined with `-`. Every item has a row in
-  the README's index.
+  for a new item, never changed or reused, and the handle to use in commit messages. The slug
+  (the file name) is how other items and the index name it: by default the title in lower case
+  joined with `-`, or the project's own pattern if its items follow one. Renaming a file means
+  changing the slug everywhere it's used, then `check`. Every item has a row in the README's
+  index.
 - An epic is an item with `items: [slugs]` in work order. Nothing else makes one. `type: epic`
   only if the list allows it. Epics can't contain epics, and the member items' files stay as they
   are. Asked to roll items up into an epic, make the epic file and its index row, and say where it
@@ -33,11 +36,13 @@ open-backlog repo.
   and `.yml` only, and the guidance folder holds text only.
 - The backlog is as visible as the repository. Unfixed security findings, credentials, personal or
   customer data and legal matters don't go in an item's text. Write the item as a pointer to where
-  the project keeps such details (its backlog README says where), and ask if it doesn't say.
+  the project keeps such details (its backlog README says where). If it doesn't say, propose a
+  place (a draft security advisory, the project's secrets manager) and ask.
 - With Node 22 or later and the kit's CLI: `check`, `next`, `prompt <slug>` and `index --check`,
   each taking the folder as an argument, and `new "<title>"` with `--field name=value`, `--weight`,
-  `--tags`, `--items` (an epic) or `--epic` (into one). Prefer `new` to writing a new item by hand:
-  it validates everything first and writes the file and the index row together.
+  `--tags`, `--items` (an epic), `--epic` (into one) or `--slug` (the project's own file name).
+  Prefer `new` to writing a new item by hand: it validates everything first and writes the file
+  and the index row together.
 - The board's search matches words in titles, slugs, text, tags and field values, and takes
   filters: `#tag`, `field:value` (`status:ready`), `is:epic`. Quotes keep a phrase or literal text.
   Tell the user to type `is:epic` to find an epic you made.

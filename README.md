@@ -59,7 +59,7 @@ you're an agent working from inside one host project.
 | `web/index.html` | The page: mounts the board on `<div data-open-backlog data-api="." data-page>`. |
 | `web/board.js`, `web/board.css` | The page's behaviour and look. Everything is scoped under `.bb`. |
 | `web/core.js` | Reading, checking and planning edits to the backlog, and what the board shows for an address, with no page. |
-| `web/vendor/` | [marked](https://github.com/markedjs/marked) 18.0.13 and [js-yaml](https://github.com/nodeca/js-yaml) 5.4.2, with their MIT licences. |
+| `web/vendor/` | [marked](https://github.com/markedjs/marked) 18.0.13 and [js-yaml](https://github.com/nodeca/js-yaml) 5.4.2, with their MIT licences, each one file copied unchanged from its npm package (see [Vendored parsers](#vendored-parsers)). |
 | `starter/` | A backlog for a project that has none: `backlog.yml`, a README index, a template, and an epic with two items. |
 | `docs/backlog/` | The kit's own backlog, kept with the board it's built with: `npm run dev` serves it (see [Development checks](#development-checks)). |
 | `docs/backlog-guidance/` | Text for people and agents working a backlog: `working-the-backlog.md`, which PROMPT.md installs in projects, and a project's own conventions. Markdown only. |
@@ -148,8 +148,11 @@ saved, and the stale index row shows up as a problem to fix.
 
 ## The backlog's files
 
-Each item is `<slug>.md`: front matter, then Markdown. The file name is how links and lists name
-the item; its `id` is the short handle people say and type (W-12).
+Each item is `<slug>.md`: front matter, then Markdown. The slug, the file name without `.md`, is
+how links, `depends_on`, `related`, `items` and the index name the item; its `id` is the short
+handle people say and type (W-12). The board and `new` make the slug from the title ("Brand
+palette" is `brand-palette`), but any name the folder accepts will do, so a project can name items
+its own way (`api-07-export.md`, which `new --slug api-07-export` makes).
 
 ```markdown
 ---
@@ -190,6 +193,10 @@ One palette drives every screen.
 - `items` makes the item an epic: see [Epics](#epics).
 - Files starting with `_` or `.` aren't items. `_template.md` is the body for new items, with
   `{{title}}` replaced.
+- A new title doesn't need a new file name. To rename the file anyway, keep its `id`, `git mv` it,
+  and change the old slug wherever it's used: other items' `depends_on`, `related` and `items`,
+  Markdown links to it (`](old-slug.md)`) and its index row (or `index --write`). `check` then
+  reports anything still naming the old slug.
 - The folder holds only `.md` and `.yml`. Screenshots and other files an item needs go beside it,
   in `docs/backlog-assets/`, linked from the item as `[the screenshot](../backlog-assets/name.png)`:
   the board opens such links in your editor, and the checks leave them alone. Text about how the
@@ -222,11 +229,24 @@ Three ways to keep them out, none of which changes the kit:
 
 Write the project's own rule into its backlog README (the starter has a line to fill in) so people
 and agents writing items know where such things go. The guide and the skill tell agents to check
-it before writing anything of the kind.
+it before writing anything of the kind. For the common cases, a good default:
+
+- **Unfixed security findings**: a draft security advisory on the code host (GitHub's, or GitLab's
+  confidential issues). The item points at it and gets the details once the fix ships.
+- **Credentials**: the password or secrets manager the project already uses. No backlog holds a
+  secret's value; an item may name which secret, never what it is.
+- **Customer and personal data, legal, HR and embargoed matters**: wherever the people involved
+  already keep them, such as a private tracker or a shared drive only they can open. A second
+  backlog outside the repository suits a team that wants a board for them too.
+
+An agent that finds no rule can propose these and ask; it doesn't decide for the project, and it
+doesn't copy anything sensitive into an item while it waits.
 
 ### backlog.yml
 
-Optional. It names the choice fields and their values in order, which statuses count as done,
+Optional, and spelled `backlog.yml`: a `backlog.yaml` isn't read, and the board reports it as a
+problem until it's renamed (or, beside a `backlog.yml`, merged into it and deleted). It names the
+choice fields and their values in order, which statuses count as done,
 closed, not started and under way, colours, the editor for file links, and the index file. See
 [starter/backlog.yml](starter/backlog.yml) for every setting. Without it, the board takes the
 usual fields (status, priority, type, area) and the values the items use, with well-known
@@ -275,6 +295,7 @@ node bin/open-backlog.mjs index docs/backlog --check
 node bin/open-backlog.mjs ids docs/backlog --write
 node bin/open-backlog.mjs new "Export to CSV" docs/backlog --field status=idea --tags export
 node bin/open-backlog.mjs new "Checkout v2" docs/backlog --items cart-rules,payment-retry
+node bin/open-backlog.mjs new "Export to CSV" docs/backlog --slug api-07-export
 ```
 
 The directory defaults to `docs/backlog`. `check` uses the same parser as the board and exits 1
@@ -287,9 +308,12 @@ hasn't changed since the command read it.
 from `_template.md`, its index row or the regenerated managed region, and an epic's list. It takes
 `--field name=value` for any choice field (once per field), `--weight <n>`, `--tags a,b`,
 `--items a,b,c`, which makes the new item an epic over those items in work order, and
-`--epic <slug>`, which adds it to an existing epic. It validates the whole command first: a bad
-value, a missing or nested member, or `--items` with `--epic` exits 2 with the reason on stderr
-and writes nothing. It prints the slug and each file written. Writing several files isn't a
+`--epic <slug>`, which adds it to an existing epic, and `--slug <name>`, which names the file
+`<name>.md` instead of after the title, for a project with its own naming pattern. A requested name
+is used exactly as given: one that's taken (in any case), ends in `.md`, isn't a name the folder
+accepts, starts with `_` or is the README or index is refused, never suffixed. It validates the
+whole command first: a bad value, a missing or nested member, a refused name, or `--items` with
+`--epic` exits 2 with the reason on stderr and writes nothing. It prints the slug and each file written. Writing several files isn't a
 transaction, so if a later write fails it names the files already written and exits 1.
 
 ### Guidance for agents
@@ -313,8 +337,8 @@ A new backlog's own README (from `starter/`) carries the short version, for agen
 A value `backlog.yml` doesn't allow, a strict field left empty, a weight that isn't a positive
 whole number, a link to no item (in `depends_on`, `related` or the index) or to a file in the
 folder that isn't there (in an item's text), a dependency loop, a file without front matter or a
-title, an index that disagrees with the items, and an epic whose list or status doesn't add up
-(see [Epics](#epics)). These appear in a panel at the top and on each item, with suggestions
+title, a `backlog.yaml` (which isn't read), an index that disagrees with the items, and an epic
+whose list or status doesn't add up (see [Epics](#epics)). These appear in a panel at the top and on each item, with suggestions
 (things worth a look, not mistakes) after the problems: an unfinished prerequisite that comes
 after its dependent in work order, `related` repeating `depends_on`, `type: epic` on an item
 that lists no items, and an epic whose items are all done.
@@ -380,20 +404,24 @@ the order.
 - Sorting and the index's tables treat an epic as an ordinary item: it's a row like any other.
 
 **Copy epic as prompt.** On an epic, **Copy epic as prompt** (or `c`) copies one brief for a
-coding agent working in the project. It opens by telling the agent to set the epic in progress
-now and each item as it starts it. Then it holds:
+coding agent working in the project. What to do comes first:
 
-- the epic's file and its whole text, which is where its goal and end-to-end acceptance live;
+- if the epic itself waits on unfinished work, which work, and to ask before starting;
+- setting the epic in progress now (or that it's in progress already), using the backlog's own
+  statuses, and nothing about status when it names none;
+- how to work: read the epic's file now and each item's file before starting it, since the files
+  are current and the copy may not be; follow the work order unless an item says otherwise; keep
+  each item's status current in its front matter and its index row; mark the epic done only when
+  every item is done and its own acceptance holds; and stop to ask about any open question an
+  item lists;
 - its items in work order, each with its file, status, priority, weight, what it waits on
-  (marking what's outside the epic) and any problems;
-- what holds the epic up from outside;
-- how to work: read each item's file before starting it, follow the work order unless an item
-  says otherwise, keep each item's status current in its front matter and its index row, mark
-  the epic done only when every item is done and its own acceptance holds, and stop to ask about
-  any open question an item lists.
+  (marking what's outside the epic), and the board's problems and suggestions; then what can
+  start next, and what holds the epic up from outside.
 
-It points to the items' files rather than pasting them, so the brief stays short and the agent
-reads each file when it gets there. `epicPrompt` in `core.js` builds it, and `epicOrder`,
+Then what the agent may want to know: the epic's file, fields and progress, what it depends on,
+unblocks and relates to, the board's problems and suggestions for it, and last its whole text,
+which is where its goal and end-to-end acceptance live. It points to the items' files rather than
+pasting them, so the brief stays short and the agent reads each file when it gets there. `epicPrompt` in `core.js` builds it, and `epicOrder`,
 `epicProgress`, `epicsOf`, `planAddToEpic` and `planRemoveFromEpic` are there too.
 
 Epics are ordinary item files, so they need nothing from the host.
@@ -417,10 +445,13 @@ Epics are ordinary item files, so they need nothing from the host.
 - **Links**: links to other items open them on the board, links to other files open in your
   editor, and links to the web open in a new tab.
 - **Copy as prompt**: the button in an item's sheet copies the item for a coding agent's
-  session in the project. It opens with the status change (set it in progress now, done when
-  finished; a blocked item asks for the go-ahead first), then gives its file, fields, what it
-  waits on, unblocks and relates to, its epics, any problems and its text. Paste it into the agent
-  and add your own instructions. `itemPrompt` in `core.js` builds it. On an epic, the button
+  session in the project. What to do comes first: a blocked item names what it waits on and asks
+  for the go-ahead; then the status change (in progress now, done when finished, in the
+  backlog's own statuses), and to read the item's file, which is current where the copy may not
+  be, and ask about any open question it lists. Then its file, fields, what it depends on,
+  unblocks and relates to, its epics, the board's problems and suggestions, and last its text,
+  whose links are relative to the backlog folder. Paste it into the agent and add your own
+  instructions. `itemPrompt` in `core.js` builds it. On an epic, the button
   copies the whole epic instead (see [Epics](#epics)).
 - **Keys**: `/` search, `n` new item, `b` board, `l` list, `Shift E` epic filter, `j`/`k` next
   and previous item, `e` open in editor, `c` copy as prompt, `Esc` close, `?` all of them. The
@@ -432,11 +463,51 @@ Epics are ordinary item files, so they need nothing from the host.
 
 ## Updating a project's copy
 
-Projects keep a copy of `web/` at a tagged version (see PROMPT.md). To update, replace the
-folder with the newer tag's `web/` (and `bin/open-backlog.mjs`, if the project has it) and change
-the recorded version. [CHANGELOG.md](CHANGELOG.md) says what changed at each tag, opening with
-what the update asks of the project, if anything. The two routes don't change within a major
-version. What an update has asked so far:
+Projects keep a copy of the kit at a tagged version (see PROMPT.md). An update moves the whole copy
+to one newer tag: no files from two tags, and no edits to them. [CHANGELOG.md](CHANGELOG.md) says
+what changed at each tag, opening with what the update asks of the project, if anything. Read every
+entry after the project's recorded version, up to the new tag, and do what each asks. The two
+routes don't change within a major version.
+
+With the new tag cloned somewhere outside the project
+(`git clone --depth 1 --branch <tag> https://github.com/sanderjson/open-backlog`):
+
+1. **Replace the kit's files.** Replace the project's copy of `web/` with the tag's, and
+   `bin/open-backlog.mjs` if the project has the CLI. Set the project's `VERSION` file, its record
+   of the tag it copied, to the new tag. `VERSION` in `web/core.js` is the kit's own: it arrives
+   with the copy and is never edited by hand.
+2. **Install or refresh the guidance and the skill.** Copy the tag's
+   `docs/backlog-guidance/working-the-backlog.md` and `.claude/skills/open-backlog/SKILL.md` over
+   the project's, creating them if the project's copy predates v0.5.0. Those two files are the
+   kit's. Everything else stays as it is: the project's own conventions beside the guide, its other
+   skills, the backlog, `backlog.yml`, `_template.md` and `docs/backlog-assets/`.
+3. **Make sure git keeps the copied files.** A broad ignore rule such as `bin/` also matches
+   `vendor/open-backlog/bin/`, and the CLI then works on this machine and is missing from every
+   clone. `git check-ignore -v --no-index <path>…` over the copied files names any rule that
+   matches them (`--no-index` checks files already tracked too). Anchor the rule to what it meant
+   (`/bin/` for the project's own `bin/`) or add a narrow exception (`!vendor/open-backlog/bin/`).
+   Then `git status` lists every copied file that changed. A file that works locally isn't
+   evidence that it's in git: after committing, inspect the copied files in a fresh clone or a
+   `git worktree add`. Where Node 22+ and the CLI are installed, also run `--help` and `check`
+   there.
+4. **Say where details that stay out go.** A backlog started before v0.5.0 has no line in its
+   README saying where unfixed security findings, credentials and personal data go (see
+   [As visible as the repository](#as-visible-as-the-repository)). Add one, beside the README's
+   other notes on working the backlog, like the starter's "What stays out" line. Propose the
+   project's answer and ask its owners to confirm; until they do, items stay pointers.
+5. **Point agents at the backlog.** If the project's agent instructions (`CLAUDE.md`, `AGENTS.md`
+   or the like) don't point at the backlog yet, add the lines PROMPT.md's step 4 describes. If the
+   project has no such file, say so and offer the lines for a new `AGENTS.md`; don't create one
+   unasked, and don't count its absence as a failed update.
+6. **See it working.** Where Node 22+ and the CLI are installed, run `check`, and `index --check`
+   if the README has a managed index; confirm that `--help` reports the new version.
+   Restart the project's dev server if it was running before the copy or caches files, reload the
+   board without the cache, and confirm that `?` shows the tag recorded in the project's `VERSION`.
+   Then repeat PROMPT.md's step 6: change a status in a sheet and see the file change, edit a file
+   by hand and see the board follow. If the server can't be run, say so instead of reporting the
+   update as checked.
+
+What an update has asked so far:
 
 - v0.2.0 made `items` the board's own key, so a choice field called `items` stops being one.
 - v0.5.0 asks hosts to refuse requests whose `Host` isn't a development host (see
@@ -444,6 +515,9 @@ version. What an update has asked so far:
   keeps working, but add it: it closes the DNS-rebinding gap the header leaves. v0.5.0 also needs
   `data-page` on the mount element when the board is the whole page, as `web/index.html` has;
   without it the board behaves as it does inside a host's own page.
+- v0.6.0 made `id` the board's own key, so a choice field called `id` stops being one. A board in
+  a host's own page is as tall as its content unless its element is given a height. Numbering the
+  items (`ids --write`) is optional.
 
 The board says which version it is in its shortcuts dialog (`?`), and the CLI in `--help`.
 
@@ -478,6 +552,22 @@ test host stays a throwaway. The backlog's index is a managed region, so
 
 CI runs the Node suites on Node 22 and 24, and Chromium headlessly, and checks `starter/` and
 `docs/backlog/` with the CLI. The kit still has no build step and no runtime npm dependency.
+
+### Vendored parsers
+
+The board parses Markdown and YAML with two files copied from npm packages, unchanged, so the kit
+has no runtime dependency and no build step:
+
+| Package | File in the package | Copied to | Licence |
+|---|---|---|---|
+| [marked](https://www.npmjs.com/package/marked) 18.0.13 | `lib/marked.esm.js` | `web/vendor/marked.js` | `LICENSE`, as `web/vendor/marked.LICENSE` |
+| [js-yaml](https://www.npmjs.com/package/js-yaml) 5.4.2 | `dist/browser/js-yaml.esm.min.mjs` | `web/vendor/js-yaml.js` | `LICENSE`, as `web/vendor/js-yaml.LICENSE` |
+
+On 2026-10-18 all four copies matched the files in `npm pack marked@18.0.13 js-yaml@5.4.2` byte for
+byte. To check them again, or to copy a new version: `npm pack <package>@<version>
+--ignore-scripts` in an empty folder outside the repository, extract it, and compare or copy the
+files in the table. A new version changes how every project reads its items, so it goes through
+its own review, with both suites run and the table updated.
 
 ## Releasing
 

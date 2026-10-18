@@ -12,19 +12,21 @@ Usage: node bin/open-backlog.mjs <command> [arguments]
   index [directory] --check|--write
   ids [directory] --check|--write
   new "<title>" [directory] [--field name=value]... [--weight <n>] [--tags a,b]
-      [--items a,b,c | --epic <slug>]
+      [--items a,b,c | --epic <slug>] [--slug <name>]
 
 Directory defaults to docs/backlog. Index generation replaces only a marked region. ids --write
 gives every item without an ID the next free numbers, oldest first.
 
 new writes an item from _template.md and its index row. --field sets a choice field (once per
 field), --items makes the item an epic over those items in work order, and --epic adds it to an
-existing epic. If anything is wrong, it says why and writes nothing.
+existing epic. The file is named after the title unless --slug gives the name without .md, for a
+project that names items its own way. If anything is wrong, it says why and writes nothing.
 
 Examples:
   node bin/open-backlog.mjs new "Export to CSV" --field status=idea --field priority=mid --tags export
   node bin/open-backlog.mjs new "Retry failed payments" --epic checkout --field status=ready
   node bin/open-backlog.mjs new "Checkout v2" --items cart-rules,payment-retry,receipt-email
+  node bin/open-backlog.mjs new "Export to CSV" --slug api-07-export
 `;
 
 async function read(dir) {
@@ -60,7 +62,7 @@ async function writeChecked(dir, path, files, writes, changed) {
 
 // new "<title>" [directory] and its flags, read in full before the backlog is touched.
 function createOptions(args) {
-  const valued = ['--field', '--weight', '--tags', '--items', '--epic'];
+  const valued = ['--field', '--weight', '--tags', '--items', '--epic', '--slug'];
   const options = { fields: {}, tags: [] };
   const positional = [];
   for (let i = 0; i < args.length; i++) {
@@ -82,8 +84,10 @@ function createOptions(args) {
     } else {
       const key = flag.slice(2);
       if (options[key] != null) throw new Error(`${flag} is given twice`);
-      options[key] = key === 'items' ? list() : value.trim();
+      // A requested slug is used exactly as given, so it isn't trimmed.
+      options[key] = key === 'items' ? list() : key === 'slug' ? value : value.trim();
       if (key === 'items' && !options.items.length) throw new Error('--items needs at least one item slug');
+      if (key === 'slug' && !value) throw new Error('--slug needs a value');
     }
   }
   if (options.items && options.epic) throw new Error("--items and --epic can't go together: epics can't contain epics");
