@@ -60,6 +60,9 @@ Changed:
 
 Fixed:
 
+- A `backlog.yaml` is reported as a problem: only `backlog.yml` is read, and the board used to
+  guess the fields without a word. Beside a `backlog.yml`, the problem says to merge it in and
+  delete it.
 - `index --write` into a folder without a README starts the new file with the index's start
   marker; it began with two blank lines.
 - A new item's `created` date is the local day where the board or the CLI runs. It was the UTC

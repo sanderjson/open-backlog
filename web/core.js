@@ -254,6 +254,13 @@ export function parseBacklog({ files = {}, dir = "docs/backlog", path = "", writ
     problems: error ? [{ slug: "", message: error }] : [],
     files, config,
   };
+  // Only backlog.yml is read. A backlog.yaml beside it, or instead of it, is reported, not read.
+  const yaml = CONFIG_FILE.replace(/\.yml$/, ".yaml");
+  if (files[yaml] != null) {
+    s.problems.push({ slug: "", message: files[CONFIG_FILE] != null
+      ? `${yaml} isn't read, ${CONFIG_FILE} is: move what you need from ${yaml} into ${CONFIG_FILE}, then delete ${yaml}`
+      : `${yaml} isn't read, so the fields are guessed: name it ${CONFIG_FILE}` });
+  }
 
   s.items = Object.keys(files)
     .filter((name) => isItemFile(name, s.index))

@@ -13,9 +13,10 @@ that doesn't add up.
 
 ## Before changing anything
 
-1. Read `backlog.yml`. It lists the choice fields (`status`, `priority`, `type`, `area`, or the
-   project's own names such as `kind`) and, for a strict field, the only values allowed. It also
-   says which statuses mean done, closed, not started and under way.
+1. Read `backlog.yml` (spelled so: a `backlog.yaml` isn't read, and `check` reports it). It
+   lists the choice fields (`status`, `priority`, `type`, `area`, or the project's own names such
+   as `kind`) and, for a strict field, the only values allowed. It also says which statuses mean
+   done, closed, not started and under way.
 2. Read the README's front matter table and one existing item, and match their style.
 3. If the project has Node 22 or later and the kit's CLI (`bin/open-backlog.mjs` next to the
    kit's `web/`, often under `vendor/open-backlog/`), run `check` before and after: it reports the
