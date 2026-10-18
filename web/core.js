@@ -722,14 +722,18 @@ function rowLine(s, cells) {
   return `| ${cells.join(" | ")} |${s.indexCRLF ? "\r" : ""}`;
 }
 
-// The index with value shown for field in each of slug's rows, or null when nothing changes.
-function indexWithValue(s, slug, name, value) {
+// The index with a field set for each item in values (a Map from slug to value), or null when
+// nothing changes. Updating several items together keeps every changed row.
+function indexWithValues(s, name, values) {
   const lines = [...s.indexLines];
   let changed = false;
   for (const table of s.indexTables) {
-    for (const row of table.rows.filter((r) => r.slug === slug)) {
-      const c = table.cols.indexOf(name);
-      if (c < 0 || c >= row.cells.length || row.cells[c] === value) continue;
+    const c = table.cols.indexOf(name);
+    if (c < 0) continue;
+    for (const row of table.rows) {
+      if (!values.has(row.slug)) continue;
+      const value = values.get(row.slug);
+      if (c >= row.cells.length || row.cells[c] === value) continue;
       const updated = [...row.cells];
       updated[c] = value;
       lines[row.line] = rowLine(s, updated);
@@ -827,23 +831,40 @@ export function planIndex(s) {
 
 // The writes that give every item without an ID the next free numbers, oldest `created` first
 // (undated last), then in work order, with `id:` under the title line. Nothing else in the items
-// changes; a managed index is regenerated to show the IDs.
+// changes; a managed index is regenerated, or existing ID cells in a handwritten one are updated.
 export function planIds(s) {
   const day = (item) => item.created || "￿";
   const missing = sortItems(s, s.items.filter((item) => !item.id), "weight").sort((a, b) => (day(a) < day(b) ? -1 : day(a) > day(b) ? 1 : 0));
   let next = nextId(s);
   const writes = {};
-  for (const item of missing) writes[item.file] = withId(s.files[item.file], next++);
-  if (missing.length && hasManagedIndex(s)) Object.assign(writes, planIndex(parseBacklog({ files: { ...s.files, ...writes }, dir: s.dir, path: s.path })));
+  const ids = new Map();
+  for (const item of missing) {
+    const id = next++;
+    const source = withId(s.files[item.file], id);
+    if (idNumber(parseItem(item.slug, source)) !== id) throw new Error(`${item.file}: couldn't add an ID without invalidating its front matter`);
+    writes[item.file] = source;
+    ids.set(item.slug, itemCode(s, { id }));
+  }
+  if (missing.length) {
+    if (hasManagedIndex(s)) Object.assign(writes, planIndex(parseBacklog({ files: { ...s.files, ...writes }, dir: s.dir, path: s.path })));
+    else {
+      const index = indexWithValues(s, "id", ids);
+      if (index != null) writes[s.index] = index;
+    }
+  }
   return writes;
 }
 
-// The item's text with `id: n` right under its title line, or at the end of the front matter.
+// Sets an existing ID, or adds one under a complete single-line title (otherwise at the end).
 function withId(source, n) {
   const split = splitFront(source);
-  const parts = split?.front ? split.front.split(/(\r?\n)/) : [];
+  const front = split?.front ? yaml(split.front) : null;
+  if (!isMap(front) || Object.hasOwn(front, "id")) return setFront(source, "id", String(n));
+  const parts = split.front.split(/(\r?\n)/);
   const at = parts.findIndex((part, i) => i % 2 === 0 && /^title:/.test(part));
-  if (at < 0 || /^[ \t]/.test(parts[at + 2] ?? "")) return setFront(source, "id", String(n));
+  let title;
+  try { title = yaml(parts[at] ?? "")?.title; } catch { /* A quoted title may continue on another line. */ }
+  if (at < 0 || title !== front.title) return setFront(source, "id", String(n));
   parts.splice(at + 1, 0, parts[at + 1] ?? split.nl, `id: ${n}`);
   return joinFront({ ...split, front: parts.join("") });
 }
@@ -931,7 +952,7 @@ export function planUpdate(s, slug, name, value) {
   const problem = validate(s, name, value);
   if (problem) throw new Error(problem);
   const writes = { [item.file]: setFront(s.files[item.file], name, value) };
-  const index = hasManagedIndex(s) ? planIndex(parseBacklog({ files: { ...s.files, ...writes } }))[s.index] : indexWithValue(s, slug, name, value);
+  const index = hasManagedIndex(s) ? planIndex(parseBacklog({ files: { ...s.files, ...writes } }))[s.index] : indexWithValues(s, name, new Map([[slug, value]]));
   if (index != null) writes[s.index] = index;
   return writes;
 }

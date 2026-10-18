@@ -217,14 +217,15 @@ html.bb-locked { overflow: hidden; }
    wraps within itself. */
 .bb-filters { display: flex; flex-direction: column; gap: 10px; }
 .bb-toolbar-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.bb-toolbar-main > .bb-search { flex: none; }
+.bb-toolbar-main > .bb-search { flex: 0 1 240px; min-width: 120px; }
 .bb-toolbar-main > .bb-query-chips { flex: 0 1 auto; min-width: 0; }
-.bb-toolbar-end { display: flex; flex: none; align-items: center; gap: 8px; margin-left: auto; }
+.bb-toolbar-end { display: flex; flex: 0 1 auto; min-width: 0; max-width: 100%; align-items: center; gap: 8px; margin-left: auto; }
+.bb-toolbar-end > .bb-count, .bb-toolbar-end > .bb-seg { flex: none; }
 .bb-toolbar-filters { flex-wrap: wrap; }
 .bb-filter-fields { display: contents; }
 .bb-select.bb-tag-filter { max-width: 12rem; text-overflow: ellipsis; }
 /* Clear keeps its place while hidden, so applying a filter moves nothing. */
-.bb-clear[hidden] { display: inline-block; visibility: hidden; }
+.bb-clear[hidden] { display: inline-block !important; visibility: hidden; }
 .bb-search {
   position: relative; display: flex; align-items: center; width: 240px; height: 34px; padding: 0 8px 0 11px;
   border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--faint); transition: border-color 0.15s, box-shadow 0.15s;
@@ -243,7 +244,7 @@ html.bb-locked { overflow: hidden; }
 .bb-query-chip .bb-i { width: 14px; height: 14px; opacity: 0.7; }
 .bb-query-chip:hover .bb-i { opacity: 1; }
 .bb-count { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.bb-group { display: flex; align-items: center; gap: 2px; }
+.bb-group { display: flex; flex-wrap: wrap; min-width: 0; align-items: center; gap: 2px; }
 .bb-group-label { margin-right: 4px; color: var(--faint); font-size: 12px; font-weight: 600; }
 .bb-group button { height: 28px; padding: 0 10px; border: 0; border-radius: 999px; background: none; color: var(--muted); font-size: 13px; font-weight: 600; transition: all 0.15s; }
 .bb-group button:hover { background: var(--sunken); color: var(--ink); }
@@ -552,7 +553,7 @@ a.bb-path:hover { background: var(--sunken); color: var(--ink); }
   .bb-header { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "heading actions" "stats stats"; align-items: start; }
   .bb-stats { justify-content: flex-start; }
   .bb-toolbar-main { flex-wrap: wrap; }
-  .bb-toolbar-main > .bb-search { width: 100%; }
+  .bb-toolbar-main > .bb-search { flex: none; width: 100%; }
   .bb-search kbd { display: none; }
   .bb-prompt-btn { margin-left: auto; padding: 0 10px; }
   .bb-prompt-btn span { display: none; }

@@ -614,3 +614,44 @@ test("ids numbers the items without one, oldest first, under their titles", () =
   assert.deepEqual(after.problems.filter((p) => !p.notice).map((p) => p.slug), []);
   assert.match(core.planIds(load({ "x.md": "---\nstatus: idea\n---\n\n# X\n" }))["x.md"], /^---\nstatus: idea\nid: 1\n---/, "no title line: at the end");
 });
+
+test("ids preserves empty ID fields and multiline titles", () => {
+  for (const [front, title] of [
+    ["title: A\nid:\nstatus: idea", "A"],
+    ["id: null\ntitle: A\nstatus: idea", "A"],
+    ['title: A\nid: ""\nstatus: idea', "A"],
+    ["title: >-\n\n  A long\n  title\nstatus: idea", "A long title"],
+    ['title: "A long\n  title"\nstatus: idea', "A long title"],
+  ]) {
+    for (const nl of ["\n", "\r\n"]) {
+      const source = `---\n${front}\n---\n\n# ${title}\n\nKeep **this** body.\n`.replaceAll("\n", nl);
+      const f = { "a.md": source };
+      assert.deepEqual(load(f).problems, [], front);
+      const writes = core.planIds(load(f));
+      const after = load({ ...f, ...writes });
+      assert.deepEqual(after.problems, [], front);
+      const { id, ...actual } = after.bySlug.get("a");
+      const { id: previous, ...original } = load(f).bySlug.get("a");
+      assert.equal(id, "1", front);
+      assert.deepEqual(actual, original, front);
+      assert.equal(core.splitFront(writes["a.md"]).body, core.splitFront(source).body);
+      assert.deepEqual(core.planIds(after), {});
+    }
+  }
+});
+
+test("ids fills handwritten ID columns without changing other cells or prose", () => {
+  const f = {
+    "backlog.yml": "prefix: OB\n",
+    "a.md": "---\ntitle: A\nid: 3\nstatus: ready\n---\n\n# A\n",
+    "b.md": "---\ntitle: B\nstatus: idea\ncreated: 2026-10-01\n---\n\n# B\n",
+    "c.md": "---\ntitle: C\nstatus: ready\ncreated: 2026-10-02\n---\n\n# C\n",
+    "README.md": "Before\r\n\r\n| ID | Item | Notes | Status |\r\n|---|---|---|---|\r\n| OB-3 | [A](a.md) | Keep A | ready |\r\n|  | [B](b.md) | Keep B | idea |\r\n|  | [C](c.md) | Keep C | ready |\r\n\r\n<!-- open-backlog:ignore -->\r\n\r\n| ID | Item |\r\n|---|---|\r\n|  | [B](b.md) |\r\n\r\nAfter\r\n",
+  };
+  assert.equal(load(f).problems.some((p) => !p.notice), false);
+  const writes = core.planIds(load(f));
+  assert.equal(writes["README.md"], f["README.md"].replace("|  | [B](b.md) | Keep B", "| OB-4 | [B](b.md) | Keep B").replace("|  | [C](c.md) | Keep C", "| OB-5 | [C](c.md) | Keep C"));
+  const after = load({ ...f, ...writes });
+  assert.deepEqual(after.problems, []);
+  assert.deepEqual(core.planIds(after), {});
+});

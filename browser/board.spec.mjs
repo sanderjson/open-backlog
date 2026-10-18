@@ -458,14 +458,15 @@ test('an ID leads the card, the list and the sheet, and the search finds it', as
   } finally { await server.close(); }
 });
 
+const toolbarFiles = () => ({
+  'backlog.yml': 'fields:\n  status: [idea, ready, done]\n  priority: [high, low]\n  type: [build, epic]\n  area: [web, api]\n  team: [north, south]\n  quarter: [q1, q4]\n',
+  'a.md': '---\ntitle: A\nstatus: ready\npriority: high\ntype: build\narea: web\nteam: north\nquarter: q4\ntags: [one]\n---\n\n# A\n',
+  'b.md': '---\ntitle: B\nstatus: idea\npriority: low\ntype: build\narea: api\nteam: south\nquarter: q1\n---\n\n# B\n',
+  'e.md': '---\ntitle: A very long epic title that goes on and on about the checkout rework for every platform\nstatus: ready\npriority: high\ntype: epic\narea: web\nteam: south\nquarter: q4\nitems: [a, b]\n---\n\n# A very long epic title that goes on and on about the checkout rework for every platform\n',
+});
+
 test('the toolbar keeps two rows with fixed roles, and applying a filter moves nothing', async ({ page }) => {
-  const files = {
-    'backlog.yml': 'fields:\n  status: [idea, ready, done]\n  priority: [high, low]\n  type: [build, epic]\n  area: [web, api]\n  team: [north, south]\n  quarter: [q1, q4]\n',
-    'a.md': '---\ntitle: A\nstatus: ready\npriority: high\ntype: build\narea: web\nteam: north\nquarter: q4\ntags: [one]\n---\n\n# A\n',
-    'b.md': '---\ntitle: B\nstatus: idea\npriority: low\ntype: build\narea: api\nteam: south\nquarter: q1\n---\n\n# B\n',
-    'e.md': '---\ntitle: A very long epic title that goes on and on about the checkout rework for every platform\nstatus: ready\npriority: high\ntype: epic\narea: web\nteam: south\nquarter: q4\nitems: [a, b]\n---\n\n# Long\n',
-  };
-  const server = await startServer({ files });
+  const server = await startServer({ files: toolbarFiles() });
   try {
     await page.setViewportSize({ width: 1100, height: 800 });
     await page.goto(server.url);
@@ -484,6 +485,63 @@ test('the toolbar keeps two rows with fixed roles, and applying a filter moves n
     await page.getByRole('searchbox').fill('#one is:epic status:ready');
     await expect(page.locator('.bb-query-chip')).toHaveCount(3);
     expect(await page.locator('.bb-seg').boundingBox()).toEqual(view);
+  } finally { await server.close(); }
+});
+
+test('Clear reserves its space when filters are close to wrapping', async ({ page }) => {
+  const server = await startServer({ files: toolbarFiles() });
+  try {
+    for (const width of [1350, 400]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(server.url);
+      await expect(page.locator('.bb-card')).toHaveCount(3);
+      const before = await page.locator('.bb-main').boundingBox();
+      const clear = page.locator('.bb-clear');
+      const reserved = await clear.boundingBox();
+      expect(reserved).not.toBeNull();
+      expect(reserved.width).toBeGreaterThan(0);
+      await expect(clear).toBeHidden();
+      await page.getByRole('combobox', { name: 'Quarter', exact: true }).selectOption('q4');
+      await expect(page.locator('.bb-card')).toHaveCount(2);
+      await expect(clear).toBeVisible();
+      expect(await clear.boundingBox()).toEqual(reserved);
+      expect((await page.locator('.bb-main').boundingBox()).y).toBe(before.y);
+      await clear.click();
+      await expect(page.locator('.bb-card')).toHaveCount(3);
+      expect((await page.locator('.bb-main').boundingBox()).y).toBe(before.y);
+    }
+  } finally { await server.close(); }
+});
+
+test('narrow toolbars keep every grouping and view control within the board', async ({ page }) => {
+  const server = await startServer({ files: toolbarFiles() });
+  try {
+    for (const width of [320, 400, 800]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(server.url);
+      await expect(page.locator('.bb-card')).toHaveCount(3);
+      for (const control of await page.locator('.bb-group button, .bb-seg button').all()) {
+        const box = await control.boundingBox();
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+      }
+      await page.getByRole('button', { name: 'Quarter', exact: true }).click();
+      await expect(page.locator('.bb-column')).toHaveCount(2);
+      await page.getByRole('button', { name: 'List', exact: true }).click();
+      await expect(page.locator('.bb-table')).toBeVisible();
+    }
+
+    // The host's available width can be narrower than the viewport.
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto(server.url);
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    await page.locator('[data-open-backlog]').evaluate((el) => { el.style.width = '600px'; });
+    const mount = await page.locator('[data-open-backlog]').boundingBox();
+    for (const control of await page.locator('.bb-search, .bb-group button, .bb-seg button').all()) {
+      const box = await control.boundingBox();
+      expect(box.x).toBeGreaterThanOrEqual(mount.x);
+      expect(box.x + box.width).toBeLessThanOrEqual(mount.x + mount.width);
+    }
   } finally { await server.close(); }
 });
 

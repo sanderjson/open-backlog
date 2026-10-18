@@ -25,6 +25,8 @@ Added:
   managed index and a copied prompt's first line, and the search finds an item by it. New items
   get the highest ID plus one; `check` reports a shared or malformed ID.
 - `ids [directory] --check|--write` in the CLI numbers the items without an ID, oldest first.
+  It handles empty ID fields and multiline titles, and fills existing ID cells in handwritten
+  indexes as well as regenerating managed ones.
 
 Changed:
 
@@ -32,6 +34,7 @@ Changed:
   Group and the view switch on the first; the filters, always in the same order, on the second,
   which wraps within itself. Clear keeps its place while hidden, so applying a filter moves
   nothing. The header keeps one order, and on narrow screens stacks as heading, stats, toolbar.
+  Grouping options wrap when space is tight, keeping the count and view switch inside the board.
 - With more columns than fit and only a few cards, the board's sideways scrollbar sits at the
   bottom of the window (or of the height a host gives the board), not under the cards; a list
   wider than the window does the same.
