@@ -1,7 +1,7 @@
 ---
 title: Spell invisible characters in regexes as escapes
 id: 25
-status: ready
+status: done
 priority: low
 type: chore
 area: core
@@ -27,3 +27,10 @@ them without anyone seeing a diff.
 - Tests for front matter behind a BOM and for a slug from an accented title, added if they don't
   exist, cover LF and CRLF front matter and composed/decomposed accented input. Do not broaden
   transliteration or filename rules as part of this mechanical change.
+
+## Done
+- `FRONT_RE` spells its optional BOM `﻿`, and `slugify` strips `[̀-ͯ]`. A scan of
+  `web/`, `bin/` and `test/` finds no other invisible format, combining or space characters.
+- A test in [test/core.test.js](../../test/core.test.js) reads front matter behind a BOM with LF
+  and CRLF endings, and slugs composed and decomposed accents the same; it pins that letters
+  without a decomposition (Æ, ß) are still dropped.

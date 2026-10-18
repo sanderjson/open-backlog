@@ -125,7 +125,7 @@ export function parseConfig(source) {
 
 // The front matter's opening line, the front matter, the line break before the closing line, the
 // closing line and the body, or null when the text doesn't start with front matter.
-const FRONT_RE = /^(﻿?---[ \t]*\r?\n)(?:([\s\S]*?)(\r?\n))?(---[ \t]*(?:\r?\n|$))([\s\S]*)$/;
+const FRONT_RE = /^(\uFEFF?---[ \t]*\r?\n)(?:([\s\S]*?)(\r?\n))?(---[ \t]*(?:\r?\n|$))([\s\S]*)$/;
 
 export function splitFront(source) {
   const m = FRONT_RE.exec(source);
@@ -966,7 +966,7 @@ export function planUpdate(s, slug, name, value) {
 
 // A file name for a title: "Rig: Logo Build" is "rig-logo-build".
 export function slugify(title) {
-  const slug = title.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "")
+  const slug = title.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036F]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60).replace(/-+$/, "");
   return slug || "item";
 }
