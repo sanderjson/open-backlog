@@ -1,12 +1,13 @@
 ---
 title: The board fits a host page
-status: ready
+id: 29
+status: done
 priority: mid
 type: epic
 area: board
 weight: 11
 tags: [ui, embedding]
-created: 2026-10-17
+created: 2026-10-18
 items: [scope-keys-to-the-board, header-layout, board-scrollbar-position]
 depends_on: []
 related: []

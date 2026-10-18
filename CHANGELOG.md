@@ -6,6 +6,44 @@ of the project, when it asks anything. The README's
 [Updating a project's copy](README.md#updating-a-projects-copy) has the short form, and
 [Releasing](README.md#releasing) says how an entry gets here.
 
+## Unreleased
+
+This will be v0.6.0. Updating asks two things of a project, and offers one:
+
+- **`id` is now the board's own key.** A choice field called `id` stops being one.
+- **A board in a host's own page is as tall as its content** unless its element has a height; it
+  no longer takes at least the window's height. Give the element a height for the board to fill
+  it, with a short board's sideways scrollbar at the bottom of that space.
+- **Number the items** with `node bin/open-backlog.mjs ids docs/backlog --write` (or add `id: n` by
+  hand). Until a backlog has IDs nothing changes; once it has, new items are numbered and an item
+  without one gets a suggestion.
+
+Added:
+
+- Every item can have a short ID, shown with the backlog's prefix (`W-12`; `prefix:` in
+  backlog.yml changes the letters). It leads cards, the list (sortable), the sheet's title, the
+  managed index and a copied prompt's first line, and the search finds an item by it. New items
+  get the highest ID plus one; `check` reports a shared or malformed ID.
+- `ids [directory] --check|--write` in the CLI numbers the items without an ID, oldest first.
+  It handles empty ID fields and multiline titles, and fills existing ID cells in handwritten
+  indexes as well as regenerating managed ones.
+
+Changed:
+
+- The toolbar has two rows with fixed roles in every project: search, its chips, then the count,
+  Group and the view switch on the first; the filters, always in the same order, on the second,
+  which wraps within itself. Clear keeps its place while hidden, so applying a filter moves
+  nothing. The header keeps one order, and on narrow screens stacks as heading, stats, toolbar.
+  Grouping options wrap when space is tight, keeping the count and view switch inside the board.
+- With more columns than fit and only a few cards, the board's sideways scrollbar sits at the
+  bottom of the window (or of the height a host gives the board), not under the cards; a list
+  wider than the window does the same.
+
+Fixed:
+
+- A new item's `created` date is the local day where the board or the CLI runs. It was the UTC
+  day, so an item made after local midnight ahead of UTC got yesterday's date.
+
 ## v0.5.0 - 2026-10-18
 
 Updating from v0.4.0 asks two things of a project:

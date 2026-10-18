@@ -30,6 +30,7 @@ matches `title:`, then the body from `_template.md`, usually `## Why` and `## Ac
 ```markdown
 ---
 title: Brand palette
+id: 12
 status: idea
 priority: high
 type: build
@@ -50,8 +51,13 @@ One palette drives every screen.
 - Every status, priority and area has a tone in light and dark.
 ```
 
-- `title`, `weight`, `created`, `tags`, `branches`, `depends_on`, `related` and `items` belong to
-  the board. Every other key with a single value is a choice field.
+- `title`, `id`, `weight`, `created`, `tags`, `branches`, `depends_on`, `related` and `items`
+  belong to the board. Every other key with a single value is a choice field.
+- `id` is the item's short number, shown as `W-12` (the prefix is backlog.yml's `prefix`, W by
+  default). Never change or reuse one. A new item takes the highest ID in the folder plus one,
+  done and parked items included; that's why items are kept rather than deleted, since the kit
+  can't remember a deleted item's number. Two branches can take the same number: `check` reports
+  it, and renumbering the newer item fixes it. Write the ID in commit messages (`W-12: …`).
 - `weight` is the work order, smallest first. `depends_on` names items that must be finished
   first; `related` is for reading alongside. Both hold slugs, never titles or paths.
 - A new item needs a row in the index too (see "The index").
@@ -131,6 +137,7 @@ node bin/open-backlog.mjs check docs/backlog            # problems and suggestio
 node bin/open-backlog.mjs next docs/backlog             # what can start now, in work order
 node bin/open-backlog.mjs prompt <slug> docs/backlog    # the brief the board's "Copy as prompt" gives
 node bin/open-backlog.mjs index docs/backlog --check    # does the managed index need regenerating?
+node bin/open-backlog.mjs ids docs/backlog --write      # number the items that have no ID
 node bin/open-backlog.mjs new "<title>" docs/backlog --field status=idea --field priority=mid
                                                         # a new item and its index row
 ```
@@ -147,7 +154,7 @@ writing and, if anything is wrong, says why on stderr, exits 2 and writes nothin
 - `# Heading` not matching `title:`: "its H1 title disagrees with its front matter title".
 - `items`, `depends_on` or `related` naming a title or a path: "names X, which isn't an item".
 - An epic listed inside an epic: "epics can't contain epics". Flatten it instead.
-- Finding things on the board: words in the search match titles, slugs, text, tags and field
-  values. `#tag` keeps items with that tag, `field:value` (`status:ready`, `status:"in review"`)
+- Finding things on the board: an ID (`W-12`) finds that item; words in the search match titles,
+  slugs, text, tags and field values. `#tag` keeps items with that tag, `field:value` (`status:ready`, `status:"in review"`)
   those with that value, and `is:epic` the epics. They combine with AND, and quotes keep a phrase,
   or text that looks like a filter, as text. The Epic filter shows one epic and its items.

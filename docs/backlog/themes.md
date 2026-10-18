@@ -1,5 +1,6 @@
 ---
 title: Themes beyond light and dark
+id: 20
 status: idea
 priority: low
 type: discuss
@@ -27,6 +28,14 @@ accent, or a named theme that matches the project's other dev tools. Today that 
 - The theme button stays light, dark and auto; the theme itself isn't a per-user toggle.
 
 ## Acceptance
-- The agreed mechanism, documented in the README's backlog.yml section and in PROMPT.md's notes for
-  hosts, with the shipped themes shown in `docs/backlog-assets/`.
-- Nothing in it needs a host feature beyond serving static files.
+- As a `discuss` item, record the use case and choices for mechanism, token scope, shipped themes
+  and precedence before creating a separate build. Do not require implemented themes in order
+  to complete the decision.
+- The later build documents the agreed mechanism in README and PROMPT.md, shows the resulting
+  themes in `docs/backlog-assets/`, and needs no host feature beyond serving static files.
+
+## Order
+`depends_on: [colour-palette]` means the palette decisions are known before choosing a theme
+mechanism. It does not mean the refreshed palette has shipped: the future themes build must
+also depend on the separate palette build created by W-14. Themes discussion and implementation
+remain outside the proposed project-update sprint.

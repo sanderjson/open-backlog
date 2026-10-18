@@ -65,7 +65,9 @@ project's own layout instead of `index.html`, load `board.css` and `board.js` (a
 `type="module"`) and add `<div data-open-backlog data-api="/dev/backlog"></div>`. The routes stay
 the same. Mounted that way, the board leaves the page's title alone and takes its keyboard
 shortcuts only while focus is inside it; add `data-page` to the element if the board is the whole
-page, as `index.html` does.
+page, as `index.html` does. It's as tall as its content unless the element is given a height: give
+it one (for example the space below the project's header) and the board fills it, with a short
+board's sideways scrollbar at the bottom of that space.
 
 ## Sources
 

@@ -1,5 +1,6 @@
 ---
 title: Guidance agents find on their own
+id: 2
 status: done
 priority: high
 type: build

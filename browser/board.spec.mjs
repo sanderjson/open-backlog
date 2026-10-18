@@ -438,3 +438,149 @@ test('single-key shortcuts can be turned off, and the choice is remembered', asy
     await expect(page.locator('dialog[open]')).toHaveCount(1);
   } finally { await server.close(); }
 });
+
+test('an ID leads the card, the list and the sheet, and the search finds it', async ({ page }) => {
+  const files = three();
+  for (const [name, id] of [['a.md', 1], ['b.md', 2], ['c.md', 3]]) files[name] = files[name].replace(/^(title: .*)$/m, `$1\nid: ${id}`);
+  const server = await startServer({ files });
+  try {
+    await page.goto(server.url);
+    await expect(page.locator('.bb-card[data-item="b"] .bb-card-top .bb-code')).toHaveText('W-2');
+    await page.getByRole('searchbox').fill('w2');
+    await expect(page.locator('.bb-card')).toHaveCount(1);
+    await expect(page.locator('.bb-query-chip')).toHaveText(['W-2']);
+    await page.locator('.bb-card[data-item="b"]').click();
+    await expect(page.getByRole('dialog', { name: 'W-2 Beta' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.goto(server.url + '?view=list&sort=id&dir=desc');
+    await expect(page.locator('.bb-table thead th').first()).toHaveText('ID');
+    await expect.poll(() => rows(page)).toEqual(['c', 'b', 'a']);
+  } finally { await server.close(); }
+});
+
+const toolbarFiles = () => ({
+  'backlog.yml': 'fields:\n  status: [idea, ready, done]\n  priority: [high, low]\n  type: [build, epic]\n  area: [web, api]\n  team: [north, south]\n  quarter: [q1, q4]\n',
+  'a.md': '---\ntitle: A\nstatus: ready\npriority: high\ntype: build\narea: web\nteam: north\nquarter: q4\ntags: [one]\n---\n\n# A\n',
+  'b.md': '---\ntitle: B\nstatus: idea\npriority: low\ntype: build\narea: api\nteam: south\nquarter: q1\n---\n\n# B\n',
+  'e.md': '---\ntitle: A very long epic title that goes on and on about the checkout rework for every platform\nstatus: ready\npriority: high\ntype: epic\narea: web\nteam: south\nquarter: q4\nitems: [a, b]\n---\n\n# A very long epic title that goes on and on about the checkout rework for every platform\n',
+});
+
+test('the toolbar keeps two rows with fixed roles, and applying a filter moves nothing', async ({ page }) => {
+  const server = await startServer({ files: toolbarFiles() });
+  try {
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await page.goto(server.url);
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    const middle = async (selector) => { const b = await page.locator(selector).first().boundingBox(); return Math.round(b.y + b.height / 2); };
+    const search = await middle('.bb-search');
+    for (const selector of ['.bb-count', '.bb-group', '.bb-seg']) expect(await middle(selector), selector).toBe(search);
+    expect(await middle('.bb-toolbar-filters select[name="status"]')).toBeGreaterThan(search);
+    const before = await page.locator('.bb-toggle[data-toggle="open"]').boundingBox();
+    const view = await page.locator('.bb-seg').boundingBox();
+    await page.getByRole('combobox', { name: 'Quarter', exact: true }).selectOption('q4');
+    await expect(page.locator('.bb-card')).toHaveCount(2);
+    await expect(page.getByRole('button', { name: 'Clear', exact: true })).toBeVisible();
+    expect(await page.locator('.bb-toggle[data-toggle="open"]').boundingBox()).toEqual(before);
+    expect(await page.locator('.bb-seg').boundingBox()).toEqual(view);
+    await page.getByRole('searchbox').fill('#one is:epic status:ready');
+    await expect(page.locator('.bb-query-chip')).toHaveCount(3);
+    expect(await page.locator('.bb-seg').boundingBox()).toEqual(view);
+  } finally { await server.close(); }
+});
+
+test('Clear reserves its space when filters are close to wrapping', async ({ page }) => {
+  const server = await startServer({ files: toolbarFiles() });
+  try {
+    for (const width of [1350, 400]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(server.url);
+      await expect(page.locator('.bb-card')).toHaveCount(3);
+      const before = await page.locator('.bb-main').boundingBox();
+      const clear = page.locator('.bb-clear');
+      const reserved = await clear.boundingBox();
+      expect(reserved).not.toBeNull();
+      expect(reserved.width).toBeGreaterThan(0);
+      await expect(clear).toBeHidden();
+      await page.getByRole('combobox', { name: 'Quarter', exact: true }).selectOption('q4');
+      await expect(page.locator('.bb-card')).toHaveCount(2);
+      await expect(clear).toBeVisible();
+      expect(await clear.boundingBox()).toEqual(reserved);
+      expect((await page.locator('.bb-main').boundingBox()).y).toBe(before.y);
+      await clear.click();
+      await expect(page.locator('.bb-card')).toHaveCount(3);
+      expect((await page.locator('.bb-main').boundingBox()).y).toBe(before.y);
+    }
+  } finally { await server.close(); }
+});
+
+test('narrow toolbars keep every grouping and view control within the board', async ({ page }) => {
+  const server = await startServer({ files: toolbarFiles() });
+  try {
+    for (const width of [320, 400, 800]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(server.url);
+      await expect(page.locator('.bb-card')).toHaveCount(3);
+      for (const control of await page.locator('.bb-group button, .bb-seg button').all()) {
+        const box = await control.boundingBox();
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+      }
+      await page.getByRole('button', { name: 'Quarter', exact: true }).click();
+      await expect(page.locator('.bb-column')).toHaveCount(2);
+      await page.getByRole('button', { name: 'List', exact: true }).click();
+      await expect(page.locator('.bb-table')).toBeVisible();
+    }
+
+    // The host's available width can be narrower than the viewport.
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto(server.url);
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    await page.locator('[data-open-backlog]').evaluate((el) => { el.style.width = '600px'; });
+    const mount = await page.locator('[data-open-backlog]').boundingBox();
+    for (const control of await page.locator('.bb-search, .bb-group button, .bb-seg button').all()) {
+      const box = await control.boundingBox();
+      expect(box.x).toBeGreaterThanOrEqual(mount.x);
+      expect(box.x + box.width).toBeLessThanOrEqual(mount.x + mount.width);
+    }
+  } finally { await server.close(); }
+});
+
+test('a sideways scroller reaches the bottom of the window, or of the height a host gives it', async ({ page }) => {
+  const files = three();
+  files['backlog.yml'] = files['backlog.yml'].replace('area: [one, two]', 'area: [one, two, three, four, five, six]');
+  const server = await startServer({ files });
+  try {
+    await page.setViewportSize({ width: 1000, height: 900 });
+    await page.goto(server.url + '?group=area');
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    const board = page.locator('.bb-board');
+    expect(await board.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+    const bottom = async (locator) => { const b = await locator.boundingBox(); return b.y + b.height; };
+    expect(await bottom(board)).toBeGreaterThan(900 - 40);
+    expect(await bottom(board)).toBeLessThanOrEqual(900);
+    const column = (await page.locator('.bb-column').first().boundingBox());
+    expect(column.y + column.height).toBeLessThan(600); // columns keep their own height, at the top
+
+    // A wide list's box reaches down too; a list that fits keeps its own height.
+    await page.setViewportSize({ width: 800, height: 900 });
+    await page.goto(server.url + '?view=list');
+    const wrap = page.locator('.bb-table-wrap');
+    await expect(wrap).toHaveClass(/is-wide/);
+    expect(await bottom(wrap)).toBeGreaterThan(900 - 40);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await expect(wrap).not.toHaveClass(/is-wide/);
+    expect(await bottom(wrap)).toBeLessThan(500);
+
+    // In a host's page, the height the host gives the mount element is the board's.
+    const host = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Host</title>
+      <link rel="stylesheet" href="board.css"><script type="module" src="board.js"></script></head>
+      <body style="margin:0"><header style="height:80px">Host header</header>
+      <div data-open-backlog data-api="/dev/backlog" style="height:760px"></div></body></html>`;
+    await page.route('**/dev/backlog/host.html?*', (route) => route.fulfill({ contentType: 'text/html', body: host }));
+    await page.setViewportSize({ width: 1000, height: 1000 });
+    await page.goto(server.url + 'host.html?group=area');
+    await expect(page.locator('.bb-card')).toHaveCount(3);
+    expect(await bottom(page.locator('.bb-board'))).toBeGreaterThan(80 + 760 - 40);
+    expect(await bottom(page.locator('.bb-board'))).toBeLessThanOrEqual(80 + 760 + 1);
+  } finally { await server.close(); }
+});

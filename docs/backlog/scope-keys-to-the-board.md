@@ -1,5 +1,6 @@
 ---
 title: Keyboard shortcuts stay inside the board
+id: 18
 status: done
 priority: mid
 type: build
