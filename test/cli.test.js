@@ -123,6 +123,13 @@ test('CLI new refuses anything wrong before writing, on stderr with exit 2', asy
     [['X', join(dir, 'missing')], /ENOENT/],
     [['--field', 'status=idea'], /new needs a title/],
     [['X', dir, 'extra'], /new takes a title and a directory, not extra/],
+    [['X', dir, '--slug'], /--slug needs a value/],
+    [['X', dir, '--slug='], /--slug needs a value/],
+    [['X', dir, '--slug', 'x', '--slug', 'y'], /--slug is given twice/],
+    [['X', dir, '--slug', 'a'], /a\.md already exists/],
+    [['X', dir, '--slug', 'x.md'], /without \.md/],
+    [['X', dir, '--slug', '../x'], /can't be a slug/],
+    [['X', dir, '--slug', 'README'], /README or index/],
   ]) {
     const result = run('new', ...args);
     assert.equal(result.status, 2, `${args.join(' ')}: ${result.stdout}${result.stderr}`);
@@ -134,6 +141,19 @@ test('CLI new refuses anything wrong before writing, on stderr with exit 2', asy
   assert.equal(help.status, 0);
   assert.match(help.stdout, /new "<title>" \[directory\] \[--field name=value\]/);
   assert.match(help.stdout, /--items cart-rules,payment-retry,receipt-email/);
+  assert.match(help.stdout, /\[--slug <name>\]/);
+});
+
+test('CLI new --slug names the file the project\'s way, in the index and the epic', async (t) => {
+  const { dir } = await creatable(t);
+  const result = run('new', 'Export to CSV', dir, '--slug', 'api-07-export', '--epic', 'launch', '--field', 'status=idea', '--field', 'priority=low');
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^Created api-07-export\n/);
+  assert.match(await fs.readFile(join(dir, 'api-07-export.md'), 'utf8'), /^---\ntitle: Export to CSV\n/);
+  assert.match(await fs.readFile(join(dir, 'launch.md'), 'utf8'), /^items: \[a, api-07-export\]$/m);
+  assert.match(await fs.readFile(join(dir, 'README.md'), 'utf8'), /^\| \[Export to CSV\]\(api-07-export\.md\) \| low \| idea \|$/m);
+  await assert.rejects(fs.access(join(dir, 'export-to-csv.md')));
+  assert.equal(run('check', dir).status, 0, run('check', dir).stdout);
 });
 
 test('CLI ids checks and numbers the items without one', async (t) => {

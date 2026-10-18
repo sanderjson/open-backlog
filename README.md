@@ -152,7 +152,7 @@ Each item is `<slug>.md`: front matter, then Markdown. The slug, the file name w
 how links, `depends_on`, `related`, `items` and the index name the item; its `id` is the short
 handle people say and type (W-12). The board and `new` make the slug from the title ("Brand
 palette" is `brand-palette`), but any name the folder accepts will do, so a project can name items
-its own way (`api-07-export.md`).
+its own way (`api-07-export.md`, which `new --slug api-07-export` makes).
 
 ```markdown
 ---
@@ -293,6 +293,7 @@ node bin/open-backlog.mjs index docs/backlog --check
 node bin/open-backlog.mjs ids docs/backlog --write
 node bin/open-backlog.mjs new "Export to CSV" docs/backlog --field status=idea --tags export
 node bin/open-backlog.mjs new "Checkout v2" docs/backlog --items cart-rules,payment-retry
+node bin/open-backlog.mjs new "Export to CSV" docs/backlog --slug api-07-export
 ```
 
 The directory defaults to `docs/backlog`. `check` uses the same parser as the board and exits 1
@@ -305,9 +306,12 @@ hasn't changed since the command read it.
 from `_template.md`, its index row or the regenerated managed region, and an epic's list. It takes
 `--field name=value` for any choice field (once per field), `--weight <n>`, `--tags a,b`,
 `--items a,b,c`, which makes the new item an epic over those items in work order, and
-`--epic <slug>`, which adds it to an existing epic. It validates the whole command first: a bad
-value, a missing or nested member, or `--items` with `--epic` exits 2 with the reason on stderr
-and writes nothing. It prints the slug and each file written. Writing several files isn't a
+`--epic <slug>`, which adds it to an existing epic, and `--slug <name>`, which names the file
+`<name>.md` instead of after the title, for a project with its own naming pattern. A requested name
+is used exactly as given: one that's taken (in any case), ends in `.md`, isn't a name the folder
+accepts, starts with `_` or is the README or index is refused, never suffixed. It validates the
+whole command first: a bad value, a missing or nested member, a refused name, or `--items` with
+`--epic` exits 2 with the reason on stderr and writes nothing. It prints the slug and each file written. Writing several files isn't a
 transaction, so if a later write fails it names the files already written and exits 1.
 
 ### Guidance for agents

@@ -1,7 +1,7 @@
 ---
 title: new takes a custom file name with --slug
 id: 34
-status: ready
+status: done
 priority: mid
 type: build
 area: cli
@@ -35,3 +35,9 @@ names are allowed; this item makes `new` produce them. W-17 doesn't wait on it.
   names, malformed arguments and no writes on invalid input.
 - `--help`, README, the guide and the skill document the option, and Unreleased in the
   CHANGELOG says what it does.
+
+## Done
+- `planCreate` takes `slug`, checked by `checkSlug` in [web/core.js](../../web/core.js); the CLI
+  passes `--slug` through unchanged. Tests in [test/core.test.js](../../test/core.test.js) and
+  [test/cli.test.js](../../test/cli.test.js) cover the cases above, an epic's list and a managed
+  index; refused commands leave the folder byte for byte as it was.

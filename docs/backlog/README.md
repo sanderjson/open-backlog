@@ -71,7 +71,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | ID | Item | Weight | Status | Priority | Type |
 | --- | --- | --- | --- | --- | --- |
 | W-15 | [The CLI creates items and epics](cli-creates-items-and-epics.md) | 14 | done | mid | build |
-| W-34 | [new takes a custom file name with --slug](new-takes-a-custom-file-name-with-slug.md) | 16 | ready | mid | build |
+| W-34 | [new takes a custom file name with --slug](new-takes-a-custom-file-name-with-slug.md) | 16 | done | mid | build |
 | W-21 | [Sync with GitHub Issues, or not](github-issues-sync.md) | 20 | ready | low | discuss |
 
 ### Repo
