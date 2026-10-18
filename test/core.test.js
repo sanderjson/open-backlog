@@ -78,6 +78,19 @@ test("guesses fields and their order without backlog.yml", () => {
   assert.deepEqual(s.done, ["done"]);
 });
 
+test("front matter behind a byte-order mark reads, and accents leave slugs", () => {
+  const text = "---\ntitle: Café menu\nstatus: idea\n---\n\n# Café menu\n";
+  for (const [name, body] of [["LF", text], ["CRLF", text.replaceAll("\n", "\r\n")]]) {
+    const s = load({ "menu.md": "\uFEFF" + body });
+    assert.equal(s.bySlug.get("menu").title, "Café menu", name);
+    assert.equal(s.bySlug.get("menu").fields.status, "idea", name);
+    assert.deepEqual(s.problems.filter((p) => !p.notice), [], name);
+  }
+  assert.equal(core.slugify("Caf\u00E9 cr\u00E8me"), "cafe-creme", "composed");
+  assert.equal(core.slugify("Cafe\u0301 cre\u0300me"), "cafe-creme", "decomposed");
+  assert.equal(core.slugify("Ægir straße"), "gir-stra-e", "letters without a decomposition are dropped, as before");
+});
+
 test("backlog.yaml is reported, never read", () => {
   const yaml = "title: From yaml\nfields:\n  status: [someday, now]\n";
   const top = (s) => s.problems.filter((p) => p.slug === "").map((p) => p.message);

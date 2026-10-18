@@ -52,7 +52,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | W-17 | [Review the text around the item in copied prompts](review-prompt-text.md) | 15 | done | mid | build |
 | W-23 | [Generating an index into a missing README leaves two blank lines first](index-into-missing-readme.md) | 22 | done | low | build |
 | W-24 | [backlog.yaml is sent by hosts but ignored by the board](backlog-yaml-is-ignored.md) | 23 | done | mid | build |
-| W-25 | [Spell invisible characters in regexes as escapes](regex-literals.md) | 24 | ready | low | chore |
+| W-25 | [Spell invisible characters in regexes as escapes](regex-literals.md) | 24 | done | low | chore |
 | W-27 | [The dependency-loop check repeats work along long chains](loop-check-speed.md) | 26 | idea | low | build |
 | W-30 | [Created dates use the local day](created-dates-use-the-local-day.md) | 27 | done | low | build |
 
