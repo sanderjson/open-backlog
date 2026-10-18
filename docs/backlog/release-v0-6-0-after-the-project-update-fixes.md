@@ -1,7 +1,7 @@
 ---
 title: Release v0.6.0 after the project-update fixes
 id: 33
-status: ready
+status: in-progress
 priority: mid
 type: chore
 area: repo
@@ -40,3 +40,15 @@ it is not waiting for a palette, themes, importer or parser upgrade.
 - Release from `main`: create an annotated `v0.6.0` tag on the release commit, push it,
   and publish a GitHub release for that exact tag with its changelog entry as the notes. A tag
   alone does not complete this item. Record the release URL and checked commit/version here.
+
+## Progress
+- Prepared on `feat/project-updates`: `VERSION` 0.6.0 in `web/core.js`, PROMPT.md's example
+  `v0.6.0`, the changelog's dated `v0.6.0` heading (reviewed against the final diff: W-31, W-34,
+  W-17 and all four W-22 fixes shipped, nothing deferred is claimed), and README's list of what
+  updates ask. `npm test` (73) and `npm run test:silent` (23) pass; the browser suite checks `?`
+  shows the version.
+- The update was repeated on a throwaway v0.4.0 project at these files: the copied CLI is tracked
+  after anchoring its `bin/` ignore rule, `--help` says v0.6.0 from a fresh worktree, `check`
+  passes, and the project's own files are untouched.
+- Left: a review of the branch, then merge `feat/ids-layout-release` and this branch to `main`,
+  CI on the merge, the annotated tag, and the published release.

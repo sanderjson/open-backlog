@@ -6,9 +6,11 @@ of the project, when it asks anything. The README's
 [Updating a project's copy](README.md#updating-a-projects-copy) has the short form, and
 [Releasing](README.md#releasing) says how an entry gets here.
 
-## Unreleased
+## v0.6.0 - 2026-10-18
 
-This will be v0.6.0. Updating asks two things of a project, and offers one:
+Updating from v0.5.0 asks two things of a project, and offers one. README's
+[Updating a project's copy](README.md#updating-a-projects-copy) now lists every step; follow it in
+full when updating from v0.4.0 or earlier.
 
 - **`id` is now the board's own key.** A choice field called `id` stops being one.
 - **A board in a host's own page is as tall as its content** unless its element has a height; it

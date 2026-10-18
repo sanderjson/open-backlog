@@ -513,6 +513,9 @@ What an update has asked so far:
   keeps working, but add it: it closes the DNS-rebinding gap the header leaves. v0.5.0 also needs
   `data-page` on the mount element when the board is the whole page, as `web/index.html` has;
   without it the board behaves as it does inside a host's own page.
+- v0.6.0 made `id` the board's own key, so a choice field called `id` stops being one. A board in
+  a host's own page is as tall as its content unless its element is given a height. Numbering the
+  items (`ids --write`) is optional.
 
 The board says which version it is in its shortcuts dialog (`?`), and the CLI in `--help`.
 

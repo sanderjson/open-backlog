@@ -7,7 +7,7 @@ import { Marked } from "./vendor/marked.js";
 export const CONFIG_FILE = "backlog.yml";
 export const TEMPLATE_FILE = "_template.md";
 // The kit's version: the tag these files ship in. Bumped when releasing (README, "Releasing").
-export const VERSION = "0.5.0";
+export const VERSION = "0.6.0";
 // The files a host reads and writes: Markdown and YAML directly in the backlog folder, including
 // `_template.md`. No hidden files, no "..", no subfolders.
 export const FILE_NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]*\.(md|ya?ml)$/;
