@@ -36,9 +36,9 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | W-29 | [The board fits a host page](the-board-fits-a-host-page.md) | 11 | done | mid | epic |
 | W-12 | [A header and toolbar that lay out the same in every project](header-layout.md) | 12 | done | mid | build |
 | W-13 | [The board's horizontal scrollbar floats mid-screen when columns are short](board-scrollbar-position.md) | 13 | done | mid | build |
-| W-14 | [Refresh the colour palette](colour-palette.md) | 14 | ready | mid | discuss |
 | W-16 | [Filters and sorting, pure and tested](filters-and-sorting-pure-and-tested.md) | 15 | done | mid | epic |
 | W-18 | [Keyboard shortcuts stay inside the board](scope-keys-to-the-board.md) | 17 | done | mid | build |
+| W-14 | [Refresh the colour palette](colour-palette.md) | 18 | ready | mid | discuss |
 | W-20 | [Themes beyond light and dark](themes.md) | 19 | idea | low | discuss |
 
 ### Core
@@ -50,10 +50,10 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | W-3 | [Prompts open with the status change](prompt-starts-with-status.md) | 3 | done | high | build |
 | W-11 | [Every item has a short ID](every-item-has-a-short-id.md) | 10 | done | mid | build |
 | W-17 | [Review the text around the item in copied prompts](review-prompt-text.md) | 15 | ready | mid | build |
-| W-23 | [Generating an index into a missing README leaves two blank lines first](index-into-missing-readme.md) | 22 | idea | low | build |
-| W-24 | [backlog.yaml is sent by hosts but ignored by the board](backlog-yaml-is-ignored.md) | 23 | idea | low | build |
-| W-25 | [Spell invisible characters in regexes as escapes](regex-literals.md) | 24 | idea | low | chore |
-| W-27 | [The dependency-loop check is quadratic in chain length](loop-check-speed.md) | 26 | idea | low | build |
+| W-23 | [Generating an index into a missing README leaves two blank lines first](index-into-missing-readme.md) | 22 | ready | low | build |
+| W-24 | [backlog.yaml is sent by hosts but ignored by the board](backlog-yaml-is-ignored.md) | 23 | ready | mid | build |
+| W-25 | [Spell invisible characters in regexes as escapes](regex-literals.md) | 24 | ready | low | chore |
+| W-27 | [The dependency-loop check repeats work along long chains](loop-check-speed.md) | 26 | idea | low | build |
 | W-30 | [Created dates use the local day](created-dates-use-the-local-day.md) | 27 | done | low | build |
 
 ### Host
@@ -71,6 +71,7 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | ID | Item | Weight | Status | Priority | Type |
 | --- | --- | --- | --- | --- | --- |
 | W-15 | [The CLI creates items and epics](cli-creates-items-and-epics.md) | 14 | done | mid | build |
+| W-34 | [new takes a custom file name with --slug](new-takes-a-custom-file-name-with-slug.md) | 16 | ready | mid | build |
 | W-21 | [Sync with GitHub Issues, or not](github-issues-sync.md) | 20 | ready | low | discuss |
 
 ### Repo
@@ -82,8 +83,11 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | W-1 | [Dogfood the kit](dogfood-the-kit.md) | 1 | done | high | build |
 | W-2 | [Guidance agents find on their own](agent-guidance.md) | 2 | done | high | build |
 | W-28 | [Publish a GitHub release for each tag](publish-a-github-release-for-each-tag.md) | 9 | done | high | chore |
+| W-31 | [Answer the questions a project update raised](answer-the-questions-a-project-update-raised.md) | 14 | ready | mid | build |
 | W-19 | [A changelog, a version on the board, and a tag for the current head](release-hygiene.md) | 18 | done | mid | chore |
-| W-22 | [Small fixes from the October 2026 review](small-fixes-from-the-review.md) | 21 | idea | low | epic |
-| W-26 | [Tooling hygiene: engines, exec bit, vendor provenance and versions](tooling-hygiene.md) | 25 | idea | low | chore |
+| W-22 | [Predictable configuration, index generation and tooling](small-fixes-from-the-review.md) | 21 | ready | low | epic |
+| W-26 | [Tooling hygiene: Node requirement, executable CLI and vendor provenance](tooling-hygiene.md) | 25 | ready | low | chore |
+| W-32 | [Update the vendored parsers with recorded versions](update-the-vendored-parsers-with-recorded-versions.md) | 28 | idea | low | chore |
+| W-33 | [Release v0.6.0 after the project-update fixes](release-v0-6-0-after-the-project-update-fixes.md) | 29 | ready | mid | chore |
 
 <!-- open-backlog:index end -->

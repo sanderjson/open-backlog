@@ -9,7 +9,7 @@ weight: 20
 tags: [agent, integrations]
 created: 2026-10-17
 depends_on: []
-related: []
+related: [cli-creates-items-and-epics]
 ---
 
 # Sync with GitHub Issues, or not
@@ -37,8 +37,26 @@ deserves an explicit answer, and the answer may be a narrow one.
 
 ## Recommendation
 Options 2 and 3 and no live sync: import once with the CLI, link out from items, and keep the
-files as the truth. Decide here; the build items follow from the decision.
+files as the truth. Markdown links in an item's body already work, so they are the baseline
+for linking out; a new `links:` key or other reserved metadata is a separate choice, not a
+prerequisite for import. Decide here; build items follow from the recorded decision.
 
 ## Acceptance
-- A decision recorded in this item and reflected in the README's agent guidance, with build items
-  created for whatever was chosen.
+- Record the maintainer's choice, reasons and explicit deferrals here: no integration, body
+  links only, optional one-way import, and whether any structured link metadata has a concrete
+  use case that existing body links cannot meet. A recommendation alone is not a completed
+  decision, and this sprint does not build an importer or live synchronization.
+- If import is selected, bound its future build: invocation/input through optional `gh`, which
+  issues are included, title/body/source-URL and label/status mapping into the project's strict
+  fields, and the behavior on a repeated import. Specify source identity and duplicate handling
+  so re-running an import cannot silently overwrite hand-edited items or create duplicates.
+- Retain file ownership of work state, optional Node/gh tooling and the two-route host contract.
+  No board credentials or background service are introduced. Separate import and any new link
+  field representation into build items only after those choices are made.
+- Update README's guidance to match the recorded decision and link the later build items here,
+  with bounded acceptance and prerequisites. Do not implement those builds just to finish this
+  discussion. It can run alongside the sprint's delivery work and does not gate v0.6.0.
+
+## Decision record
+Pending the maintainer's choice. Capture the chosen option, source/re-import policy if relevant,
+rejected alternatives and links to follow-up items before marking this discussion done.

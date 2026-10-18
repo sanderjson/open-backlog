@@ -1,7 +1,7 @@
 ---
 title: Spell invisible characters in regexes as escapes
 id: 25
-status: idea
+status: ready
 priority: low
 type: chore
 area: core
@@ -21,6 +21,9 @@ editors. A formatter, an editor that strips BOMs, or a trojan-source lint rule c
 them without anyone seeing a diff.
 
 ## Acceptance
-- `﻿` and `̀-ͯ` in the source, behaviour unchanged.
+- Replace the literal BOM in `FRONT_RE` with the visible source escape `\uFEFF`, and the literal
+  combining-mark range in `slugify` with `[\u0300-\u036F]`. Keep the optional BOM, range endpoints
+  and other regex behavior unchanged; the acceptance text itself must contain visible escapes.
 - Tests for front matter behind a BOM and for a slug from an accented title, added if they don't
-  exist.
+  exist, cover LF and CRLF front matter and composed/decomposed accented input. Do not broaden
+  transliteration or filename rules as part of this mechanical change.
