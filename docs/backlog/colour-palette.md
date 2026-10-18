@@ -5,10 +5,10 @@ status: ready
 priority: mid
 type: discuss
 area: board
-weight: 18
+weight: 20
 tags: [ui]
 created: 2026-10-17
-depends_on: [audit-what-each-card-mark-tells-a-reader]
+depends_on: [audit-what-each-card-mark-tells-a-reader, the-board-works-in-grayscale]
 related: [a-refreshed-board-everyone-can-read-and-use, themes, epic-cards-stand-out, compact-header-with-version-and-github-links, visual-legend-for-card-symbols]
 ---
 
@@ -22,6 +22,15 @@ statuses, priorities, areas and epics at the same time.
 
 W-38 includes both this decision and the resulting implementation. The choices below remain
 open: record the maintainer's answers before changing palette values or card/progress cues.
+
+**Maintainer decision, 2026-10-18:** colour never carries important information on its own.
+The whole board is designed in grayscale first ([W-41](the-board-works-in-grayscale.md)), and
+colour is reintroduced afterwards by this item's build. So the palette is a second layer: every
+tone repeats a meaning the board already shows in words, shapes or icons, and the palette build
+depends on W-41. Questions below about non-colour cues (progress, done, can start, priority) now
+belong to W-41; this item decides which colours come back and where. It's decided after W-41
+is built, using its cues and the grayscale trial's notes on what colour nobody missed (W-42),
+and its build ships with W-37's legend in v0.8.0.
 
 ## Where colour reads as done
 Raised by the maintainer on 2026-10-18 from W-38's own card:
@@ -45,8 +54,19 @@ done, and its bar is full and green-looking.
   success toasts. On the card in the screenshot, the green play mark, the teal chip and the teal
   bar all suggest finished work. Give green one meaning, and give "can start" a cue of its own.
 
-There are likely more cases. The swatch sheet should show each status as it appears together on
-one card, in both themes, not only each tone on its own.
+W-40's audit found more, under C2 and C5 to C8 in its
+[findings](audit-what-each-card-mark-tells-a-reader.md#findings):
+
+- **Different fields share colours (C5).** Each field cycles through the tones from the start, so
+  Build (type) and Board (area) are both violet on one card, and Chore and Core both orange.
+  Status colours repeat in other fields: Discuss and Cli are teal like Ready, Review is violet
+  like Build, and the Epic type is blue like In progress. Decide how fields other than status and
+  priority get colour, if at all.
+- **Waiting looks like can start (C2),** low priority like none (C6), parked like done (C8), and
+  status dots carry status by colour alone (C7). W-41 gives each a non-colour cue first.
+
+The swatch sheet should show each status as it appears together on one card, in both themes,
+not only each tone on its own, and the cards should also be checked in grayscale.
 
 ## To agree before building
 - **Semantic mapping:** keep today's well-known status tones and priority ordering, or choose a
@@ -110,7 +130,7 @@ Whether the CSS ships `oklch()` values or hex computed from them is for the buil
   changes needed to convey meaning alongside hue, using shared tokens/rendering so W-37 can
   describe the implemented result. Use `rem` for new or changed dimensions.
 - Before marking this discussion done, link the agreed build here, make it depend on this
-  item, and add it to W-38's `items` before the legend. Also add it to W-37's `depends_on`.
+  item and on W-41, and add it to W-38's `items` before the legend. Also add it to W-37's `depends_on`.
   This discussion can then be done while its build is still pending; W-38 cannot be.
 - Clarify W-20's prerequisite: this item's completion permits discussion of themes; any themes
   implementation must also depend on the resulting palette build. W-20 remains outside W-38.
@@ -118,7 +138,8 @@ Whether the CSS ships `oklch()` values or hex computed from them is for the buil
   colour overrides. Preserve override precedence and the ten public names; identify the limits
   of arbitrary host/configuration colours rather than claiming unmeasured combinations pass.
   New details and legend surfaces are checked in their builds and W-38's final verification;
-  this build must not wait for the legend that depends on it. W-38 owns the combined release.
+  this build must not wait for the legend that depends on it. W-38 owns the combined
+  verification and the v0.8.0 release.
 
 ## Design references
 [The header gallery](../header-wireframes.md) (HEADER-*) and

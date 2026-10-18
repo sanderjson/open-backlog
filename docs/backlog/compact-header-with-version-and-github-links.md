@@ -21,7 +21,10 @@ large gap separates it from the controls on the right. The requested redesign ha
 logo, a GitHub link, a visible version and better use of the available space.
 
 W-12 remains a completed layout fix. This new design work belongs to W-38, with a compact
-identity and useful controls taking priority over decoration.
+identity and useful controls taking priority over decoration. It's W-38's first build and ships
+in v0.7.0 with the details build and W-41. Before it starts, the maintainer picks a header
+reference and the Group control (see "Design references"). Notes from W-42's grayscale trial may
+adjust it before the release.
 
 ## Proposed direction
 - **Compact identity:** use the existing mark at approximately `1.25rem`, a restrained project
@@ -38,8 +41,8 @@ identity and useful controls taking priority over decoration.
   the order established by W-12; applying a filter must not shift the controls.
 - **Utilities:** keep New item prominent, with theme and keyboard help secondary. Provide a
   labelled Legend entry beside keyboard help when W-37 lands. W-37 owns the button and dialog;
-  establish their place here without adding a non-working trigger. This build can be reviewed
-  and merged first; W-38 releases the complete pass together.
+  establish their place here without adding a non-working trigger. The Legend arrives in
+  v0.8.0; this header ships in v0.7.0 without it.
 - **Responsive layout:** let statistics move to their own compact row when space requires it.
   On phones, give search a full row and let controls wrap in deliberate groups. Respond to the
   board container's width when embedded, rather than assuming it fills the viewport.
@@ -74,6 +77,8 @@ the later build's review.
   reserved space, connection feedback, New item, keyboard help, theme controls and the
   read-only state. Preserve keyboard order, accessible labels and visible focus indicators;
   smaller icons must retain comfortable interaction targets.
+- Grayscale first (W-38): nothing in the header means something by colour alone, for example the
+  connection state and selected counts. Check the header with colour removed.
 - Check light and dark themes and both standalone and embedded use. Use existing semantic
   colour tokens rather than adding local colour values. This build can start before W-14;
   W-38's combined verification checks the header again with the implemented palette.
@@ -106,4 +111,4 @@ illustrative; production uses semantic tokens, live data, `core.VERSION` and `re
 `skeleton()`, `renderStats()` and `renderToolbar()` in [web/board.js](../../web/board.js),
 header/toolbar styles in [web/board.css](../../web/board.css), the existing mark in
 [web/icon.svg](../../web/icon.svg), and `VERSION` in [web/core.js](../../web/core.js).
-W-38 owns the final combined verification, documentation and release.
+W-38 owns the combined verification and the v0.7.0 release.

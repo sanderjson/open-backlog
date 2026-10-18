@@ -5,7 +5,7 @@ status: ready
 priority: mid
 type: discuss
 area: board
-weight: 21
+weight: 18
 tags: [ui, a11y]
 created: 2026-10-18
 depends_on: []
@@ -28,6 +28,12 @@ card. Each of those is code that can drift from what browsers and assistive tech
 and none of it puts the sheet in the top layer. On a host page, an ancestor's `overflow` or
 stacking context can still clip or cover it. W-38 includes this discussion and its resulting
 build; the recommendations below remain proposals until the maintainer records a choice.
+
+**When:** decided now, in one session with the header, without waiting for W-42's grayscale
+trial: none of the questions below depend on it. The build follows the header and ships in
+v0.7.0. The details draw status, priority and progress with the shared card helpers, so W-41
+changes those marks later in one place; this build keeps using the helpers rather than drawing
+its own.
 
 ## Current behaviour to keep
 - `?item=<slug>` in the address is what opens an item. Back closes it, and a shared link opens
@@ -142,11 +148,13 @@ separate build.
   the card); VoiceOver on macOS reading the dialog's name on open and the new title after j or k;
   the board mounted in a host page inside a container with `overflow: hidden`; root text sizes
   equivalent to 14, 16 and 18 CSS pixels with W-38's fixed viewport widths and narrow-host
-  checks; nested New item and Help behaviour; read-only use; and light and dark screenshots of
-  an item and an epic. Test host controls against the agreed modality and reduced-motion use.
+  checks; nested New item and Help behaviour; read-only use; the grayscale rule from W-38 and
+  W-41 (status, progress and relations readable with colour removed); and light and dark
+  screenshots of an item and an epic. Test host controls against the agreed modality and reduced-motion use.
 - Before marking the discussion done, link that build here, make it depend on this item, add
-  it to W-38's `items` before the legend, and add it to W-37's `depends_on`. W-38 owns the final
-  combined verification and release; this discussion alone does not deliver the new details UI.
+  it to W-38's `items` before W-41, and add it to W-37's `depends_on`. W-38 owns the combined
+  verification and the v0.7.0 release; this discussion alone does not deliver the new details
+  UI.
 
 ## Decision record
 Pending the maintainer's choices. Record modality, host interaction, placement, one-or-many,

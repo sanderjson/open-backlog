@@ -9,7 +9,7 @@ weight: 16
 tags: [guidance, agent]
 created: 2026-10-18
 depends_on: []
-related: [answer-the-questions-a-project-update-raised, agent-guidance, github-issues-sync]
+related: [answer-the-questions-a-project-update-raised, agent-guidance, github-issues-sync, grayscale-trial]
 ---
 
 # Collect and answer feedback from the projects using the kit
@@ -87,6 +87,11 @@ other trackers bear on W-21, backlog size on W-27, and day-to-day use on the boa
 >
 > Reply in that order, and mark each point in 2 to 5 as a bug, a doc gap, a question or a
 > request.
+
+## Alongside: the grayscale trial
+[W-42](grayscale-trial.md) runs in the same projects on the same days: the maintainer uses each
+board in grayscale and notes what's missed. Paste those notes under the project's reply here or
+in W-42; W-42 owns them.
 
 ## Acceptance
 - Feedback from all five projects is recorded below under "Feedback received", one section per
