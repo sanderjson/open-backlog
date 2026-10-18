@@ -1,7 +1,7 @@
 ---
 title: Review the text around the item in copied prompts
 id: 17
-status: ready
+status: done
 priority: mid
 type: build
 area: core
@@ -50,3 +50,16 @@ meaning before aligning the prompts with them. This prerequisite is about the sh
 it does not reopen the delivered status-opening or ID features. W-34's `--slug` option isn't a
 prerequisite: the prompts name files by path whatever their names. `npm test` and the browser
 clipboard tests pass after the edits.
+
+## Done
+- Both prompts give what to do first: the warning (now naming what's unfinished, and asking for
+  the go-ahead), the status change in the backlog's own statuses, reading the current file and
+  asking about open questions. Then the reference: file, fields, relations, epics, problems,
+  suggestions, and the item's or epic's own text last. The epic gives "How to work" and its
+  work order before its file and text, and says the item status rule once; the item prompt no
+  longer repeats the done status after its text.
+- Problems and suggestions are listed apart in both, per item in the epic too.
+- Tests in [test/core.test.js](../../test/core.test.js) cover the order, IDs present and absent,
+  custom, missing and unset statuses, an active and a blocked item and epic, an item with no
+  index row, a dependency that's no item, outside-epic waits and a fenced body. The browser
+  clipboard tests pass unchanged.

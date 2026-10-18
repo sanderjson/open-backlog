@@ -166,32 +166,45 @@ test("hosts send the template, and it's not an item", () => {
 test("an item copies as a prompt for an agent", () => {
   const s = load();
   const logo = core.itemPrompt(s, "logo");
-  assert.match(logo, /^Work on this item from the backlog: Logo build\n\nIt waits on an unfinished item\. Tell me before you start on it anyway\.\n\nIf you go ahead, start by setting its status to in-progress, in its front matter and its row in docs\/backlog\/README\.md\. Set it to done there when it's finished\.\n\nFile: /);
+  assert.match(logo, /^Work on this item from the backlog: Logo build\n\nIt waits on unfinished work: Brand palette\. Ask me before you start on it\.\n\nIf you go ahead, start by setting its status to in-progress, in its front matter and its row in docs\/backlog\/README\.md\. Set it to done there when it's finished\.\n\nRead its file before you start: the file is current, and this copy may not be\. If it lists open questions, ask me before you decide any of them\.\n\nFile: /);
   assert.match(logo, /^File: docs\/backlog\/logo\.md$/m);
   assert.match(logo, /^Fields: priority: high, status: idea, area: design, weight: 2$/m);
   assert.match(logo, /^Tags: brand$/m);
-  assert.match(logo, /^It waits on an unfinished item\. Tell me before you start on it anyway\.$/m);
   assert.match(logo, /^Depends on:\n- Brand palette \(docs\/backlog\/palette\.md, status: idea\)$/m);
   assert.match(logo, /\n```markdown\nThe logo, drawn from the palette\.\n```\n/);
-  assert.match(logo, /\n```\n\nWhen it's finished, set its status to done\.\n$/);
+  assert.match(logo, /\nIts text \(links in it are relative to docs\/backlog\):\n\n```markdown\nThe logo, drawn from the palette\.\n```\n$/, "the text comes last, and the status isn't repeated after it");
+  assert.equal(logo.match(/set it to done|set its status to done/gi)?.length ?? 0, 1, "done is said once");
 
   const palette = core.itemPrompt(s, "palette");
-  assert.match(palette, /^Work on this item from the backlog: Brand palette\n\nStart by setting its status to in-progress, in its front matter and its row in docs\/backlog\/README\.md\. Set it to done there when it's finished\.\n\nFile: /);
+  assert.match(palette, /^Work on this item from the backlog: Brand palette\n\nStart by setting its status to in-progress, in its front matter and its row in docs\/backlog\/README\.md\. Set it to done there when it's finished\.\n\nRead its file /);
   assert.doesNotMatch(palette, /waits on/);
   assert.match(palette, /^Unblocks:\n- Logo build \(docs\/backlog\/logo\.md, status: idea\)$/m);
   assert.match(palette, /^Related:\n- Logo build/m);
   assert.match(core.itemPrompt(s, "backups"), /^Problems the board found in it:\n- README\.md's index says/m);
+  // Suggestions are told apart from problems: logo comes before what it waits on.
+  assert.match(logo, /^The board suggests:\n- /m);
+  assert.doesNotMatch(logo, /^Problems the board found/m);
 
   // The opening follows the item's status and the backlog's own statuses, and is left out without one.
   const started = core.itemPrompt(load(withFront(files(), "palette", "status", "in-progress")), "palette");
-  assert.match(started, /^Work on this item from the backlog: Brand palette\n\nIt's in-progress already\. Set its status to done, in its front matter and its row in docs\/backlog\/README\.md, when it's finished\.\n\nFile: /);
+  assert.match(started, /^Work on this item from the backlog: Brand palette\n\nIt's in-progress already\. Set its status to done, in its front matter and its row in docs\/backlog\/README\.md, when it's finished\.\n\nRead its file /);
+  assert.doesNotMatch(started, /Start by/, "an item under way isn't told to start again");
   const own = { ...files(), "backlog.yml": "fields:\n  status: [idea, doing, shipped]\nactive: [doing]\ndone: [shipped]\n" };
   const custom = core.itemPrompt(load(own), "palette");
   assert.match(custom, /^Start by setting its status to doing, in its front matter and its row in docs\/backlog\/README\.md\. Set it to shipped there when it's finished\.$/m);
-  assert.match(custom, /\n\nWhen it's finished, set its status to shipped\.\n$/);
+  assert.doesNotMatch(custom, /in-progress|\bdone\b/, "only the backlog's own statuses");
+  const unset = core.itemPrompt(load({ ...files(), "backlog.yml": "fields:\n  status: [idea, doing, shipped]\nactive: []\ndone: []\n" }), "palette");
+  assert.doesNotMatch(unset, /its status/, "no status is made up when the backlog names none");
+  const unindexed = core.itemPrompt(load({ ...files(), "README.md": "# Backlog\n" }), "palette");
+  assert.match(unindexed, /^Start by setting its status to in-progress, in its front matter\. Set it to done there when it's finished\.$/m);
   const untracked = core.itemPrompt(load(withFront(files(), "palette", "status", "")), "palette");
-  assert.match(untracked, /^Work on this item from the backlog: Brand palette\n\nFile: /);
+  assert.match(untracked, /^Work on this item from the backlog: Brand palette\n\nRead its file /);
   assert.doesNotMatch(untracked, /its status/);
+
+  // A dependency that's no item is named as such, and reported as a problem.
+  const ghost = core.itemPrompt(load(withFront(files(), "palette", "depends_on", ["ghost"])), "palette");
+  assert.match(ghost, /^Depends on:\n- ghost \(no such item\)$/m);
+  assert.match(ghost, /^Problems the board found in it:\n- .*ghost/m);
 
   // A code block in the item can't close the prompt's own fence.
   const fenced = load({ ...files(), "logo.md": files()["logo.md"] + "\n```sh\nmake logo\n```\n" });
@@ -426,7 +439,10 @@ test("an epic copies as one prompt for an agent", () => {
   f["checkout-copy.md"] = f["checkout-copy.md"].replace("status: ready", "status: idea"); // its index row now disagrees
   const s = load(f);
   const prompt = core.epicPrompt(s, "checkout");
-  assert.match(prompt, /^Work through this epic from the backlog: Checkout v2\n\nThe epic is in-progress already\. Move each item to in-progress as you start it\.\n\nAn epic groups /);
+  assert.match(prompt, /^Work through this epic from the backlog: Checkout v2\n\nThe epic is in-progress already\.\n\nHow to work:\n- Read the epic's file now, and each item's file before you start that item: the files are current, and this copy may not be\./);
+  const at = (text) => prompt.indexOf(text);
+  assert.ok(at("How to work:") < at("Its items in work order") && at("Its items in work order") < at("Epic: ") && at("Epic: ") < at("```markdown"), "what to do comes before what to know, and the epic's text last");
+  assert.equal(prompt.match(/as you start it|when you start it/g).length, 1, "the items' status rule is said once");
   assert.match(prompt, /^Epic: docs\/backlog\/checkout\.md$/m);
   assert.match(prompt, /^Progress: 1 of 6 items done, 1 in progress, 1 can start, 2 waiting, 1 set aside$/m);
   assert.match(prompt, /\n```markdown\n## Why\nOne checkout for web and app\.\n\n## Acceptance\n- A customer pays, a failed payment retries, and a receipt arrives\.\n```\n/);
@@ -442,21 +458,22 @@ test("an epic copies as one prompt for an agent", () => {
     "4. Refund page (docs/backlog/refund-page.md)",
   ].join("\n")), prompt);
   assert.match(prompt, /^5\. Checkout copy \(docs\/backlog\/checkout-copy\.md\)\n   status: idea, priority: mid\n   waits on: Brand palette \(docs\/backlog\/palette\.md, status: idea\), outside the epic\n   problems: README\.md's index says status ready, the item says idea$/m);
+  assert.match(prompt, /\n```\n$/, "the epic's text comes last");
   assert.match(prompt, /^Next up: 4\. Refund page, the first item that can start now\.$/m);
   assert.match(prompt, /^- Brand palette \(docs\/backlog\/palette\.md, status: idea\): 5\. Checkout copy waits on it$/m);
-  assert.match(prompt, /^- Read each item's file before you start it\./m);
-  assert.match(prompt, /^- Follow the work order unless an item's file says otherwise\.$/m);
+  assert.match(prompt, /^- Read the epic's file now, and each item's file before you start that item/m);
+  assert.match(prompt, /^- Follow the work order below unless an item's file says otherwise\.$/m);
   assert.match(prompt, /^- Keep each item's status current: set it to in-progress when you start it and to done when it's finished, in its front matter and its row in docs\/backlog\/README\.md\.$/m);
   assert.doesNotMatch(prompt, /Set the epic's status/, "it's in progress already");
   assert.match(prompt, /^- Set the epic to done only when every item in it is done \(or parked\) and the epic's own acceptance holds\.$/m);
-  assert.match(prompt, /^- If an item lists open questions, stop and ask me before you decide any of them\.\n$/m);
+  assert.match(prompt, /^- If an item lists open questions, stop and ask me before you decide any of them\.$/m);
   assert.doesNotMatch(prompt, /Plain text or HTML/, "items' text stays in their files");
 
   const ideaFiles = withFront(epicFiles(), "checkout", "status", "idea");
   const idea = core.epicPrompt(load(ideaFiles), "checkout");
-  assert.match(idea, /^Work through this epic from the backlog: Checkout v2\n\nStart by setting the epic's status to in-progress, in its front matter and its row in docs\/backlog\/README\.md, and move each item to in-progress as you start it\.\n\nAn epic groups /);
+  assert.match(idea, /^Work through this epic from the backlog: Checkout v2\n\nStart by setting the epic's status to in-progress, in its front matter and its row in docs\/backlog\/README\.md\.\n\nHow to work:\n/);
   const blocked = core.epicPrompt(load(withFront(ideaFiles, "checkout", "depends_on", ["palette"])), "checkout");
-  assert.match(blocked, /^Work through this epic from the backlog: Checkout v2\n\nThe epic itself waits on an unfinished item\. Tell me before you start on it anyway\.\n\nIf you go ahead, start by setting the epic's status to in-progress, /);
+  assert.match(blocked, /^Work through this epic from the backlog: Checkout v2\n\nThe epic itself waits on unfinished work: Brand palette\. Ask me before you start on it\.\n\nIf you go ahead, start by setting the epic's status to in-progress, /);
   assert.match(core.itemPrompt(s, "refund-page"), /^In the epic:\n- Checkout v2 \(docs\/backlog\/checkout\.md, status: in-progress\)$/m);
   assert.throws(() => core.epicPrompt(s, "refund-page"), /refund-page isn't an epic/);
   assert.throws(() => core.epicPrompt(s, "nope"), /no item called nope/);
