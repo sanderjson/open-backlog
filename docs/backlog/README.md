@@ -88,6 +88,6 @@ GitHub security advisory first, and gets an item here once a fix is ready.
 | W-22 | [Predictable configuration, index generation and tooling](small-fixes-from-the-review.md) | 21 | done | low | epic |
 | W-26 | [Tooling hygiene: Node requirement, executable CLI and vendor provenance](tooling-hygiene.md) | 25 | done | low | chore |
 | W-32 | [Update the vendored parsers with recorded versions](update-the-vendored-parsers-with-recorded-versions.md) | 28 | idea | low | chore |
-| W-33 | [Release v0.6.0 after the project-update fixes](release-v0-6-0-after-the-project-update-fixes.md) | 29 | in-progress | mid | chore |
+| W-33 | [Release v0.6.0 after the project-update fixes](release-v0-6-0-after-the-project-update-fixes.md) | 29 | done | mid | chore |
 
 <!-- open-backlog:index end -->
