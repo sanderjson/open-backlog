@@ -1,7 +1,7 @@
 ---
 title: Predictable configuration, index generation and tooling
 id: 22
-status: ready
+status: done
 priority: low
 type: epic
 area: repo
@@ -33,3 +33,7 @@ W-27's graph optimization is independent stretch work. Neither blocks this epic'
   `index --check` pass. The board keeps working with only the two required HTTP routes.
 - W-26 records tooling and vendor provenance; W-31 owns the project update instructions. Reuse
   that wording without expanding W-26 into a second update-guide rewrite.
+
+## Done
+- W-23, W-24, W-25 and W-26 are done this sprint, and W-30 was already. `npm test`,
+  `npm run test:silent`, `check` on this backlog and the starter, and `index --check` pass.

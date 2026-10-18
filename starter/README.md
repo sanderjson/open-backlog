@@ -27,8 +27,9 @@ For people and agents alike. `../backlog-guidance/working-the-backlog.md`, insta
 board, says the same at more length; the project's own conventions go in that folder too.
 
 - **New item**: copy `_template.md` to `<slug>.md` (the slug comes from the title: "Brand
-  palette" is `brand-palette`), fill the front matter with values from the table above, and add a
-  row to the table below. Or use the board's New item, which does all of that.
+  palette" is `brand-palette`, unless this project names items its own way), fill the front matter
+  with values from the table above, and add a row to the table below. Or use the board's New item,
+  which does all of that.
 - **Roll items up into an epic**: create one more item whose front matter has
   `items: [first-slug, second-slug]` in the order to work them. That list alone makes it an epic;
   `type: epic` only labels it. Its text says what the whole is for and how to tell it's finished.

@@ -1,7 +1,8 @@
 # Add the open-backlog board to this project
 
 Give this file to a coding agent working in the project, with the version to use (a tag of
-https://github.com/sanderjson/open-backlog, e.g. `v0.5.0`).
+https://github.com/sanderjson/open-backlog, e.g. `v0.6.0`). If the project already has the board,
+it's an update: see [Updating](#updating) at the end.
 
 ## Goal
 
@@ -86,13 +87,18 @@ board's sideways scrollbar at the bottom of that space.
 
 1. **Vendor the kit.** Copy the tag's `web/` into the project unchanged (e.g.
    `vendor/open-backlog/`, or wherever the project keeps vendored code), with the repo's
-   `LICENSE` and a `VERSION` file holding the tag beside it. Where the project has Node 22 or
-   later, copy `bin/open-backlog.mjs` beside `web/` too: it imports `../web/core.js`, and gives
-   agents and CI `check`, `next`, `prompt` and `index`. Don't edit those files: updating means
-   replacing the folders. If the kit falls short for this project, say so in your report instead
-   of patching the copy. The kit has to stay the same for every host, whatever its language (see
-   "Ground rules" in its README). Don't put the files in a folder the server publishes in
-   production (a public or static directory). The dev route serves them itself.
+   `LICENSE` and a `VERSION` file holding the tag beside it. That file is the project's record of
+   the tag; `VERSION` in `web/core.js` is the kit's own and is never edited. Where the project has
+   Node 22 or later, copy `bin/open-backlog.mjs` beside `web/` too: it imports `../web/core.js`,
+   and gives agents and CI `check`, `next`, `prompt`, `index`, `ids` and `new`. Don't edit those
+   files: updating means replacing the folders. If the kit falls short for this project, say so
+   in your report instead of patching the copy. The kit has to stay the same for every host,
+   whatever its language (see "Ground rules" in its README). Don't put the files in a folder the
+   server publishes in production (a public or static directory). The dev route serves them
+   itself. Make sure git keeps them: `git check-ignore -v --no-index <path>…` names any ignore
+   rule that matches a copied file (a broad `bin/` matches `vendor/open-backlog/bin/`). Anchor
+   such a rule (`/bin/`) or add a narrow exception, and check `git status` lists every copied
+   file.
 2. **Add the route in development only.** It should be absent from production builds, not just
    hidden: a compile-time or startup check on the environment, the way the project already
    limits other dev tools.
@@ -103,13 +109,15 @@ board's sideways scrollbar at the bottom of that space.
    Markdown only, and the project's own conventions go beside it. Attachments that belong to items
    go in `docs/backlog-assets/`, created when first needed. The backlog is as visible as the
    repository, so fill in the starter README's line on what stays out of it (unfixed security
-   findings, credentials, personal data) with where this project keeps such things, and ask if it
-   isn't obvious.
+   findings, credentials, personal data) with where this project keeps such things. If it isn't
+   obvious, propose an answer (the README's "As visible as the repository" has defaults) and ask.
 4. **Point agents at it.** Copy the kit's `.claude/skills/open-backlog/` into the project's
    `.claude/skills/` (or wherever the project's agent tooling keeps skills). Add a few lines to
    the project's agent instructions (`CLAUDE.md`, `AGENTS.md` or the like): where the backlog
    folder is, to read `docs/backlog-guidance/` before changing it, that an epic is an item with an
-   `items` list, and that a status change goes in the item's front matter and its index row.
+   `items` list, and that a status change goes in the item's front matter and its index row. If
+   the project has no agent instructions file, don't create one unasked: say so in your report
+   and give the lines to put in a new `AGENTS.md`.
 5. **Test the routes** with the project's own test tools:
    - `GET files` returns the folder's `.md`/`.yml` files, `_template.md` included, and nothing
      else (no hidden files, no other kinds), and `writable` is true;
@@ -132,3 +140,24 @@ board's sideways scrollbar at the bottom of that space.
 8. **Report** where the kit lives and at which version, the route and how it's limited to
    development, what you added to the backlog and to the agent instructions, and anything from
    step 5 or 6 that didn't hold.
+
+## Updating
+
+When the project already has the board, the route and its tests stay; the kit's files move to the
+new tag. Follow "Updating a project's copy" in the kit's README at that tag, after reading every
+CHANGELOG entry since the project's recorded version. In short:
+
+1. Replace the copy of `web/` (and `bin/open-backlog.mjs`, if present) with the tag's, unchanged,
+   and set the project's `VERSION` file to the tag.
+2. Install or refresh the kit's guide and skill, `docs/backlog-guidance/working-the-backlog.md`
+   and `.claude/skills/open-backlog/SKILL.md`. Leave the backlog, its configuration, its
+   attachments and the project's own conventions as they are.
+3. Make sure git keeps the copied files, as in Expectations step 1.
+4. If the backlog README doesn't say where details that stay out of the repository go, propose an
+   answer and ask, as in Expectations step 3.
+5. Point the agent instructions at the backlog if they don't yet, as in Expectations step 4.
+6. Where Node 22+ and the CLI are installed, run `check` and `index --check` if the README has a
+   managed index, and confirm `--help` reports the new version. Restart the dev server, reload
+   the board without the cache, confirm `?` shows the tag recorded in the project's `VERSION`,
+   and repeat Expectations step 6. Report the versions updated from and to, what each CHANGELOG
+   entry asked and whether it's done, and anything you couldn't check.

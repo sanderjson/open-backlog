@@ -13,9 +13,10 @@ that doesn't add up.
 
 ## Before changing anything
 
-1. Read `backlog.yml`. It lists the choice fields (`status`, `priority`, `type`, `area`, or the
-   project's own names such as `kind`) and, for a strict field, the only values allowed. It also
-   says which statuses mean done, closed, not started and under way.
+1. Read `backlog.yml` (spelled so: a `backlog.yaml` isn't read, and `check` reports it). It
+   lists the choice fields (`status`, `priority`, `type`, `area`, or the project's own names such
+   as `kind`) and, for a strict field, the only values allowed. It also says which statuses mean
+   done, closed, not started and under way.
 2. Read the README's front matter table and one existing item, and match their style.
 3. If the project has Node 22 or later and the kit's CLI (`bin/open-backlog.mjs` next to the
    kit's `web/`, often under `vendor/open-backlog/`), run `check` before and after: it reports the
@@ -23,9 +24,12 @@ that doesn't add up.
 
 ## An item
 
-`<slug>.md`. The slug is the file name and the item's id: the title in lower case with words
-joined by `-`, so "Brand palette" is `brand-palette.md`. Front matter, a `# Title` line that
-matches `title:`, then the body from `_template.md`, usually `## Why` and `## Acceptance`:
+`<slug>.md`. The slug, the file name without `.md`, is how other items, the index and links name
+the item; `id` is its short handle. By default the slug is the title in lower case with words
+joined by `-`, so "Brand palette" is `brand-palette.md`, and that's what the board and `new` make.
+A project may name items its own way (`api-07-export.md`): if its existing items or its
+conventions follow a pattern, follow it too, with `new --slug` (see "The CLI"). Front matter, a `# Title` line that matches `title:`,
+then the body from `_template.md`, usually `## Why` and `## Acceptance`:
 
 ```markdown
 ---
@@ -61,6 +65,10 @@ One palette drives every screen.
 - `weight` is the work order, smallest first. `depends_on` names items that must be finished
   first; `related` is for reading alongside. Both hold slugs, never titles or paths.
 - A new item needs a row in the index too (see "The index").
+- A new title doesn't need a new file name. To rename the file, keep its `id`, `git mv` it, and
+  change the old slug in other items' `depends_on`, `related` and `items`, in Markdown links to it
+  (`](old-slug.md)`) and in its index row. Then run `check`: it reports anything still naming the
+  old slug.
 
 ## Rolling items up into an epic
 
@@ -125,7 +133,11 @@ anything under embargo doesn't go into an item's text. Write the item as a point
 names the work ("Fix the export authorisation check, see the advisory") and links to where the
 details live, such as a GitHub security advisory, a private tracker, or a second backlog the
 project keeps outside the repository. The project's backlog README says where; if it doesn't, ask
-before writing, and keep the item a pointer meanwhile.
+before writing, and keep the item a pointer meanwhile. When you ask, propose an answer for the case
+at hand: a draft security advisory on the code host for a security finding, the project's password
+or secrets manager for a credential (an item never holds one), and wherever the people involved
+already keep customer, legal or embargoed matters. Then add the agreed answer to the backlog README
+so the next person doesn't have to ask.
 
 ## The CLI
 
@@ -143,7 +155,8 @@ node bin/open-backlog.mjs new "<title>" docs/backlog --field status=idea --field
 ```
 
 `new` also takes `--weight <n>`, `--tags a,b`, `--items a,b,c` (the new item is an epic over those,
-in work order) and `--epic <slug>` (the new item goes into that epic). It checks everything before
+in work order), `--epic <slug>` (the new item goes into that epic) and `--slug <name>` (the file is
+`<name>.md`, for a project that names items its own way, rather than the title's slug). It checks everything before
 writing and, if anything is wrong, says why on stderr, exits 2 and writes nothing.
 
 ## What goes wrong, and what the board says
