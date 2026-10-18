@@ -27,7 +27,7 @@ that doesn't add up.
 the item; `id` is its short handle. By default the slug is the title in lower case with words
 joined by `-`, so "Brand palette" is `brand-palette.md`, and that's what the board and `new` make.
 A project may name items its own way (`api-07-export.md`): if its existing items or its
-conventions follow a pattern, follow it too. Front matter, a `# Title` line that matches `title:`,
+conventions follow a pattern, follow it too, with `new --slug` (see "The CLI"). Front matter, a `# Title` line that matches `title:`,
 then the body from `_template.md`, usually `## Why` and `## Acceptance`:
 
 ```markdown
@@ -154,7 +154,8 @@ node bin/open-backlog.mjs new "<title>" docs/backlog --field status=idea --field
 ```
 
 `new` also takes `--weight <n>`, `--tags a,b`, `--items a,b,c` (the new item is an epic over those,
-in work order) and `--epic <slug>` (the new item goes into that epic). It checks everything before
+in work order), `--epic <slug>` (the new item goes into that epic) and `--slug <name>` (the file is
+`<name>.md`, for a project that names items its own way, rather than the title's slug). It checks everything before
 writing and, if anything is wrong, says why on stderr, exits 2 and writes nothing.
 
 ## What goes wrong, and what the board says

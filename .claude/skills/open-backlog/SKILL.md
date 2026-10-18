@@ -40,8 +40,9 @@ open-backlog repo.
   place (a draft security advisory, the project's secrets manager) and ask.
 - With Node 22 or later and the kit's CLI: `check`, `next`, `prompt <slug>` and `index --check`,
   each taking the folder as an argument, and `new "<title>"` with `--field name=value`, `--weight`,
-  `--tags`, `--items` (an epic) or `--epic` (into one). Prefer `new` to writing a new item by hand:
-  it validates everything first and writes the file and the index row together.
+  `--tags`, `--items` (an epic), `--epic` (into one) or `--slug` (the project's own file name).
+  Prefer `new` to writing a new item by hand: it validates everything first and writes the file
+  and the index row together.
 - The board's search matches words in titles, slugs, text, tags and field values, and takes
   filters: `#tag`, `field:value` (`status:ready`), `is:epic`. Quotes keep a phrase or literal text.
   Tell the user to type `is:epic` to find an epic you made.

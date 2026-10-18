@@ -27,6 +27,10 @@ Added:
 - `ids [directory] --check|--write` in the CLI numbers the items without an ID, oldest first.
   It handles empty ID fields and multiline titles, and fills existing ID cells in handwritten
   indexes as well as regenerating managed ones.
+- `new --slug <name>` in the CLI names the new item's file `<name>.md` instead of after its title,
+  for a project that names items its own way (`api-07-export`). The name is used exactly as given;
+  one that's taken, ends in `.md`, starts with `_`, is the README or index, or isn't a name the
+  folder accepts is refused with exit 2, and nothing is written.
 
 Changed:
 

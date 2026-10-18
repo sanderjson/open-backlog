@@ -112,6 +112,43 @@ test("a new item gets a file and a row in the table it fits", () => {
   assert.equal(core.planCreate(again, { title: "Restore drill: monthly" }).slug, "restore-drill-monthly-2");
 });
 
+test("a new item can take a file name of the project's own", () => {
+  const s = load();
+  const { slug, writes } = core.planCreate(s, { title: "Restore drill", slug: "ops-07-restore", fields: { status: "ready", priority: "low", area: "ops" } }, "2026-10-16");
+  assert.equal(slug, "ops-07-restore");
+  assert.deepEqual(Object.keys(writes), ["ops-07-restore.md", "README.md"]);
+  assert.match(writes["ops-07-restore.md"], /^title: Restore drill$/m);
+  assert.match(writes["README.md"], /^\| \[Restore drill\]\(ops-07-restore\.md\) \| low \| ready \|$/m);
+  const again = load({ ...files(), ...writes });
+  assert.equal(again.bySlug.get("ops-07-restore").title, "Restore drill");
+  assert.deepEqual(again.problems.filter((p) => !p.notice).map((p) => p.slug), ["backups"]); // the fixture's own stale row
+  assert.equal(core.planCreate(s, { title: "Restore drill" }).slug, "restore-drill", "without a slug, the title names it");
+
+  const epic = core.planCreate(load(epicFiles()), { title: "Gift cards", slug: "pay-gift", epic: "checkout" }).writes;
+  assert.match(epic["checkout.md"], /^items: \[.*, pay-gift\]$/m);
+  const managed = { ...files(), "README.md": "# Backlog\n\n<!-- open-backlog:index start -->\n<!-- open-backlog:index end -->\n" };
+  const ided = core.planCreate(load(managed), { title: "Restore drill", slug: "ops-07-restore", fields: { area: "ops" } }).writes;
+  assert.match(ided["README.md"], /\[Restore drill\]\(ops-07-restore\.md\)/);
+
+  const custom = load({ ...files(), "backlog.yml": files()["backlog.yml"] + "index: INDEX.md\n" });
+  for (const [backlog, requested, message] of [
+    [s, "palette", / palette\.md already exists$/],
+    [s, "Palette", / palette\.md already exists$/],
+    [s, "x.md", /without \.md: x$/],
+    [s, "../x", /can't be a slug/],
+    [s, "a/b", /can't be a slug/],
+    [s, ".x", /can't be a slug/],
+    [s, "-x", /can't be a slug/],
+    [s, "two words", /can't be a slug/],
+    [s, "_draft", /starts with _/],
+    [s, "README", /README or index/],
+    [s, "readme", /README or index/],
+    [custom, "index", /README or index/],
+  ]) {
+    assert.throws(() => core.planCreate(backlog, { title: "X", slug: requested }), message, requested);
+  }
+});
+
 test("hosts send the template, and it's not an item", () => {
   for (const name of [core.TEMPLATE_FILE, core.CONFIG_FILE, "README.md", "palette.md", "notes.yaml"]) {
     assert.match(name, core.FILE_NAME);

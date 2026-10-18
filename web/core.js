@@ -975,7 +975,9 @@ export function localDay(at = new Date()) {
 
 // The writes for a new item, { slug, writes }: its file, with the body from _template.md when the
 // folder has one, then the epic's list when epic names one to add it to, then its row in the index.
-export function planCreate(s, { title = "", weight = "", fields = {}, tags = [], epic = "", items = null }, today = localDay()) {
+// The file is named after the title unless slug asks for a name of the project's own, which is
+// used exactly as given or refused, never suffixed.
+export function planCreate(s, { title = "", weight = "", fields = {}, tags = [], epic = "", items = null, slug: requested = "" }, today = localDay()) {
   title = title.trim();
   weight = String(weight ?? "").trim();
   if (!title) throw new Error("a new item needs a title");
@@ -1000,7 +1002,8 @@ export function planCreate(s, { title = "", weight = "", fields = {}, tags = [],
     });
   }
 
-  const base = slugify(title);
+  if (requested) checkSlug(s, requested);
+  const base = requested || slugify(title);
   let slug = base;
   for (let i = 2; s.files[`${slug}.md`] != null; i++) slug = `${base}-${i}`;
 
@@ -1018,6 +1021,18 @@ export function planCreate(s, { title = "", weight = "", fields = {}, tags = [],
   const index = hasManagedIndex(s) ? planIndex(parseBacklog({ files: { ...s.files, ...writes } }))[s.index] : indexWithItem(s, { slug, title, id, weight, fields: values });
   if (index != null) writes[s.index] = index;
   return { slug, writes };
+}
+
+// Whether a requested slug can name a new item: a file name the hosts accept, that would be an
+// item and not the index, the template or a hidden file, and that no file has, whatever its case.
+function checkSlug(s, slug) {
+  const name = `${slug}.md`;
+  if (/\.md$/i.test(slug)) throw new Error(`give the slug without .md: ${slug.slice(0, -3)}`);
+  if (!FILE_NAME.test(name)) throw new Error(`${slug} can't be a slug: use letters, digits, dots, dashes and underscores, starting with a letter or digit`);
+  if (slug.startsWith("_")) throw new Error(`${name} starts with _, so it wouldn't be read as an item`);
+  if (!isItemFile(name, s.index)) throw new Error(`${name} is the backlog's README or index, not an item`);
+  const taken = Object.keys(s.files).find((f) => f.toLowerCase() === name.toLowerCase());
+  if (taken) throw new Error(`${taken} already exists`);
 }
 
 function template(s, title) {
