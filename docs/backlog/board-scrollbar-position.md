@@ -10,6 +10,7 @@ tags: [ui]
 created: 2026-10-17
 depends_on: [header-layout]
 related: []
+horizon: unplanned
 ---
 
 # The board's horizontal scrollbar floats mid-screen when columns are short

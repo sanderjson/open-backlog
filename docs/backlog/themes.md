@@ -5,11 +5,12 @@ status: idea
 priority: low
 type: discuss
 area: board
-weight: 19
+weight: 23
 tags: [ui]
 created: 2026-10-17
 depends_on: [colour-palette]
 related: [a-refreshed-board-everyone-can-read-and-use]
+horizon: later
 ---
 
 # Themes beyond light and dark
@@ -39,6 +40,6 @@ accent, or a named theme that matches the project's other dev tools. Today that 
 mechanism. It does not mean the refreshed palette has shipped: the future themes build must
 also depend on the separate palette build created by W-14. W-38 now includes the palette
 decision and its build; themes discussion and implementation stay outside that epic and its
-release. Completing W-38 does not require theme names, a new configuration mechanism or a
+releases (v0.7.0 and v0.8.0). Completing W-38 does not require theme names, a new configuration mechanism or a
 theme picker. Add the palette build's actual slug as a prerequisite of any later themes build
 when that build is created; do not treat completion of this discussion as implemented themes.

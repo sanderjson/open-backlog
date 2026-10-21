@@ -10,6 +10,7 @@ tags: [guidance, agent]
 created: 2026-10-18
 depends_on: []
 related: [agent-guidance, cli-creates-items-and-epics, release-hygiene, new-takes-a-custom-file-name-with-slug]
+horizon: unplanned
 ---
 
 # Answer the questions a project update raised

@@ -6,6 +6,25 @@ of the project, when it asks anything. The README's
 [Updating a project's copy](README.md#updating-a-projects-copy) has the short form, and
 [Releasing](README.md#releasing) says how an entry gets here.
 
+## v0.7.0-preview.1 - 2026-10-21
+
+Trial prerelease: pin `v0.7.0-preview.1` or use its release bundle and follow the
+[five-project update instructions](docs/trials/grayscale-preview.md). The latest stable release
+remains v0.6.0. Replace all of `web/`, including the new `trial.js`, and the optional CLI together.
+The host routes and existing backlog configuration stay the same.
+
+- Grayscale is on by default, including dialogs, with a comparison switch remembered per
+  installation. Light and dark themes keep working. Status, priority, waiting, startability
+  and weight have visible labels. Epic progress fills only for completed members.
+- Trial notes can be saved from the board or item details. Each save appends to
+  `docs/backlog/_trial-notes.md` over the existing checked file routes. The log is not an item
+  and does not change the index. Notes include the preview version, theme, appearance, view
+  and selected item; downloads include an unfinished draft. Read-only boards offer downloads.
+- Unfinished drafts survive closing or reloading the page when browser storage is available.
+  Failed saves retain the draft. There is no remote feedback service.
+- The priority words and single Epic badge are provisional trial choices. W-42 and W-39 collect
+  real use across five projects; W-41's final assessment and the header/details work remain open.
+
 ## v0.6.0 - 2026-10-18
 
 Updating from v0.5.0 asks two things of a project, and offers one. README's

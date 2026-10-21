@@ -10,6 +10,7 @@ tags: [review-2026-10]
 created: 2026-10-17
 depends_on: []
 related: [answer-the-questions-a-project-update-raised, update-the-vendored-parsers-with-recorded-versions]
+horizon: unplanned
 ---
 
 # Tooling hygiene: Node requirement, executable CLI and vendor provenance

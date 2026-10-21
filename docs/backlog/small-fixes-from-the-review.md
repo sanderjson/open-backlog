@@ -11,6 +11,7 @@ created: 2026-10-17
 items: [index-into-missing-readme, backlog-yaml-is-ignored, regex-literals, tooling-hygiene, created-dates-use-the-local-day]
 depends_on: []
 related: [loop-check-speed, update-the-vendored-parsers-with-recorded-versions]
+horizon: unplanned
 ---
 
 # Predictable configuration, index generation and tooling

@@ -10,6 +10,7 @@ tags: [review-2026-10, performance]
 created: 2026-10-17
 depends_on: []
 related: [small-fixes-from-the-review]
+horizon: unplanned
 ---
 
 # The dependency-loop check repeats work along long chains

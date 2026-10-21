@@ -10,6 +10,7 @@ tags: [search, ids]
 created: 2026-10-17
 depends_on: [search-matches-tags]
 related: [cli-creates-items-and-epics]
+horizon: unplanned
 ---
 
 # Every item has a short ID

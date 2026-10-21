@@ -11,6 +11,7 @@ created: 2026-10-17
 items: [test-the-board-view-logic, search-matches-tags, list-sorts-both-ways]
 depends_on: []
 related: []
+horizon: unplanned
 ---
 
 # Filters and sorting, pure and tested

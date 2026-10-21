@@ -8,16 +8,17 @@ area: board
 weight: 17
 tags: [ui, a11y]
 created: 2026-10-18
-items: [audit-what-each-card-mark-tells-a-reader, compact-header-with-version-and-github-links, colour-palette, item-details-open-in-a-native-dialog, visual-legend-for-card-symbols]
+items: [audit-what-each-card-mark-tells-a-reader, deliver-five-project-grayscale-trial, grayscale-trial, compact-header-with-version-and-github-links, item-details-open-in-a-native-dialog, the-board-works-in-grayscale, colour-palette, visual-legend-for-card-symbols]
 depends_on: []
-related: [header-layout, the-board-fits-a-host-page, themes]
+related: [collect-and-answer-feedback-from-the-projects-using-the-kit, header-layout, the-board-fits-a-host-page, themes]
+horizon: now
 ---
 
 # A refreshed board everyone can read and use
 
-The board's next visual pass: clearer cards, a compact header, a measured palette, readable item
-details and a visual legend that describes the finished cards. Check the whole pass together and ship it
-in one release.
+The board's next visual pass: a compact header, readable item details, a board that works in
+grayscale, then a measured palette and a legend that describes the finished cards. It ships in
+two releases: v0.7.0 makes the board usable without colour, v0.8.0 brings colour back.
 
 ## Why
 W-29 made the board lay out the same in every project. The header still spends its height on a
@@ -28,41 +29,66 @@ dark, standalone and embedded use, keyboard operation and screen-reader behaviou
 must describe the palette and card cues that actually ship.
 
 ## Scope and decisions
-- W-40 is a spike: it audits the card marks before anything is decided. W-36 and W-37 are
+- **Grayscale first (maintainer decision, 2026-10-18, after W-40's glance test):** colour never
+  carries important information on its own. The board is designed and checked in grayscale first
+  (W-41), and colour comes back afterwards through W-14's palette build, repeating meanings the
+  board already shows in words, shapes or icons.
+- W-40 is a spike: it audits the card marks before anything is decided. W-36, W-41 and W-37 are
   builds. W-14 and W-35 remain discussions: their recommendations are not
   recorded maintainer decisions. Ask about unresolved choices before selecting the palette or
   details interaction. Routine implementation choices within an agreed design need no further
   decision session.
 - A completed discussion is not an implemented feature. Before marking either discussion done,
   create and link its separate build, add that build to this epic, and update the legend's
-  prerequisites. W-40 adds a card polish build the same way. The current members therefore do
-  not represent the full delivery scope.
+  prerequisites. The current members therefore do not represent the full delivery scope.
 - Parking required work does not deliver the promised outcome. The epic stays open unless the
   maintainer explicitly changes its scope and acceptance; closing the original members alone
   cannot complete the refresh.
+- **Plan, agreed 2026-10-18:** learn and build at the same time. The maintainer tries every
+  project's board in grayscale for a few days (W-42, an experiment with a bookmarklet, not a
+  release), alongside W-39's feedback round, and those notes decide W-41's questions. Meanwhile the header and the item details are built, since neither
+  depends on what the trial will teach. W-41, the palette and the legend follow the trial.
+- **Two releases:** v0.7.0 carries W-36, the details build and W-41; v0.8.0 carries the palette
+  build and W-37. Projects get the new header and details sooner, and their next feedback covers
+  them. Each release runs the combined verification for what it carries.
 - Keep plain browser JavaScript/CSS and the two-route host contract. Framework changes, Effect,
   new services and W-20's additional themes are outside this epic. W-12 and W-29 stay done as
   records of the earlier work.
 
 ## Order
-1. **W-40: card audit (spike).** Draft the legend first and run a glance test on real cards.
-   Its colour findings go into W-14's questions, so W-14 depends on it. Its layout, label and
-   repetition findings become a card polish build. Its screenshots are the baseline. It can run
-   alongside the header.
-2. **W-36: compact header.** Build against existing colour tokens. Capture the baseline before
-   the first UI edit and establish the later Legend button's position.
-3. **W-14 and W-35: decisions.** Resolve palette and details questions with the maintainer,
-   together if convenient. Each decision gates its own build; the questions can also be
-   discussed before the header is finished.
-4. **The resulting card polish, palette and details builds.** Add each to `items`, between the
-   discussions and W-37, depending on the item that created it. Add their slugs to W-37's
-   `depends_on`. The card polish build owns layout, hierarchy, labels and repeated marks; the
-   palette build owns agreed colour and non-colour progress cues; the details build owns the
-   chosen interaction and its routing/shortcut integration.
-5. **W-37: legend.** Finish it after the header and the resulting builds, against the cards,
-   palette and dialog behaviour that will ship. W-40's draft legend is its starting text.
-6. **Combined verification and release, owned by this epic.** Builds can be reviewed and merged
-   separately; the whole pass ships in one release after the checks below.
+Alongside all of it: **W-42, the grayscale trial,** a few days in every project, run with
+W-39's feedback round (W-39 isn't part of this epic). Projects stay on v0.6.0; the trial needs no
+release. Its notes decide W-41's questions, which depends on it, and may adjust the header and
+details before v0.7.0.
+
+**Done**
+1. **W-40: card audit (spike).** A draft legend, findings C1 to C8, L1 to L9 and E1 to E3, and a
+   glance test. Its captures are the baseline.
+
+**v0.7.0: the board works without colour**
+2. **W-36: compact header.** The first build. The maintainer picks a header reference
+   (HEADER-A, B or C, or a combination) and the Group control (buttons or a dropdown). Built in
+   grayscale from the start. Capture the baseline before the first UI edit and establish the
+   later Legend button's position.
+3. **W-35: item details, decided now.** One decision session settles modality, host scope,
+   layout references, where today's content goes, j/k order and the address. None of these wait
+   on the trial. Its build is then added to `items` here, before W-41, and to W-37's
+   `depends_on`. The details draw their marks with the shared card helpers, so W-41 changes them
+   there later without rework.
+4. **W-41: the board works in grayscale.** After the trial: its three questions (priority labels,
+   state marks, the one epic cue) are settled from the trial notes, then built across the whole
+   board, details included. It owns layout, hierarchy, labels, repeated marks and every
+   non-colour cue, including epic progress.
+5. **v0.7.0 release:** combined verification for the header, details and W-41, in grayscale and
+   in today's colours.
+
+**v0.8.0: colour comes back**
+6. **W-14: palette decision, then its build.** Decides which colours return and where, on top of
+   W-41's cues and the trial's "what colour you didn't miss" notes. The build is added to
+   `items` before W-37 and to W-37's `depends_on`.
+7. **W-37: legend.** Last, against the cards, palette and dialogs that ship. W-40's draft legend
+   is its starting text.
+8. **v0.8.0 release:** the full combined verification below.
 
 ## Design review references
 The wireframes are alternatives for discussion, not acceptance evidence or recorded decisions.
@@ -104,8 +130,9 @@ wireframes do not demonstrate that those checks pass.
   thresholds. Flexible layout units and a prose measure in `ch` remain appropriate. Scope
   styles under `.bb`; do not force the host's root font size or add an unrelated whole-file
   conversion. W-37 also covers shared New item and keyboard-help dialog sizing.
-- Reuse the agreed colour tokens and card cues across the header, details and legend. Carry
-  meaning alongside colour. Preserve reduced-motion support, visible focus and usable targets.
+- Reuse the agreed colour tokens and card cues across the header, details and legend. Colour
+  only repeats a meaning already carried by a word, shape or icon; every surface is checked with
+  colour removed. Preserve reduced-motion support, visible focus and usable targets.
 
 ## Combined verification
 - Use the starter backlog, this backlog and a six-field backlog with long titles and epic/tag
@@ -123,24 +150,30 @@ wireframes do not demonstrate that those checks pass.
 - Exercise keyboard-only and VoiceOver on macOS: open/close, Tab/Shift-Tab, nested dialogs,
   shortcuts, title announcements on item switches and valid focus return. Live updates must
   preserve scroll, focused controls and uncommitted values.
+- Repeat W-40's glance test on the finished board, once in grayscale and once in colour: state,
+  epic progress and priority must be readable both ways.
 - Check contrast on actual surfaces against W-14's targets and verify the agreed non-colour
   cues directly. Legend samples match final rendering and configuration; a legend does not
   replace accessible names and explanations on the cards themselves.
+- Before v0.7.0, run every check above that applies to the header, details and W-41, with
+  today's colours; before v0.8.0, run them all again with the new palette and the legend.
 - Run the full Node/browser suites, backlog checks and managed-index checks on the combined
   result. Use relevant checks during individual builds and repeat broader checks when changes
   affect their results. Record actual commands/results, manual observations and screenshot
   links here; do not report unperformed VoiceOver checks as passed.
 
 ## Acceptance
-- All required members are done, including the builds added after W-40 and the decisions, and the
-  combined checks have evidence. Any approved scope changes are recorded explicitly.
+- All required members are done, including the details and palette builds added after their
+  decisions, and both releases' checks have evidence. Any approved scope changes are recorded
+  explicitly.
 - Comparable before/after screenshots show the board, an item's details and an epic's details;
   final screenshots also show the legend. Save them in `docs/backlog-assets/`, with matching
   data, filters, viewport and root text size for each comparison.
-- One release carries the pass, following README's releasing procedure: consistent
-  `core.VERSION`, PROMPT example and CHANGELOG, a tag and published GitHub release. Update user
-  documentation for the header, legend and changed interactions. The header's version and
-  release link identify the version actually shipped.
+- Two releases carry the pass, v0.7.0 (header, details, grayscale) and v0.8.0 (palette,
+  legend), each following README's releasing procedure: consistent `core.VERSION`, PROMPT
+  example and CHANGELOG, a tag and a published GitHub release. Each updates the user
+  documentation for what it changes. The header's version and release link identify the version
+  actually shipped.
 - Target no additional host routes, runtime, configuration migration or integration steps.
   Verify that against the final diff and record the actual update impact in the CHANGELOG;
   do not promise unchanged instructions before that review. Projects still follow the normal

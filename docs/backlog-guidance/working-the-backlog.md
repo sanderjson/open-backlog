@@ -130,6 +130,15 @@ and unused explorations can stay in an ignored local folder, such as
 `docs/backlog-assets-local/`, or external storage. Item links should point to the shared review
 copies, and local originals need their own backup if they must be retained.
 
+## Trial observations
+
+In a preview with **Trial notes**, the board can append observations to `_trial-notes.md` in
+the backlog folder. This underscore file is a log, not a work item: it needs no front matter,
+ID or index row. Keep it and any hand edits intact during backlog work. Save from the board
+while using the preview, or append Markdown when asked to record an observation. Each project
+keeps its own log; copy selected findings back to the kit's trial record when requested.
+The backlog's visibility rule applies to these notes too.
+
 ## What doesn't belong in an item
 
 The backlog is files in the repository, so an item is exactly as visible as the code: everyone who

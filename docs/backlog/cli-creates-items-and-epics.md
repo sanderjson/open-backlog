@@ -10,6 +10,7 @@ tags: [agent, epics]
 created: 2026-10-17
 depends_on: []
 related: [agent-guidance]
+horizon: unplanned
 ---
 
 # The CLI creates items and epics

@@ -10,6 +10,7 @@ tags: [prompt, agent]
 created: 2026-10-17
 depends_on: []
 related: [review-prompt-text]
+horizon: unplanned
 ---
 
 # Prompts open with the status change

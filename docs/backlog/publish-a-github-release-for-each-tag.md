@@ -10,6 +10,7 @@ tags: [release]
 created: 2026-10-18
 depends_on: []
 related: [release-hygiene]
+horizon: unplanned
 ---
 
 # Publish a GitHub release for each tag

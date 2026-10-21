@@ -559,7 +559,7 @@ test('a sideways scroller reaches the bottom of the window, or of the height a h
     expect(await bottom(board)).toBeGreaterThan(900 - 40);
     expect(await bottom(board)).toBeLessThanOrEqual(900);
     const column = (await page.locator('.bb-column').first().boundingBox());
-    expect(column.y + column.height).toBeLessThan(600); // columns keep their own height, at the top
+    expect(column.y + column.height).toBeLessThan((await bottom(board)) - 80); // short columns leave space above the bottom scrollbar
 
     // A wide list's box reaches down too; a list that fits keeps its own height.
     await page.setViewportSize({ width: 800, height: 900 });
@@ -569,7 +569,7 @@ test('a sideways scroller reaches the bottom of the window, or of the height a h
     expect(await bottom(wrap)).toBeGreaterThan(900 - 40);
     await page.setViewportSize({ width: 1400, height: 900 });
     await expect(wrap).not.toHaveClass(/is-wide/);
-    expect(await bottom(wrap)).toBeLessThan(500);
+    expect(await bottom(wrap)).toBeLessThan(900 - 80); // a fitting list stops well above the viewport bottom
 
     // In a host's page, the height the host gives the mount element is the board's.
     const host = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Host</title>

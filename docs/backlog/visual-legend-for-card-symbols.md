@@ -8,8 +8,9 @@ area: board
 weight: 22
 tags: ["ui", "a11y"]
 created: 2026-10-18
-depends_on: [compact-header-with-version-and-github-links, colour-palette, item-details-open-in-a-native-dialog]
+depends_on: [compact-header-with-version-and-github-links, the-board-works-in-grayscale, colour-palette, item-details-open-in-a-native-dialog]
 related: [a-refreshed-board-everyone-can-read-and-use, audit-what-each-card-mark-tells-a-reader, epic-cards-stand-out]
+horizon: next
 ---
 
 # A visual legend for card symbols
@@ -24,10 +25,17 @@ This is W-38's final feature build so the reference describes the visuals and in
 will ship, including the agreed non-colour cues.
 
 ## Order
-The header and both discussions are prerequisites now. Before W-14 and W-35 are marked done,
-their resulting palette and details builds must also be added to this item's `depends_on`.
-Begin this build after both resulting implementations are done, as ordered by W-38. The
-discussions alone are insufficient prerequisites. W-38 owns combined verification and release.
+The last build in W-38, shipping with the palette build in v0.8.0. The header, W-41 and both
+discussions are prerequisites now. Before W-14 and W-35 are marked done, their resulting palette
+and details builds must also be added to this item's `depends_on`. Begin this build after all of
+them are done, as ordered by W-38. The discussions alone are insufficient prerequisites. W-38
+owns the combined verification and the v0.8.0 release. The header in v0.7.0 reserves the Legend
+button's place; this item adds the working button.
+
+Start from W-40's [draft legend](audit-what-each-card-mark-tells-a-reader.md#draft-legend) and
+its notes E1 to E3, then describe the marks as W-41 and the palette build leave them. After W-41
+every mark has a word, shape or icon, so each legend entry explains that cue first and colour
+second.
 
 ## Proposed interaction
 - Add a visible **Legend** button beside keyboard help, available in both Board and List views.

@@ -4,6 +4,10 @@ Give this file to a coding agent working in the project, with the version to use
 https://github.com/sanderjson/open-backlog, e.g. `v0.6.0`). If the project already has the board,
 it's an update: see [Updating](#updating) at the end.
 
+For the grayscale trial, pin the prerelease tag `v0.7.0-preview.1` and follow
+[the preview update prompt](docs/trials/grayscale-preview.md). The stable clone example below
+still uses v0.6.0.
+
 ## Goal
 
 In development only, this project's own web server serves the backlog board at a dev route
