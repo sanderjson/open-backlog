@@ -10,6 +10,7 @@ tags: ["cli", "agent"]
 created: 2026-10-18
 depends_on: []
 related: [answer-the-questions-a-project-update-raised, cli-creates-items-and-epics]
+horizon: unplanned
 ---
 
 # new takes a custom file name with --slug

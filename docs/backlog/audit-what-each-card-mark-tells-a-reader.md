@@ -10,6 +10,7 @@ tags: [ui, a11y]
 created: 2026-10-18
 depends_on: []
 related: [the-board-works-in-grayscale, colour-palette, visual-legend-for-card-symbols, epic-cards-stand-out]
+horizon: unplanned
 ---
 
 # Audit what each card mark tells a reader

@@ -10,6 +10,7 @@ tags: [security, review-2026-10]
 created: 2026-10-17
 depends_on: []
 related: []
+horizon: unplanned
 ---
 
 # Hosts refuse requests for another Host

@@ -11,6 +11,7 @@ created: 2026-10-18
 items: [scope-keys-to-the-board, header-layout, board-scrollbar-position]
 depends_on: []
 related: []
+horizon: unplanned
 ---
 
 # The board fits a host page

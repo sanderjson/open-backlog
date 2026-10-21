@@ -11,6 +11,7 @@ created: 2026-10-17
 items: [agent-guidance, cli-creates-items-and-epics, epic-cards-stand-out, search-matches-tags]
 depends_on: []
 related: []
+horizon: unplanned
 ---
 
 # Epics an agent can make and a person can find

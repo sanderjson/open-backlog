@@ -10,6 +10,7 @@ tags: [ui]
 created: 2026-10-17
 depends_on: [colour-palette]
 related: [a-refreshed-board-everyone-can-read-and-use]
+horizon: later
 ---
 
 # Themes beyond light and dark

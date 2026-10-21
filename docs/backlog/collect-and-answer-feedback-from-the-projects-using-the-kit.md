@@ -10,6 +10,7 @@ tags: [guidance, agent]
 created: 2026-10-18
 depends_on: []
 related: [answer-the-questions-a-project-update-raised, agent-guidance, github-issues-sync, grayscale-trial]
+horizon: now
 ---
 
 # Collect and answer feedback from the projects using the kit
@@ -87,6 +88,15 @@ other trackers bear on W-21, backlog size on W-27, and day-to-day use on the boa
 >
 > Reply in that order, and mark each point in 2 to 5 as a bug, a doc gap, a question or a
 > request.
+
+## Trial experience
+
+W-45 packages v0.7.0-preview.1 for updating all five projects and recording notes from inside
+the board. Use [the project-agent update prompt](../trials/grayscale-preview.md) and
+[the shared five-project record](../trials/five-project-notes.md). The notes recorder's topics
+include Header and Item details, so the maintainer can capture those observations alongside
+the agent feedback requested above. Keep each project's raw `_trial-notes.md` there; copy only
+suitable excerpts into this public record.
 
 ## Alongside: the grayscale trial
 [W-42](grayscale-trial.md) runs in the same projects on the same days: the maintainer uses each

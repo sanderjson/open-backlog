@@ -8,9 +8,10 @@ area: board
 weight: 17
 tags: [ui, a11y]
 created: 2026-10-18
-items: [audit-what-each-card-mark-tells-a-reader, grayscale-trial, compact-header-with-version-and-github-links, item-details-open-in-a-native-dialog, the-board-works-in-grayscale, colour-palette, visual-legend-for-card-symbols]
+items: [audit-what-each-card-mark-tells-a-reader, deliver-five-project-grayscale-trial, grayscale-trial, compact-header-with-version-and-github-links, item-details-open-in-a-native-dialog, the-board-works-in-grayscale, colour-palette, visual-legend-for-card-symbols]
 depends_on: []
 related: [collect-and-answer-feedback-from-the-projects-using-the-kit, header-layout, the-board-fits-a-host-page, themes]
+horizon: now
 ---
 
 # A refreshed board everyone can read and use

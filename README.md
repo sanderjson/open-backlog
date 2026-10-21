@@ -27,6 +27,10 @@ project's own web server serves it and gives it two routes to read and write the
 folder. That takes a few lines in any language, so an agent can wire it into any project with
 [PROMPT.md](PROMPT.md).
 
+The **v0.7.0-preview.1 grayscale trial** adds notes saved from the board. Use
+[the five-project update procedure](docs/trials/grayscale-preview.md) to install the pinned
+prerelease in existing projects. The latest stable release remains v0.6.0.
+
 ## Ground rules
 
 These keep the kit usable from every project. Read them before changing it, and especially if
@@ -59,6 +63,7 @@ you're an agent working from inside one host project.
 | `web/index.html` | The page: mounts the board on `<div data-open-backlog data-api="." data-page>`. |
 | `web/board.js`, `web/board.css` | The page's behaviour and look. Everything is scoped under `.bb`. |
 | `web/core.js` | Reading, checking and planning edits to the backlog, and what the board shows for an address, with no page. |
+| `web/trial.js` | The preview's notes log planner, using the existing backlog file routes. |
 | `web/vendor/` | [marked](https://github.com/markedjs/marked) 18.0.13 and [js-yaml](https://github.com/nodeca/js-yaml) 5.4.2, with their MIT licences, each one file copied unchanged from its npm package (see [Vendored parsers](#vendored-parsers)). |
 | `starter/` | A backlog for a project that has none: `backlog.yml`, a README index, a template, and an epic with two items. |
 | `docs/backlog/` | The kit's own backlog, kept with the board it's built with: `npm run dev` serves it (see [Development checks](#development-checks)). |
@@ -69,6 +74,7 @@ you're an agent working from inside one host project.
 | `.claude/skills/open-backlog/` | A skill that gets a coding agent to read `docs/backlog-guidance/` when backlog work comes up, and holds the essentials. PROMPT.md installs it. |
 | `test/` | Core, CLI and contract tests, with the throwaway host they run against: `npm test` (Node 22 or later). |
 | `bin/open-backlog.mjs` | An optional command line for agents and CI (Node 22 or later): checks, work that can start, prompts and managed indexes. |
+| `bin/package-preview.mjs` | Packages this local preview and generates an update prompt: `npm run pack:preview`. |
 | `browser/` | Headless Chromium tests of the real board over throwaway backlogs. |
 | `LICENSE` | MIT: use it, change it, ship it. |
 

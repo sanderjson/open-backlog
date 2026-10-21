@@ -9,6 +9,7 @@
     "dev": "node test/dev.mjs",
     "test": "node --test test/*.test.js",
     "test:silent": "PWDEBUG=0 playwright test",
+    "pack:preview": "node bin/package-preview.mjs",
     "check": "node bin/open-backlog.mjs check docs/backlog"
   },
   "devDependencies": {

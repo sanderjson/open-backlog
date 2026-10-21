@@ -7,6 +7,8 @@ fields:
   priority: [high, mid, low]
   type: [build, chore, discuss, spike, epic]
   area: [board, core, host, cli, repo]
+  # W-44: trial planning horizons in this backlog before deciding where open-roadmap lives.
+  horizon: [now, next, later, unplanned]
 
 done: [done]
 closed: [done, parked]

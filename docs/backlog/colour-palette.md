@@ -10,6 +10,7 @@ tags: [ui]
 created: 2026-10-17
 depends_on: [audit-what-each-card-mark-tells-a-reader, the-board-works-in-grayscale]
 related: [a-refreshed-board-everyone-can-read-and-use, themes, epic-cards-stand-out, compact-header-with-version-and-github-links, visual-legend-for-card-symbols]
+horizon: next
 ---
 
 # Refresh the colour palette

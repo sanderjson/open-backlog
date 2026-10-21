@@ -42,6 +42,9 @@ open-backlog repo.
   customer data and legal matters don't go in an item's text. Write the item as a pointer to where
   the project keeps such details (its backlog README says where). If it doesn't say, propose a
   place (a draft security advisory, the project's secrets manager) and ask.
+- A preview's `_trial-notes.md` is an observations log, not a work item. Preserve it and its
+  hand edits. The board's Trial notes button appends versioned observations; when asked to
+  record notes by hand, append Markdown without giving the log an ID or index row.
 - With Node 22 or later and the kit's CLI: `check`, `next`, `prompt <slug>` and `index --check`,
   each taking the folder as an argument, and `new "<title>"` with `--field name=value`, `--weight`,
   `--tags`, `--items` (an epic), `--epic` (into one) or `--slug` (the project's own file name).

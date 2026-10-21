@@ -10,6 +10,7 @@ tags: [ui]
 created: 2026-10-17
 depends_on: [test-the-board-view-logic]
 related: []
+horizon: unplanned
 ---
 
 # List columns sort both ways

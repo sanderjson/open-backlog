@@ -10,6 +10,7 @@ tags: [agent, epics]
 created: 2026-10-17
 depends_on: []
 related: [cli-creates-items-and-epics]
+horizon: unplanned
 ---
 
 # Guidance agents find on their own

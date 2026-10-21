@@ -10,6 +10,7 @@ tags: [ui, a11y]
 created: 2026-10-18
 depends_on: []
 related: [a-refreshed-board-everyone-can-read-and-use, compact-header-with-version-and-github-links, visual-legend-for-card-symbols, the-board-fits-a-host-page, scope-keys-to-the-board]
+horizon: next
 ---
 
 # Item details open in a native dialog

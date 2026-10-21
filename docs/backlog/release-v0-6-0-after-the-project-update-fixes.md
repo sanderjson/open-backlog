@@ -10,6 +10,7 @@ tags: ["release", "guidance"]
 created: 2026-10-18
 depends_on: [answer-the-questions-a-project-update-raised, new-takes-a-custom-file-name-with-slug, review-prompt-text]
 related: [small-fixes-from-the-review, release-hygiene, publish-a-github-release-for-each-tag, every-item-has-a-short-id, the-board-fits-a-host-page]
+horizon: unplanned
 ---
 
 # Release v0.6.0 after the project-update fixes

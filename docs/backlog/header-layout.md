@@ -10,6 +10,7 @@ tags: [ui]
 created: 2026-10-17
 depends_on: []
 related: []
+horizon: unplanned
 ---
 
 # A header and toolbar that lay out the same in every project

@@ -10,6 +10,7 @@ tags: [review-2026-10]
 created: 2026-10-17
 depends_on: []
 related: []
+horizon: unplanned
 ---
 
 # Dogfood the kit

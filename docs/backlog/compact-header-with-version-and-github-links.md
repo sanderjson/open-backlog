@@ -10,6 +10,7 @@ tags: ["ui", "layout"]
 created: 2026-10-18
 depends_on: []
 related: [a-refreshed-board-everyone-can-read-and-use, header-layout, visual-legend-for-card-symbols, item-details-open-in-a-native-dialog, colour-palette]
+horizon: next
 ---
 
 # A compact header with version and GitHub links

@@ -8,9 +8,9 @@ import { VERSION } from '../web/core.js';
 const at = (path) => fileURLToPath(new URL(path, import.meta.url));
 
 test('the version in core.js is the latest changelog entry, the PROMPT example and what --help prints', async () => {
-  assert.match(VERSION, /^\d+\.\d+\.\d+$/);
+  assert.match(VERSION, /^\d+\.\d+\.\d+(?:-[a-z0-9]+(?:\.[a-z0-9]+)*)?$/);
   const changelog = await fs.readFile(at('../CHANGELOG.md'), 'utf8');
-  const latest = changelog.match(/^## v(\d+\.\d+\.\d+) - \d{4}-\d{2}-\d{2}$/m)?.[1];
+  const latest = changelog.match(/^## v(\d+\.\d+\.\d+(?:-[a-z0-9]+(?:\.[a-z0-9]+)*)?) - \d{4}-\d{2}-\d{2}$/m)?.[1];
   assert.equal(latest, VERSION, 'the first "## vX.Y.Z - date" heading in CHANGELOG.md is the version in web/core.js');
   const prompt = await fs.readFile(at('../PROMPT.md'), 'utf8');
   assert.ok(prompt.includes(`\`v${VERSION}\``), 'PROMPT.md names the current tag as its example');

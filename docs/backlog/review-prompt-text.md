@@ -10,6 +10,7 @@ tags: [prompt, agent]
 created: 2026-10-17
 depends_on: [answer-the-questions-a-project-update-raised]
 related: [prompt-starts-with-status, every-item-has-a-short-id]
+horizon: unplanned
 ---
 
 # Review the text around the item in copied prompts

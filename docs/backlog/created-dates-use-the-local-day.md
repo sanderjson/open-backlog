@@ -10,6 +10,7 @@ tags: [review-2026-10]
 created: 2026-10-18
 depends_on: []
 related: []
+horizon: unplanned
 ---
 
 # Created dates use the local day

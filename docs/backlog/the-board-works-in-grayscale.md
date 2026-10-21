@@ -10,6 +10,7 @@ tags: [ui, a11y]
 created: 2026-10-18
 depends_on: [audit-what-each-card-mark-tells-a-reader, grayscale-trial]
 related: [colour-palette, visual-legend-for-card-symbols, compact-header-with-version-and-github-links, item-details-open-in-a-native-dialog]
+horizon: next
 ---
 
 # The board works in grayscale
@@ -81,6 +82,14 @@ Everything else follows from the rule.
 - No colour is added in this build. Existing colour stays where it repeats a meaning already
   carried another way; W-14's palette build decides the colours that come back.
 - Sizes and spacing in `rem`, per W-38's shared requirements; no change to the host contract.
+
+## Trial implementation
+
+W-45's v0.7.0-preview.1 implements provisional labels, a single Epic badge and completed-only
+progress so W-42 can run across all five projects. The maintainer requested this test
+experience before the field notes exist. Configured priority words and explicit state text
+are trial defaults; the choices above, the glance test and final acceptance remain open.
+See [the trial procedure](../trials/grayscale-preview.md).
 
 ## Notes
 W-40's [audit record](audit-what-each-card-mark-tells-a-reader.md#audit-record) has the draft

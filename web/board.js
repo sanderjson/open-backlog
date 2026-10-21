@@ -8,6 +8,7 @@
 // That's plain HTTP, so any host in any language can serve it (see README.md).
 
 import * as core from "./core.js";
+import { NOTES_FILE, NOTE_TOPICS, appendTrialNote } from "./trial.js";
 
 const POLL_MS = 2000;
 const THEME_KEY = "open-backlog:theme";
@@ -45,9 +46,6 @@ const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 // The same mark on an epic's card, its list row and its sheet, so it reads as one before its bar.
 const epicBadge = (id = "") => `<span class="bb-epic-badge" ${id ? `id="${id}"` : ""}>${icon("epic")}<span>Epic</span></span>`;
 
-// The order an epic's progress bar shows its items in (see core.stage).
-const STAGES = ["done", "setAside", "active", "ready", "blocked", "other"];
-
 const SHORTCUTS = [
   ["/", "Search"], ["n", "New item"], ["b", "Board"], ["l", "List"], ["Shift E", "Filter by epic"],
   ["j / k", "Next / previous item"], ["e", "Open the item in your editor"],
@@ -77,6 +75,8 @@ class Board {
     // while focus is inside it.
     this.ownsPage = root.hasAttribute("data-page");
     this.charKeys = this.stored(KEYS_KEY) !== "off";
+    this.trialKey = `open-backlog:trial:${this.api.href}`;
+    this.grayscale = this.stored(`${this.trialKey}:grayscale`) !== "off";
   }
 
   start() {
@@ -86,6 +86,8 @@ class Board {
     this.root.innerHTML = this.skeleton();
     this.el = Object.fromEntries([...this.root.querySelectorAll("[data-el]")].map((el) => [el.dataset.el, el]));
     this.setCharKeys(this.charKeys);
+    this.setGrayscale(this.grayscale);
+    this.restoreNoteDraft();
     this.bind();
     this.poll();
   }
@@ -294,18 +296,16 @@ class Board {
   }
 
   chip(name, value) {
-    return `<span class="bb-chip tone-${this.tone(name, value)}"><span class="bb-dot"></span>${esc(core.label(value))}</span>`;
+    const mark = name === "status" && this.snap.done.includes(value) ? icon("check")
+      : name === "status" && this.snap.closed.includes(value) ? icon("hide") : '<span class="bb-dot"></span>';
+    return `<span class="bb-chip tone-${this.tone(name, value)}">${mark}${esc(core.label(name))}: ${esc(core.label(value))}</span>`;
   }
 
-  priority(value, { text = false } = {}) {
+  priority(value) {
     const f = core.field(this.snap, "priority");
-    const i = f.values.indexOf(value);
     if (!f.values.length) return "";
-    const bars = Math.min(3, f.values.length);
-    const level = i < 0 ? 0 : Math.max(1, bars - i);
-    const marks = Array.from({ length: bars }, (_, b) => `<span class="${b < level ? "on" : ""}"></span>`).join("");
     const title = value ? `${core.label(value)} priority` : "No priority";
-    return `<span class="bb-priority tone-${this.tone("priority", value)}" title="${esc(title)}"><span class="bb-bars">${marks}</span>${text ? `<span>${esc(core.label(value))}</span>` : ""}</span>`;
+    return `<span class="bb-priority tone-${this.tone("priority", value)}">${esc(title)}</span>`;
   }
 
   // ---- Page ------------------------------------------------------------------------------------
@@ -315,7 +315,7 @@ class Board {
       <div class="bb-app">
         <header class="bb-header">
           <div class="bb-heading">
-            <p class="bb-eyebrow"><span class="bb-live" data-el="live" title="Connecting…"></span><span data-el="dir"></span></p>
+            <p class="bb-eyebrow"><span class="bb-live" data-el="live" title="Connecting…"></span><span data-el="liveText">Connecting…</span><span data-el="dir"></span></p>
             <h1 data-el="title">Backlog</h1>
           </div>
           <div class="bb-stats" data-el="stats"></div>
@@ -325,6 +325,11 @@ class Board {
             <button type="button" class="bb-icon-btn" data-action="help" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">${icon("keys")}</button>
           </div>
         </header>
+        <section class="bb-trial" aria-label="Trial controls">
+          <span class="bb-trial-version">Trial v${core.VERSION}</span>
+          <label class="bb-switch"><input type="checkbox" data-el="grayscale"><span>Grayscale</span></label>
+          <button type="button" class="bb-btn" data-action="trial-notes" data-el="notesButton">${icon("edit")}<span>Trial notes</span></button>
+        </section>
         <div data-el="problems"></div>
         <div class="bb-toolbar">
           <form class="bb-filters" data-el="filters" role="search">
@@ -379,6 +384,24 @@ class Board {
           <p class="bb-help-version">open-backlog v${core.VERSION}</p>
           <div class="bb-dialog-actions"><button type="button" class="bb-btn" data-action="dismiss">Close</button></div>
         </dialog>
+        <dialog class="bb-dialog bb-trial-dialog" data-el="notesDialog" aria-labelledby="bb-notes-title">
+          <form class="bb-new" data-el="notesForm">
+            <h2 id="bb-notes-title">Trial notes</h2>
+            <p class="bb-trial-context" data-el="notesContext"></p>
+            <p class="bb-trial-hint">What was unclear? What helped? What did you do instead? Notes stay in this repository; keep private details out.</p>
+            <label class="bb-field"><span>Topic</span><select class="bb-select" name="topic">${NOTE_TOPICS.map((topic) => `<option>${topic}</option>`).join("")}</select></label>
+            <label class="bb-field"><span>What happened?</span><textarea name="note" rows="5" required maxlength="10000" placeholder="I couldn't tell… so I…"></textarea></label>
+            <p class="bb-trial-hint" data-el="notesDraftStatus" role="status"></p>
+            <p class="bb-error" data-el="notesError" role="alert" hidden></p>
+            <p class="bb-trial-hint" data-el="notesSaveStatus" role="status"></p>
+            <details><summary>Saved notes</summary><pre class="bb-trial-history" data-el="notesHistory"></pre></details>
+            <div class="bb-dialog-actions">
+              <button type="button" class="bb-btn" data-action="download-notes">Download notes</button>
+              <button type="button" class="bb-btn" data-action="dismiss">Close</button>
+              <button type="submit" class="bb-btn bb-btn-primary" data-el="saveNote">Save note</button>
+            </div>
+          </form>
+        </dialog>
         <div class="bb-toasts" data-el="toasts" aria-live="polite"></div>
       </div>`;
   }
@@ -428,6 +451,15 @@ class Board {
       }
     });
     this.el.charKeys.addEventListener("change", (e) => this.setCharKeys(e.target.checked, { save: true }));
+    this.el.grayscale.addEventListener("change", (e) => this.setGrayscale(e.target.checked, { save: true }));
+    this.el.notesForm.addEventListener("input", () => this.saveNoteDraft());
+    this.el.notesForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      this.saveTrialNote();
+    });
+    this.el.notesDialog.addEventListener("close", () => {
+      (this.el.sheet.querySelector('[data-action="trial-notes"]') || this.el.notesButton).focus({ preventScroll: true });
+    });
     filters.addEventListener("change", (e) => {
       if (e.target.matches("select")) this.setParams({ [e.target.name]: e.target.value || null });
     });
@@ -510,6 +542,8 @@ class Board {
       case "help": return this.el.helpDialog.showModal();
       case "dismiss": return target.closest("dialog").close();
       case "theme": return this.cycleTheme();
+      case "trial-notes": return this.openTrialNotes();
+      case "download-notes": return this.downloadTrialNotes();
       case "clear": return this.setParams(Object.fromEntries(this.filters().map((k) => [k, null])));
       case "close": return this.close();
       case "prev": return this.step(-1);
@@ -639,6 +673,102 @@ class Board {
 
   // ---- Theme -----------------------------------------------------------------------------------
 
+  setGrayscale(on, { save = false } = {}) {
+    this.grayscale = on;
+    this.root.dataset.grayscale = String(on);
+    this.el.grayscale.checked = on;
+    if (save) {
+      try { localStorage.setItem(`${this.trialKey}:grayscale`, on ? "on" : "off"); } catch {}
+    }
+  }
+
+  restoreNoteDraft() {
+    try {
+      const draft = JSON.parse(this.stored(`${this.trialKey}:draft`));
+      if (typeof draft?.note === "string") this.el.notesForm.elements.note.value = draft.note.slice(0, 10000);
+      if (NOTE_TOPICS.includes(draft?.topic)) this.el.notesForm.elements.topic.value = draft.topic;
+      if (typeof draft?.context?.grayscale === "boolean" && ["theme", "view", "item"].every(key => typeof draft.context[key] === "string")) this.noteContext = draft.context;
+    } catch {}
+  }
+
+  saveNoteDraft() {
+    const { note, topic } = this.el.notesForm.elements;
+    try {
+      if (note.value) localStorage.setItem(`${this.trialKey}:draft`, JSON.stringify({ note: note.value, topic: topic.value, context: this.noteContext }));
+      else localStorage.removeItem(`${this.trialKey}:draft`);
+      this.el.notesDraftStatus.textContent = note.value ? "Draft kept in this browser until you save it to the repository." : "";
+    } catch {
+      this.el.notesDraftStatus.textContent = note.value ? "Browser storage is unavailable. Save or download your note before reloading." : "";
+    }
+    this.el.notesSaveStatus.textContent = this.snap && !this.snap.writable ? "This backlog is read-only. Download notes to keep your observations." : "";
+  }
+
+  trialContext() {
+    return {
+      grayscale: this.grayscale,
+      theme: this.theme === "auto" ? `auto (${matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"})` : this.theme,
+      view: location.pathname + core.viewQuery(this.snap, location.search),
+      item: this.params().item || "",
+    };
+  }
+
+  renderTrialNotes() {
+    if (!this.snap) return;
+    this.el.notesHistory.textContent = this.snap.files[NOTES_FILE] || "No saved notes yet.";
+    this.el.saveNote.disabled = this.savingNote || !this.snap.writable;
+    this.el.saveNote.textContent = this.savingNote ? "Saving…" : "Save note";
+  }
+
+  openTrialNotes() {
+    if (!this.snap) return;
+    if (!this.el.notesForm.elements.note.value || !this.noteContext) this.noteContext = this.trialContext();
+    const item = this.snap.bySlug.get(this.noteContext.item);
+    this.el.notesContext.textContent = `${this.snap.title} · v${core.VERSION} · ${this.noteContext.grayscale ? "grayscale" : "colour"} · ${this.noteContext.theme}${item ? ` · ${core.itemCode(this.snap, item) || item.title}` : ""}`;
+    this.el.notesError.hidden = true;
+    this.el.notesSaveStatus.textContent = this.snap.writable ? "Save appends your note to the repository." : "This backlog is read-only. Download notes to keep your observations.";
+    this.renderTrialNotes();
+    this.el.notesDialog.showModal();
+    this.el.notesForm.elements.note.focus();
+  }
+
+  async saveTrialNote() {
+    if (this.savingNote) return;
+    const { note, topic } = this.el.notesForm.elements;
+    const entry = { ...this.noteContext, note: note.value, topic: topic.value };
+    this.savingNote = true;
+    note.disabled = topic.disabled = true;
+    this.el.notesError.hidden = true;
+    this.renderTrialNotes();
+    try {
+      await this.mutate((snapshot) => ({ writes: appendTrialNote(snapshot, entry) }));
+      note.value = "";
+      this.saveNoteDraft();
+      this.el.notesSaveStatus.textContent = `Saved to ${this.snap.dir}/${NOTES_FILE}.`;
+      this.toast("Trial note saved", "ok", NOTES_FILE);
+    } catch (e) {
+      this.el.notesError.textContent = e.message;
+      this.el.notesError.hidden = false;
+    } finally {
+      this.savingNote = false;
+      note.disabled = topic.disabled = false;
+      this.renderTrialNotes();
+      if (this.el.notesDialog.open) note.focus();
+    }
+  }
+
+  downloadTrialNotes() {
+    const { note, topic } = this.el.notesForm.elements;
+    const content = note.value.trim()
+      ? appendTrialNote(this.snap, { ...this.noteContext, note: note.value, topic: topic.value })[NOTES_FILE]
+      : this.snap.files[NOTES_FILE] || "# open-backlog trial notes\n";
+    const url = URL.createObjectURL(new Blob([content], { type: "text/markdown;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${core.slugify(this.snap.title) || "open-backlog"}-trial-notes-${core.localDay()}.md`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   storedTheme() {
     return this.stored(THEME_KEY) || "auto";
   }
@@ -698,6 +828,7 @@ class Board {
     this.el.live.classList.toggle("is-live", live);
     this.el.live.classList.toggle("is-down", !live);
     this.el.live.title = live ? `Live: follows changes to the files every ${POLL_MS / 1000} s` : "Can't reach the host: retrying";
+    this.el.liveText.textContent = live ? "Live" : "Host unavailable";
   }
 
   renderError(e) {
@@ -728,6 +859,7 @@ class Board {
     this.el.newButton.hidden = !s.writable;
     if (this.ownsPage) document.title = p.item && s.bySlug.get(p.item) ? `${s.bySlug.get(p.item).title} · ${s.title}` : s.title;
     this.applyTheme(this.theme);
+    this.renderTrialNotes();
 
     const visible = this.visible(p);
     this.renderStats(p);
@@ -858,42 +990,38 @@ class Board {
 
   card(item, p) {
     const s = this.snap;
-    const others = s.fields.filter((f) => f.name !== p.group && f.name !== "priority" && item.fields[f.name]);
-    const signals = [
-      item.branches.length && `<span title="${esc(item.branches.join(", "))}">${icon("branch")}</span>`,
-      item.blockers.length && `<span title="Waits on ${plural(item.blockers.length, "open item")}">${icon("lock")}${item.blockers.length}</span>`,
-      item.dependents.length && `<span title="${plural(item.dependents.length, "item")} wait on it">${icon("unblocks")}${item.dependents.length}</span>`,
-      item.startable && s.active.length && `<span class="bb-can-start" title="Can start now">${icon("play")}</span>`,
-    ].filter(Boolean).join("");
     const epic = core.isEpic(item);
+    const others = s.fields.filter((f) => f.name !== "priority" && (f.name !== p.group || f.name === "status") && item.fields[f.name] && !(epic && f.name === "type" && item.fields[f.name] === "epic"));
+    const signals = [
+      item.branches.length && `<span title="${esc(item.branches.join(", "))}">${icon("branch")}${plural(item.branches.length, "branch", "branches")}</span>`,
+      item.blockers.length && `<span>${icon("lock")}Waits on ${item.blockers.length}</span>`,
+      item.dependents.length && `<span>${icon("unblocks")}Holds up ${item.dependents.length}</span>`,
+      item.startable && s.active.length && !epic && `<span class="bb-can-start">${icon("play")}Can start</span>`,
+    ].filter(Boolean).join("");
     return `
       <a class="bb-card ${epic ? "is-epic" : ""} ${p.item === item.slug ? "is-selected" : ""} ${item.open ? "" : "is-closed"}" id="bb-card-${esc(item.slug)}"
          href="${esc(this.href({ item: item.slug }))}" data-item="${esc(item.slug)}" ${s.writable ? 'draggable="true"' : ""}>
-        <span class="bb-card-top">${this.code(item, " ")}${epic ? epicBadge() : ""}<span class="bb-card-title">${esc(item.title)}</span>${this.priority(item.fields.priority)}</span>
+        <span class="bb-card-top">${this.code(item, " ")}${epic ? epicBadge() : ""}${this.priority(item.fields.priority)}</span>
+        <span class="bb-card-title">${esc(item.title)}</span>
         ${item.summary ? `<span class="bb-card-summary">${esc(item.summary)}</span>` : ""}
         ${epic ? this.progress(item) : ""}
         <span class="bb-card-meta">
-          ${item.weight ? `<span class="bb-weight" title="Weight: lower comes first">${esc(item.weight)}</span>` : ""}
+          ${item.weight ? `<span class="bb-weight" title="Weight: lower comes first">Weight ${esc(item.weight)}</span>` : ""}
           ${others.map((f) => this.chip(f.name, item.fields[f.name])).join("")}
           ${signals ? `<span class="bb-signals">${signals}</span>` : ""}
         </span>
       </a>`;
   }
 
-  // An epic's progress: a bar with a segment for each item in it, coloured by the item's status
-  // (done first, then set aside, under way, ready, waiting and the rest), and how many are done.
+  // Only completed members fill the neutral track, so 0/4 is empty and 4/4 is full.
   progress(epic, { large = false } = {}) {
     const s = this.snap;
     const { order } = core.epicOrder(s, epic.slug);
-    const at = (item) => STAGES.indexOf(core.stage(s, item));
-    const items = [...order].sort((a, b) => at(a) - at(b) || core.rank(s, "status", a.fields.status) - core.rank(s, "status", b.fields.status));
     const done = order.filter((item) => item.done).length;
     return `
       <span class="bb-progress ${large ? "is-large" : ""}">
-        ${large ? "" : icon("epic")}
-        <span class="bb-progress-bar ${order.length > 24 ? "is-dense" : ""}" aria-hidden="true">${items.map((item) =>
-          `<span class="tone-${this.tone("status", item.fields.status)}"></span>`).join("")}</span>
-        <span class="bb-progress-count" aria-hidden="true">${done}/${order.length}</span>
+        <progress class="bb-progress-bar" value="${done}" max="${Math.max(1, order.length)}" aria-hidden="true"></progress>
+        <span class="bb-progress-count" aria-hidden="true">${done}/${order.length} done</span>
         <span class="bb-sr">${done} of ${plural(order.length, "item")} done</span>
       </span>`;
   }
@@ -924,7 +1052,7 @@ class Board {
               ${ids ? `<td class="bb-num bb-nowrap">${this.code(item) || '<span class="bb-faint">—</span>'}</td>` : ""}
               <td class="bb-td-item"><a href="${esc(this.href({ item: item.slug }))}" data-item="${esc(item.slug)}">${core.isEpic(item) ? epicBadge() : ""}${esc(item.title)}</a><span>${esc(item.summary)}</span></td>
               <td class="bb-num">${esc(item.weight || "—")}</td>
-              ${s.fields.map((f) => `<td>${f.name === "priority" ? this.priority(item.fields.priority, { text: true }) : item.fields[f.name] ? this.chip(f.name, item.fields[f.name]) : '<span class="bb-faint">—</span>'}</td>`).join("")}
+              ${s.fields.map((f) => `<td>${f.name === "priority" ? this.priority(item.fields.priority) : item.fields[f.name] ? this.chip(f.name, item.fields[f.name]) : '<span class="bb-faint">—</span>'}</td>`).join("")}
               ${epics ? `<td class="bb-td-epic">${this.epicCell(item)}</td>` : ""}
               <td class="bb-num">${item.blockers.length || '<span class="bb-faint">—</span>'}</td>
               <td class="bb-num bb-nowrap">${esc(item.created || "—")}</td>
@@ -983,13 +1111,13 @@ depends_on: []
     if (!item) {
       this.el.sheet.innerHTML = "";
       document.documentElement.classList.remove("bb-locked");
-      for (const el of this.root.querySelectorAll('.bb-header, .bb-toolbar, .bb-main')) el.inert = false;
+      for (const el of this.root.querySelectorAll('.bb-header, .bb-trial, .bb-toolbar, .bb-main')) el.inert = false;
       if (wasOpen && this.lastItem) this.root.querySelector(`#bb-card-${CSS.escape(this.lastItem)}, [data-row="${CSS.escape(this.lastItem)}"] a`)?.focus();
       return;
     }
     this.lastItem = item.slug;
     document.documentElement.classList.add("bb-locked");
-    for (const el of this.root.querySelectorAll('.bb-header, .bb-toolbar, .bb-main')) el.inert = true;
+    for (const el of this.root.querySelectorAll('.bb-header, .bb-trial, .bb-toolbar, .bb-main')) el.inert = true;
 
     const file = s.path ? core.resolvePath(s.path, item.file) : "";
     const editor = core.editorURL(s.editor, file);
@@ -1001,7 +1129,7 @@ depends_on: []
       <div class="bb-relation"><h3>${title}</h3>${slugs.length ? `<ul>${slugs.map((slug) => {
         const other = s.bySlug.get(slug);
         return other
-          ? `<li><a href="${esc(this.href({ item: slug }))}" data-item="${esc(slug)}" class="${other.done ? "is-done" : ""}"><span class="bb-dot tone-${this.tone("status", other.fields.status)}" title="${esc(core.label(other.fields.status))}"></span>${esc(other.title)}</a></li>`
+          ? `<li><a href="${esc(this.href({ item: slug }))}" data-item="${esc(slug)}" class="${other.done ? "is-done" : ""}">${other.done ? icon("check") : icon(other.open ? "info" : "hide")}<span>${esc(other.title)} <span class="bb-relation-state">(${esc(core.label(other.fields.status) || "No status")})</span></span></a></li>`
           : `<li class="bb-missing">${esc(slug)} <span>(missing)</span></li>`;
       }).join("")}</ul>` : `<p class="bb-faint">None</p>`}</div>`;
 
@@ -1056,6 +1184,7 @@ depends_on: []
               ? `<a class="bb-path" href="${esc(editor)}" data-el-open title="Open in your editor (e)">${icon("edit")}<span>${esc(s.dir)}/${esc(item.file)}</span></a>`
               : `<span class="bb-path">${esc(s.dir)}/${esc(item.file)}</span>`}
             <span class="bb-spacer"></span>
+            <button type="button" class="bb-icon-btn" data-action="trial-notes" title="Trial notes" aria-label="Trial notes">${icon("edit")}</button>
             <button type="button" class="bb-btn bb-prompt-btn" data-action="prompt" title="${epic ? "Copy the epic and its items, in work order, as a prompt for an agent (c)" : "Copy as a prompt for an agent (c)"}" aria-label="${epic ? "Copy epic as prompt" : "Copy as prompt"}">${icon("copy")}<span>${epic ? "Copy epic as prompt" : "Copy as prompt"}</span></button>
             <button type="button" class="bb-icon-btn" data-action="prev" title="Previous (k)" aria-label="Previous item">${icon("up")}</button>
             <button type="button" class="bb-icon-btn" data-action="next" title="Next (j)" aria-label="Next item">${icon("down")}</button>
@@ -1145,7 +1274,7 @@ depends_on: []
     return `
       <section class="bb-epic" aria-labelledby="bb-epic-head">
         <div class="bb-epic-head">
-          <h3 id="bb-epic-head">${icon("epic")}<span>Epic</span></h3>
+          <h3 id="bb-epic-head">Work order</h3>
           ${this.epicFilterOn() ? `<button type="button" class="bb-link-btn" data-action="show-epic" title="Show only this epic's items on the board">Show on the board</button>` : ""}
         </div>
         ${this.progress(epic, { large: true })}

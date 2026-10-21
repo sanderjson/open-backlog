@@ -10,6 +10,7 @@ tags: ["review-2026-10", "vendor"]
 created: 2026-10-18
 depends_on: [tooling-hygiene]
 related: [small-fixes-from-the-review]
+horizon: unplanned
 ---
 
 # Update the vendored parsers with recorded versions

@@ -10,6 +10,7 @@ tags: ["ui", "a11y"]
 created: 2026-10-18
 depends_on: [compact-header-with-version-and-github-links, the-board-works-in-grayscale, colour-palette, item-details-open-in-a-native-dialog]
 related: [a-refreshed-board-everyone-can-read-and-use, audit-what-each-card-mark-tells-a-reader, epic-cards-stand-out]
+horizon: next
 ---
 
 # A visual legend for card symbols

@@ -10,6 +10,7 @@ tags: [ui, epics]
 created: 2026-10-17
 depends_on: []
 related: [colour-palette]
+horizon: unplanned
 ---
 
 # Epic cards look unmistakably different

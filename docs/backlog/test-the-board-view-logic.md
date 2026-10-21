@@ -10,6 +10,7 @@ tags: [review-2026-10, tests]
 created: 2026-10-17
 depends_on: []
 related: [search-matches-tags, list-sorts-both-ways]
+horizon: unplanned
 ---
 
 # Test the board's view logic without a browser

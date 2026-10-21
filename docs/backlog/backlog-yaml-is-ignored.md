@@ -10,6 +10,7 @@ tags: [review-2026-10]
 created: 2026-10-17
 depends_on: []
 related: []
+horizon: unplanned
 ---
 
 # backlog.yaml is sent by hosts but ignored by the board
