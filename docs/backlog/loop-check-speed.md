@@ -10,7 +10,7 @@ tags: [review-2026-10, performance]
 created: 2026-10-17
 depends_on: []
 related: [small-fixes-from-the-review]
-horizon: unplanned
+horizon: later
 ---
 
 # The dependency-loop check repeats work along long chains
@@ -47,6 +47,7 @@ past about a thousand items with long chains. Low priority: real backlogs are sm
 - Keep `indexProblems`/index scanning and other parsing optimizations out of this change. If
   measurements identify another bottleneck, create a separate item with its own evidence.
 
-## Sprint boundary
-Independent stretch work, outside W-22 and the v0.6.0 release gate. Keep it an idea until the
-cycle-reporting contract and benchmark procedure are settled; it is not a few-line cleanup.
+## Notes
+Real backlogs run to tens or a few hundred items, where this takes milliseconds. It only bites
+in the thousands: 2,000 items in a chain take about 3 s, and near 4,500 the recursive walk
+overflows the stack (Node 26). Leave it an idea unless a project reports a backlog that big.

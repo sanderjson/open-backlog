@@ -5,6 +5,7 @@ status: in-progress
 priority: mid
 type: spike
 area: repo
+weight: 16
 horizon: now
 tags: ["roadmap"]
 created: 2026-10-21
@@ -88,6 +89,10 @@ Copy this for each session:
 - Epics and tasks:
 - Plans that do not fit, intended audience, or none:
 ```
+
+Setup evidence for W-43: a configured field is required, so 31 closed items had to be given
+`unplanned` before `check` passed, and any adopting project would face the same step. `next`
+doesn't read horizon at all.
 
 ## Outcome
 Pending the three sessions and maintainer review. Record keep, revise or remove, the reasons,

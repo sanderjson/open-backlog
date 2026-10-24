@@ -5,6 +5,7 @@ status: ready
 priority: mid
 type: spike
 area: repo
+weight: 19
 tags: [roadmap]
 created: 2026-10-20
 depends_on: [try-roadmap-horizons-in-our-backlog]
@@ -43,6 +44,13 @@ releases. The recommendation below remains open until the trial and maintainer r
   and audience, such as people outside the team?
 - **Install:** what would a project vendor for each option, and what does that cost a project
   that wants the backlog without the roadmap?
+- **Migration:** if horizon ships to adopting projects through `starter/` or the guide, can it
+  be optional? Today `check` requires every field with listed values on every item, closed ones
+  included. An existing backlog would therefore have to backfill every item before `check`
+  passes, as this backlog did with `unplanned`. An empty list (`[]`) makes the field optional
+  but drops its allowed values and their order. An optional or default setting would be a new
+  `backlog.yml` key. Record what an existing backlog must change under each option before
+  recommending one.
 - **Release:** shared versioning and CHANGELOG, or separate releases that have to track
   open-backlog's file format?
 - **Dependencies:** what open-roadmap would reuse from the core and the board (the parser,

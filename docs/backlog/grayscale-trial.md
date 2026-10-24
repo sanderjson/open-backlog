@@ -9,7 +9,7 @@ weight: 16
 tags: [ui, a11y]
 created: 2026-10-18
 depends_on: []
-related: [deliver-five-project-grayscale-trial, the-board-works-in-grayscale, collect-and-answer-feedback-from-the-projects-using-the-kit, audit-what-each-card-mark-tells-a-reader]
+related: [security-reports-have-a-private-route, deliver-five-project-grayscale-trial, the-board-works-in-grayscale, collect-and-answer-feedback-from-the-projects-using-the-kit, audit-what-each-card-mark-tells-a-reader]
 horizon: now
 ---
 
@@ -31,6 +31,8 @@ The maintainer requested an installable experience on 2026-10-21. W-45 provides
 recorder. Use [the update prompt](../trials/grayscale-preview.md) in each of the five projects
 and record its installation report in [the five-project record](../trials/five-project-notes.md).
 Use the pinned prerelease tag or its release package so all five projects run the same build.
+In each project, give W-39's feedback prompt before the update prompt, so its answers describe
+the version the project had.
 
 Use each board normally for a few days. Click **Trial notes** on the board or in item details
 whenever something helps or gets in the way. Saved notes append to that project's
@@ -61,6 +63,12 @@ greys the host page too; the preview's switch affects only the board.
   states need a mark of their own, and which epic cue you actually looked for.
 - **Anything about the header or the item details,** for W-36 and W-35. Both are being built
   during the trial, so pass these on as they come rather than at the end.
+
+## Review
+Stop on 2026-11-04, or sooner if the notes have stopped saying anything new. Summarise what
+there is, answer W-41's questions as well as the notes allow, and close this item. Extend once
+at most. Leave any security problem in the kit out of the notes and report it privately
+([W-46](security-reports-have-a-private-route.md)).
 
 ## Acceptance
 - A few days of use in all five projects, with notes recorded below per project (named

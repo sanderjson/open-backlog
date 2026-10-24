@@ -31,10 +31,9 @@ deserves an explicit answer, and the answer may be a narrow one.
    `gh issue list --json` so no token touches the kit, writes an item per open issue through
    `planCreate`, with the issue's URL in the item, once or on demand. That's the starter's "Move
    the project's ideas into the backlog" made mechanical: optional, Node-only, no server.
-3. **Links out, nothing more.** An item links to its issue. Today every extra front-matter key
-   becomes a choice field, so an `issue: https://…` key would turn into a one-value filter. A small
-   notion of link fields (`links:` as a list, or URL-valued keys shown as links in the sheet and
-   never as filters) fixes that cheaply and serves any tracker.
+3. **Links out, nothing more.** An item links to its issue. An `issue: https://…` key already
+   works: unknown keys are kept, searchable and copied into prompts, and don't become filters.
+   The sheet just doesn't show them as links, which is a small change that serves any tracker.
 
 ## Recommendation
 Options 2 and 3 and no live sync: import once with the CLI, link out from items, and keep the
@@ -46,7 +45,7 @@ prerequisite for import. Decide here; build items follow from the recorded decis
 - Record the maintainer's choice, reasons and explicit deferrals here: no integration, body
   links only, optional one-way import, and whether any structured link metadata has a concrete
   use case that existing body links cannot meet. A recommendation alone is not a completed
-  decision, and this sprint does not build an importer or live synchronization.
+  decision, and this discussion does not build an importer or live synchronization.
 - If import is selected, bound its future build: invocation/input through optional `gh`, which
   issues are included, title/body/source-URL and label/status mapping into the project's strict
   fields, and the behavior on a repeated import. Specify source identity and duplicate handling
@@ -56,7 +55,7 @@ prerequisite for import. Decide here; build items follow from the recorded decis
   field representation into build items only after those choices are made.
 - Update README's guidance to match the recorded decision and link the later build items here,
   with bounded acceptance and prerequisites. Do not implement those builds just to finish this
-  discussion. It can run alongside the sprint's delivery work and does not gate v0.6.0.
+  discussion. It gates no release.
 
 ## Decision record
 Pending the maintainer's choice. Capture the chosen option, source/re-import policy if relevant,

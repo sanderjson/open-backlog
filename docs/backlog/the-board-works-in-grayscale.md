@@ -8,8 +8,8 @@ area: board
 weight: 19
 tags: [ui, a11y]
 created: 2026-10-18
-depends_on: [audit-what-each-card-mark-tells-a-reader, grayscale-trial]
-related: [colour-palette, visual-legend-for-card-symbols, compact-header-with-version-and-github-links, item-details-open-in-a-native-dialog]
+depends_on: [audit-what-each-card-mark-tells-a-reader, grayscale-trial, compact-header-with-version-and-github-links]
+related: [colour-palette, visual-legend-for-card-symbols, item-details-open-in-a-native-dialog]
 horizon: next
 ---
 
@@ -71,7 +71,8 @@ The maintainer settles these from W-42's trial notes before the build starts.
 Everything else follows from the rule.
 
 ## Acceptance
-- With colour removed from the whole page (for example `filter: grayscale(1)` on the root), every
+- With colour removed from the whole page (for example `filter: grayscale(1)` on `html, dialog, dialog::backdrop`; on the root alone
+  it misses open dialogs), every
   state, priority, epic progress figure, relationship and notice can still be read. The browser
   tests include such a grayscale pass.
 - A repeat of W-40's glance test, on the same fixture cards in grayscale: the maintainer names

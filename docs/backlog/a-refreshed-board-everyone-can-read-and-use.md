@@ -8,7 +8,7 @@ area: board
 weight: 17
 tags: [ui, a11y]
 created: 2026-10-18
-items: [audit-what-each-card-mark-tells-a-reader, deliver-five-project-grayscale-trial, grayscale-trial, compact-header-with-version-and-github-links, item-details-open-in-a-native-dialog, the-board-works-in-grayscale, colour-palette, visual-legend-for-card-symbols]
+items: [audit-what-each-card-mark-tells-a-reader, deliver-five-project-grayscale-trial, grayscale-trial, compact-header-with-version-and-github-links, item-details-open-in-a-native-dialog, the-board-works-in-grayscale, retire-the-trial-tooling-for-v0-7-0, colour-palette, visual-legend-for-card-symbols]
 depends_on: []
 related: [collect-and-answer-feedback-from-the-projects-using-the-kit, header-layout, the-board-fits-a-host-page, themes]
 horizon: now
@@ -45,9 +45,12 @@ must describe the palette and card cues that actually ship.
   maintainer explicitly changes its scope and acceptance; closing the original members alone
   cannot complete the refresh.
 - **Plan, agreed 2026-10-18:** learn and build at the same time. The maintainer tries every
-  project's board in grayscale for a few days (W-42, an experiment with a bookmarklet, not a
-  release), alongside W-39's feedback round, and those notes decide W-41's questions. Meanwhile the header and the item details are built, since neither
-  depends on what the trial will teach. W-41, the palette and the legend follow the trial.
+  project's board in grayscale for a few days (W-42), alongside W-39's feedback round, and those
+  notes decide W-41's questions. Meanwhile the header and the item details can be built, since
+  neither depends on what the trial will teach; if they haven't started when the trial ends,
+  they simply follow it. W-41, the palette and the legend follow the trial.
+- **Scope change, 2026-10-21:** the trial became an installable prerelease, v0.7.0-preview.1
+  (W-45), with provisional W-41 cues and trial tooling. v0.7.0 starts from the preview.
 - **Two releases:** v0.7.0 carries W-36, the details build and W-41; v0.8.0 carries the palette
   build and W-37. Projects get the new header and details sooner, and their next feedback covers
   them. Each release runs the combined verification for what it carries.
@@ -57,8 +60,8 @@ must describe the palette and card cues that actually ship.
 
 ## Order
 Alongside all of it: **W-42, the grayscale trial,** a few days in every project, run with
-W-39's feedback round (W-39 isn't part of this epic). Projects stay on v0.6.0; the trial needs no
-release. Its notes decide W-41's questions, which depends on it, and may adjust the header and
+W-39's feedback round (W-39 isn't part of this epic). The five projects run v0.7.0-preview.1 (W-45);
+W-42 records each install. Its notes decide W-41's questions, which depends on it, and may adjust the header and
 details before v0.7.0.
 
 **Done**
@@ -80,7 +83,9 @@ details before v0.7.0.
    board, details included. It owns layout, hierarchy, labels, repeated marks and every
    non-colour cue, including epic progress.
 5. **v0.7.0 release:** combined verification for the header, details and W-41, in grayscale and
-   in today's colours.
+   in today's colours. [W-48](retire-the-trial-tooling-for-v0-7-0.md) is the release checklist:
+   what happens to the trial tooling, the release-notes fix and the update note for preview
+   installs.
 
 **v0.8.0: colour comes back**
 6. **W-14: palette decision, then its build.** Decides which colours return and where, on top of

@@ -9,7 +9,7 @@ weight: 16
 tags: [guidance, agent]
 created: 2026-10-18
 depends_on: []
-related: [answer-the-questions-a-project-update-raised, agent-guidance, github-issues-sync, grayscale-trial]
+related: [answer-the-questions-a-project-update-raised, agent-guidance, github-issues-sync, grayscale-trial, security-reports-have-a-private-route]
 horizon: now
 ---
 
@@ -64,6 +64,8 @@ other trackers bear on W-21, backlog size on W-27, and day-to-day use on the boa
 > file issues or post anywhere. If you didn't install or update the kit yourself, say so and work
 > from the files and the git history. Leave out anything private to this project (customer data,
 > credentials, internal hostnames, unreleased plans) and describe the setup in general terms.
+> If you find a security problem in the kit itself, leave it out of this reply and tell the
+> maintainer directly.
 >
 > **1. The setup (facts only)**
 > - The kit's version (the project's `VERSION` file) and where the kit is vendored.
@@ -100,8 +102,9 @@ suitable excerpts into this public record.
 
 ## Alongside: the grayscale trial
 [W-42](grayscale-trial.md) runs in the same projects on the same days: the maintainer uses each
-board in grayscale and notes what's missed. Paste those notes under the project's reply here or
-in W-42; W-42 owns them.
+board in grayscale and notes what's missed. Those notes go in
+[the five-project record](../trials/five-project-notes.md); W-42 owns them. Give this prompt
+before W-42's update prompt, so the reply describes the version the project had.
 
 ## Acceptance
 - Feedback from all five projects is recorded below under "Feedback received", one section per
