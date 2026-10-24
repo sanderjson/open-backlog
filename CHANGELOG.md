@@ -6,6 +6,14 @@ of the project, when it asks anything. The README's
 [Updating a project's copy](README.md#updating-a-projects-copy) has the short form, and
 [Releasing](README.md#releasing) says how an entry gets here.
 
+## Unreleased
+
+- **`new` and the board's New item need every field `backlog.yml` lists values for**, the
+  fields `check` requires. Without one, they name each missing field and its values and write
+  nothing, where before they wrote an item `check` then rejected. Nothing is filled in. A
+  script that calls `new` passes a `--field` for each of them (status, priority and type in the
+  starter). The examples in README, `--help`, the guide and the skill now do.
+
 ## v0.7.0-preview.1 - 2026-10-21
 
 Trial prerelease: pin `v0.7.0-preview.1` or use its release bundle and follow the

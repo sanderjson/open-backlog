@@ -18,6 +18,8 @@ const files = () => ({
 });
 
 const load = (f = files()) => core.parseBacklog({ files: f, dir: "docs/backlog", path: "/p/docs/backlog", writable: true });
+// A value for each of the fixture's strict fields, which a new item needs.
+const filled = { status: "idea", priority: "low", area: "ops" };
 
 test("reads items, fields and work order", () => {
   const s = load();
@@ -141,7 +143,17 @@ test("a new item gets a file and a row in the table it fits", () => {
 
   const again = load({ ...files(), ...writes });
   assert.deepEqual(again.problems.filter((p) => !p.notice).map((p) => p.slug), ["backups"]); // the fixture's own stale row
-  assert.equal(core.planCreate(again, { title: "Restore drill: monthly" }).slug, "restore-drill-monthly-2");
+  assert.equal(core.planCreate(again, { title: "Restore drill: monthly", fields: filled }).slug, "restore-drill-monthly-2");
+});
+
+test("a new item needs every field check would ask for, and none is filled in", () => {
+  const s = load();
+  assert.throws(() => core.planCreate(s, { title: "X" }), /^Error: a new item needs status \(idea, ready, in-progress, parked, done\), priority \(high, mid, low\) and area \(design, ops\)$/);
+  assert.throws(() => core.planCreate(s, { title: "X", fields: { ...filled, priority: " " } }), /^Error: a new item needs priority \(high, mid, low\)$/);
+  // A field with no list of values isn't strict, so it can be left out.
+  const open = { ...files(), "backlog.yml": files()["backlog.yml"].replace("area: [design, ops]", "area: []") };
+  const { writes } = core.planCreate(load(open), { title: "X", fields: { status: "idea", priority: "low" } });
+  assert.deepEqual(load({ ...open, ...writes }).problems.filter((p) => p.slug === "x" && !p.notice), []);
 });
 
 test("a new item can take a file name of the project's own", () => {
@@ -154,12 +166,12 @@ test("a new item can take a file name of the project's own", () => {
   const again = load({ ...files(), ...writes });
   assert.equal(again.bySlug.get("ops-07-restore").title, "Restore drill");
   assert.deepEqual(again.problems.filter((p) => !p.notice).map((p) => p.slug), ["backups"]); // the fixture's own stale row
-  assert.equal(core.planCreate(s, { title: "Restore drill" }).slug, "restore-drill", "without a slug, the title names it");
+  assert.equal(core.planCreate(s, { title: "Restore drill", fields: filled }).slug, "restore-drill", "without a slug, the title names it");
 
-  const epic = core.planCreate(load(epicFiles()), { title: "Gift cards", slug: "pay-gift", epic: "checkout" }).writes;
+  const epic = core.planCreate(load(epicFiles()), { title: "Gift cards", slug: "pay-gift", fields: filled, epic: "checkout" }).writes;
   assert.match(epic["checkout.md"], /^items: \[.*, pay-gift\]$/m);
   const managed = { ...files(), "README.md": "# Backlog\n\n<!-- open-backlog:index start -->\n<!-- open-backlog:index end -->\n" };
-  const ided = core.planCreate(load(managed), { title: "Restore drill", slug: "ops-07-restore", fields: { area: "ops" } }).writes;
+  const ided = core.planCreate(load(managed), { title: "Restore drill", slug: "ops-07-restore", fields: filled }).writes;
   assert.match(ided["README.md"], /\[Restore drill\]\(ops-07-restore\.md\)/);
 
   const custom = load({ ...files(), "backlog.yml": files()["backlog.yml"] + "index: INDEX.md\n" });
@@ -177,7 +189,7 @@ test("a new item can take a file name of the project's own", () => {
     [s, "readme", /README or index/],
     [custom, "index", /README or index/],
   ]) {
-    assert.throws(() => core.planCreate(backlog, { title: "X", slug: requested }), message, requested);
+    assert.throws(() => core.planCreate(backlog, { title: "X", slug: requested, fields: filled }), message, requested);
   }
 });
 
@@ -191,7 +203,7 @@ test("hosts send the template, and it's not an item", () => {
 
   const s = load({ ...files(), [core.TEMPLATE_FILE]: "# {{title}}\n\n## Notes\n\nAbout {{title}}.\n" });
   assert.equal(s.bySlug.has("_template"), false);
-  const { writes } = core.planCreate(s, { title: "Restore drill" }, "2026-10-16");
+  const { writes } = core.planCreate(s, { title: "Restore drill", fields: filled }, "2026-10-16");
   assert.match(writes["restore-drill.md"], /\n# Restore drill\n\n## Notes\n\nAbout Restore drill\.\n$/);
 });
 
@@ -424,8 +436,8 @@ test("a new item can go straight into an epic", () => {
   const again = load({ ...epicFiles(), ...writes });
   assert.deepEqual(core.epicsOf(again, "gift-cards").map((e) => e.slug), ["checkout"]);
   assert.deepEqual(again.problems.filter((p) => !p.notice).map((p) => p.slug), ["backups"]);
-  assert.throws(() => core.planCreate(s, { title: "X", epic: "ghost" }), /no item called ghost/);
-  assert.throws(() => core.planCreate(s, { title: "X", epic: "refund-page" }), /refund-page is in the epic checkout/);
+  assert.throws(() => core.planCreate(s, { title: "X", fields: filled, epic: "ghost" }), /no item called ghost/);
+  assert.throws(() => core.planCreate(s, { title: "X", fields: filled, epic: "refund-page" }), /refund-page is in the epic checkout/);
 });
 
 test("a new item is dated by the local day, not the UTC one", () => {
@@ -438,7 +450,7 @@ test("a new item is dated by the local day, not the UTC one", () => {
   assert.equal(day("America/Los_Angeles", "2026-10-18T03:00:00Z"), "2026-10-17");
   assert.equal(day("UTC", "2026-10-17T22:39:00Z"), "2026-10-17");
   assert.equal(core.localDay(new Date(2026, 0, 5, 0, 1)), "2026-01-05");
-  assert.match(core.planCreate(load(), { title: "Today" }).writes["today.md"], new RegExp(`^created: ${core.localDay()}$`, "m"));
+  assert.match(core.planCreate(load(), { title: "Today", fields: filled }).writes["today.md"], new RegExp(`^created: ${core.localDay()}$`, "m"));
 });
 
 test("a new item can be an epic over existing items", () => {
@@ -457,13 +469,13 @@ test("a new item can be an epic over existing items", () => {
   assert.deepEqual(core.epicOrder(again, "brand-refresh").order.map((i) => i.slug), ["palette", "logo"], "logo waits on palette");
   assert.deepEqual(again.problems.filter((p) => !p.notice).map((p) => p.slug), ["backups"]);
 
-  const create = (items, more = {}) => () => core.planCreate(s, { title: "X", items, ...more });
+  const create = (items, more = {}) => () => core.planCreate(s, { title: "X", fields: filled, items, ...more });
   assert.throws(create(["logo", "ghost"]), /there's no item called ghost/);
   assert.throws(create(["logo", "logo"]), /logo is listed twice/);
   assert.throws(create(["checkout"]), /checkout is an epic, and epics can't contain epics/);
   assert.throws(create([]), /an epic needs at least one item/);
   assert.throws(create(["logo"], { epic: "checkout" }), /a new epic can't go into an epic/);
-  assert.equal(core.planCreate(s, { title: "X" }).writes["x.md"].includes("items:"), false);
+  assert.equal(core.planCreate(s, { title: "X", fields: filled }).writes["x.md"].includes("items:"), false);
 });
 
 test("an epic copies as one prompt for an agent", () => {
@@ -648,8 +660,8 @@ test("items have short IDs: shown with the prefix, checked, assigned, searched a
   assert.deepEqual(load().problems.filter((p) => /ID/.test(p.message)), [], "a backlog without IDs isn't told about each item");
 
   // New items: numbered in a numbered backlog or an empty one, not in one that doesn't number yet.
-  assert.match(core.planCreate(s, { title: "Icons" }, "2026-10-18").writes["icons.md"], /^---\ntitle: Icons\nid: 8\n/);
-  assert.doesNotMatch(core.planCreate(load(), { title: "Icons" }).writes["icons.md"], /^id:/m);
+  assert.match(core.planCreate(s, { title: "Icons", fields: filled }, "2026-10-18").writes["icons.md"], /^---\ntitle: Icons\nid: 8\n/);
+  assert.doesNotMatch(core.planCreate(load(), { title: "Icons", fields: filled }).writes["icons.md"], /^id:/m);
   assert.match(core.planCreate(load({}), { title: "First" }).writes["first.md"], /^id: 1$/m);
 
   // Search: the ID with or without its hyphen, in any case; a bare number is text.
@@ -682,7 +694,7 @@ test("the index leads with an ID column once items have IDs, and checks it", () 
   assert.deepEqual(stale.problems.filter((p) => /index/.test(p.message)).map((p) => p.message), ["README.md's index says id W-9, the item says W-2"]);
   // A hand-written table with an ID column gets the new item's ID in it.
   const hand = { ...f, "README.md": "| ID | Item | Status |\n|---|---|---|\n| W-1 | [Brand palette](palette.md) | idea |\n| W-2 | [Logo build](logo.md) | idea |\n|  | [Backups](backups.md) | done |\n" };
-  assert.match(core.planCreate(load(hand), { title: "Icons", fields: { status: "idea" } }).writes["README.md"], /^\| W-3 \| \[Icons\]\(icons\.md\) \| idea \|$/m);
+  assert.match(core.planCreate(load(hand), { title: "Icons", fields: filled }).writes["README.md"], /^\| W-3 \| \[Icons\]\(icons\.md\) \| idea \|$/m);
 });
 
 test("ids numbers the items without one, oldest first, under their titles", () => {

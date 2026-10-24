@@ -1,7 +1,7 @@
 ---
 title: "`new` refuses an item that `check` would reject"
 id: 49
-status: ready
+status: done
 priority: mid
 type: build
 area: cli
@@ -28,3 +28,14 @@ given, then exits 0 after writing an item `check` rejects. README's own `new` ex
 - The `new` examples in README, the guide and the skill give every required field.
 - A test: `new` with only a title fails on a copy of `starter/`; with every field it passes and
   `check` passes.
+
+## Done
+- `planCreate` in [web/core.js](../../web/core.js) refuses before writing anything when a field
+  with a list of values is empty, naming each one with its values. The CLI exits 2 with that
+  message, and the board's New item form shows it. A field with an empty list (`area: []`)
+  can still be left out.
+- Tests in [test/core.test.js](../../test/core.test.js), [test/cli.test.js](../../test/cli.test.js)
+  (including a copy of `starter/`) and [browser/board.spec.mjs](../../browser/board.spec.mjs). Tests
+  that made items with fields missing now give them all.
+- README, `--help`, the guide and the skill give every required field in their `new` examples.
+  CHANGELOG's Unreleased section says what projects need to change, and W-48 carries it into v0.7.0.

@@ -22,6 +22,9 @@ test('edit, drag, create and copy operate through the host', async ({ page, cont
     await page.getByRole('button', { name: 'New item', exact: true }).click();
     const dialog = page.locator('dialog[open]');
     await dialog.getByLabel('Title', { exact: true }).fill('Gamma');
+    // Without a priority and an area, check would reject it, so nothing is written.
+    await dialog.getByRole('button', { name: 'Create', exact: true }).click();
+    await expect(dialog.locator('.bb-error')).toHaveText('a new item needs priority (high, mid, low) and area (one, two)');
     await dialog.getByRole('combobox', { name: 'Priority', exact: true }).selectOption('mid');
     await dialog.getByRole('combobox', { name: 'Area', exact: true }).selectOption('one');
     await dialog.getByRole('button', { name: 'Create', exact: true }).click();

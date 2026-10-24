@@ -128,7 +128,10 @@ test('CLI new writes an item, an epic or an item in an epic, and prints what it 
 test('CLI new refuses anything wrong before writing, on stderr with exit 2', async (t) => {
   const { dir, snapshot } = await creatable(t);
   const before = await snapshot();
+  const filled = ['--field', 'status=idea', '--field', 'priority=low'];
   for (const [args, message] of [
+    [['X', dir], /a new item needs status \(idea, ready, done\) and priority \(high, low\)/],
+    [['X', dir, '--field', 'status=idea'], /a new item needs priority \(high, low\)/],
     [['X', dir, '--colour', 'red'], /new doesn't take --colour/],
     [['X', dir, '--field', 'status=bogus'], /bogus/],
     [['X', dir, '--field', 'kind=ops'], /there's no field called kind; the fields are status, priority, epic/],
@@ -139,20 +142,20 @@ test('CLI new refuses anything wrong before writing, on stderr with exit 2', asy
     [['X', dir, '--epic', 'launch', '--epic', 'launch'], /--epic is given twice/],
     [['X', dir, '--items', 'a', '--epic', 'launch'], /--items and --epic can't go together/],
     [['X', dir, '--items', ' , '], /--items needs at least one item slug/],
-    [['X', dir, '--items', 'a,ghost'], /there's no item called ghost/],
-    [['X', dir, '--items', 'b,b'], /b is listed twice/],
-    [['X', dir, '--items', 'launch'], /launch is an epic, and epics can't contain epics/],
-    [['X', dir, '--epic', 'a'], /a is in the epic launch/],
+    [['X', dir, ...filled, '--items', 'a,ghost'], /there's no item called ghost/],
+    [['X', dir, ...filled, '--items', 'b,b'], /b is listed twice/],
+    [['X', dir, ...filled, '--items', 'launch'], /launch is an epic, and epics can't contain epics/],
+    [['X', dir, ...filled, '--epic', 'a'], /a is in the epic launch/],
     [['X', join(dir, 'missing')], /ENOENT/],
     [['--field', 'status=idea'], /new needs a title/],
     [['X', dir, 'extra'], /new takes a title and a directory, not extra/],
     [['X', dir, '--slug'], /--slug needs a value/],
     [['X', dir, '--slug='], /--slug needs a value/],
     [['X', dir, '--slug', 'x', '--slug', 'y'], /--slug is given twice/],
-    [['X', dir, '--slug', 'a'], /a\.md already exists/],
-    [['X', dir, '--slug', 'x.md'], /without \.md/],
-    [['X', dir, '--slug', '../x'], /can't be a slug/],
-    [['X', dir, '--slug', 'README'], /README or index/],
+    [['X', dir, ...filled, '--slug', 'a'], /a\.md already exists/],
+    [['X', dir, ...filled, '--slug', 'x.md'], /without \.md/],
+    [['X', dir, ...filled, '--slug', '../x'], /can't be a slug/],
+    [['X', dir, ...filled, '--slug', 'README'], /README or index/],
   ]) {
     const result = run('new', ...args);
     assert.equal(result.status, 2, `${args.join(' ')}: ${result.stdout}${result.stderr}`);
@@ -165,6 +168,20 @@ test('CLI new refuses anything wrong before writing, on stderr with exit 2', asy
   assert.match(help.stdout, /new "<title>" \[directory\] \[--field name=value\]/);
   assert.match(help.stdout, /--items cart-rules,payment-retry,receipt-email/);
   assert.match(help.stdout, /\[--slug <name>\]/);
+});
+
+test('CLI new in a starter backlog takes every required field, and then check passes', async (t) => {
+  const dir = await fs.mkdtemp(join(tmpdir(), 'backlog-starter-'));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  await fs.cp(fileURLToPath(new URL('../starter', import.meta.url)), dir, { recursive: true });
+  const bare = run('new', 'Export to CSV', dir);
+  assert.equal(bare.status, 2);
+  assert.match(bare.stderr, /a new item needs status \(idea, ready, in-progress, parked, done\), priority \(high, mid, low\) and type \(build, spike, discuss, epic\)/);
+  await assert.rejects(fs.access(join(dir, 'export-to-csv.md')));
+  const full = run('new', 'Export to CSV', dir, '--field', 'status=idea', '--field', 'priority=mid', '--field', 'type=build');
+  assert.equal(full.status, 0, full.stderr);
+  const check = run('check', dir);
+  assert.equal(check.status, 0, check.stdout);
 });
 
 test('CLI new --slug names the file the project\'s way, in the index and the epic', async (t) => {

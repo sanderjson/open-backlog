@@ -997,6 +997,12 @@ export function planCreate(s, { title = "", weight = "", fields = {}, tags = [],
     if (problem) throw new Error(problem);
     values[name] = v;
   }
+  // Every field with a list of values needs one, as check says; none is filled in for it.
+  const missing = s.fields.filter((f) => f.strict && !values[f.name]);
+  if (missing.length) {
+    const named = missing.map((f) => `${f.name} (${f.values.join(", ")})`);
+    throw new Error(`a new item needs ${named.length > 1 ? `${named.slice(0, -1).join(", ")} and ${named.at(-1)}` : named[0]}`);
+  }
   const target = epic ? itemCalled(s, epic) : null;
   if (target) canListItems(s, target);
   // `items` makes the new item an epic over existing items, in work order.

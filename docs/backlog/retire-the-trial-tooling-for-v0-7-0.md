@@ -32,5 +32,7 @@ This is the release checklist for v0.7.0, after W-41.
   `awk -v h="## $v - " 'index($0,h)==1{p=1;next} p&&/^## /{exit} p' CHANGELOG.md`.
 - The v0.7.0 CHANGELOG has a short "Updating from the preview" note: save any unsent trial note
   first, replace `web/` and the CLI together, and `_trial-notes.md` can be kept or deleted.
+- Its Unreleased section becomes part of the v0.7.0 entry. That includes W-49's ask of
+  projects: `new` now needs every required field, so scripts that call it pass them all.
 - Before tagging, the maintainer opens the board once in Firefox and Safari as well as Chrome.
 - `npm test`, `npm run test:silent` and `check` pass.

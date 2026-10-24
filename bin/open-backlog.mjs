@@ -18,15 +18,16 @@ Directory defaults to docs/backlog. Index generation replaces only a marked regi
 gives every item without an ID the next free numbers, oldest first.
 
 new writes an item from _template.md and its index row. --field sets a choice field (once per
-field), --items makes the item an epic over those items in work order, and --epic adds it to an
-existing epic. The file is named after the title unless --slug gives the name without .md, for a
-project that names items its own way. If anything is wrong, it says why and writes nothing.
+field), and every field backlog.yml lists values for needs one, as check does. --items makes the
+item an epic over those items in work order, and --epic adds it to an existing epic. The file is
+named after the title unless --slug gives the name without .md, for a project that names items
+its own way. If anything is wrong, it says why and writes nothing.
 
-Examples:
-  node bin/open-backlog.mjs new "Export to CSV" --field status=idea --field priority=mid --tags export
-  node bin/open-backlog.mjs new "Retry failed payments" --epic checkout --field status=ready
-  node bin/open-backlog.mjs new "Checkout v2" --items cart-rules,payment-retry,receipt-email
-  node bin/open-backlog.mjs new "Export to CSV" --slug api-07-export
+Examples, for the starter's fields (status, priority and type):
+  node bin/open-backlog.mjs new "Export to CSV" --field status=idea --field priority=mid --field type=build --tags export
+  node bin/open-backlog.mjs new "Retry failed payments" --epic checkout --field status=ready --field priority=high --field type=build
+  node bin/open-backlog.mjs new "Checkout v2" --items cart-rules,payment-retry,receipt-email --field status=idea --field priority=high --field type=epic
+  node bin/open-backlog.mjs new "Export to CSV" --slug api-07-export --field status=idea --field priority=mid --field type=build
 `;
 
 async function read(dir) {

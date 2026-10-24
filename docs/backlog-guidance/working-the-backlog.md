@@ -76,8 +76,8 @@ When asked to group items into an epic, make the epic. An epic is an item whose 
 an `items` list. Nothing else makes one, and nothing in `backlog.yml` turns epics on.
 
 Where the project has the CLI (see below), `node bin/open-backlog.mjs new "<title>" docs/backlog
---items first,second,third` writes the file and its index row (steps 1 and 5) after checking every
-slug; then fill in its text. Without it, write them by hand. The rest holds either way.
+--items first,second,third`, with a `--field` for each field `backlog.yml` lists values for, writes
+the file and its index row (steps 1 and 5) after checking every slug; then fill in its text. Without it, write them by hand. The rest holds either way.
 
 1. Create `<epic-slug>.md` like any item, with `items: [first, second, third]` in the order the
    work should go, dependencies permitting. Its text says what the whole is for (`## Why`) and how
@@ -167,11 +167,12 @@ node bin/open-backlog.mjs next docs/backlog             # what can start now, in
 node bin/open-backlog.mjs prompt <slug> docs/backlog    # the brief the board's "Copy as prompt" gives
 node bin/open-backlog.mjs index docs/backlog --check    # does the managed index need regenerating?
 node bin/open-backlog.mjs ids docs/backlog --write      # number the items that have no ID
-node bin/open-backlog.mjs new "<title>" docs/backlog --field status=idea --field priority=mid
+node bin/open-backlog.mjs new "<title>" docs/backlog --field status=idea --field priority=mid --field type=build
                                                         # a new item and its index row
 ```
 
-`new` also takes `--weight <n>`, `--tags a,b`, `--items a,b,c` (the new item is an epic over those,
+`new` needs a `--field` for every field `backlog.yml` lists values for, as `check` does (the
+starter's are status, priority and type), and fills none in. It also takes `--weight <n>`, `--tags a,b`, `--items a,b,c` (the new item is an epic over those,
 in work order), `--epic <slug>` (the new item goes into that epic) and `--slug <name>` (the file is
 `<name>.md`, for a project that names items its own way, rather than the title's slug). It checks everything before
 writing and, if anything is wrong, says why on stderr, exits 2 and writes nothing.

@@ -121,7 +121,7 @@ in W-44 over three planning sessions, then use them to answer W-43's repository 
 | W-15 | [The CLI creates items and epics](cli-creates-items-and-epics.md) | 14 | done | mid | build | unplanned |
 | W-34 | [new takes a custom file name with --slug](new-takes-a-custom-file-name-with-slug.md) | 16 | done | mid | build | unplanned |
 | W-21 | [Sync with GitHub Issues, or not](github-issues-sync.md) | 20 | ready | low | discuss | unplanned |
-| W-49 | [`new` refuses an item that `check` would reject](new-refuses-an-item-missing-a-required-field.md) | 21 | ready | mid | build | next |
+| W-49 | [`new` refuses an item that `check` would reject](new-refuses-an-item-missing-a-required-field.md) | 21 | done | mid | build | next |
 
 ### Repo
 

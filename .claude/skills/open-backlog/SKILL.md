@@ -25,7 +25,8 @@ open-backlog repo.
 - An epic is an item with `items: [slugs]` in work order. Nothing else makes one. `type: epic`
   only if the list allows it. Epics can't contain epics, and the member items' files stay as they
   are. Asked to roll items up into an epic, make the epic file and its index row, and say where it
-  is: with the CLI, `new "<title>" docs/backlog --items a,b,c`; without it, by hand.
+  is: with the CLI, `new "<title>" docs/backlog --items a,b,c` plus its fields; without it, by
+  hand.
 - A status change goes in the front matter **and** the index row: the active status when you
   start, the done status when you finish. An epic is done only when every item in it is and its
   own acceptance holds.
@@ -49,7 +50,9 @@ open-backlog repo.
   each taking the folder as an argument, and `new "<title>"` with `--field name=value`, `--weight`,
   `--tags`, `--items` (an epic), `--epic` (into one) or `--slug` (the project's own file name).
   Prefer `new` to writing a new item by hand: it validates everything first and writes the file
-  and the index row together.
+  and the index row together. Give a `--field` for every field `backlog.yml` lists values for
+  (`--field status=idea --field priority=mid --field type=build` in the starter); `new` refuses
+  without them and fills none in.
 - The board's search matches words in titles, slugs, text, tags and field values, and takes
   filters: `#tag`, `field:value` (`status:ready`), `is:epic`. Quotes keep a phrase or literal text.
   Tell the user to type `is:epic` to find an epic you made.
